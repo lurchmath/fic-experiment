@@ -27,3 +27,12 @@ console.log( 'Statement in Environment?',
              new Environment( new Statement() ).children().length )
 console.log( 'Environment in Statement?',
              new Statement( new Environment() ).children().length )
+
+console.log( 'Verifying that these things don\'t have identifiers by default...' )
+console.log( 'LC:', new LC().identifier )
+console.log( 'Statement:', new Statement().identifier )
+console.log( 'Environment:', new Environment().identifier )
+console.log( 'Verifying that these things aren\'t quantifiers by default...' )
+console.log( 'LC:', new LC().isAQuantifier )
+console.log( 'Statement:', new Statement().isAQuantifier )
+console.log( 'Environment:', new Environment().isAQuantifier )
