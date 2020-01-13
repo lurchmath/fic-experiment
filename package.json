@@ -15,5 +15,8 @@
   "bugs": {
     "url": "https://github.com/lurchmath/fic-experiment/issues"
   },
-  "homepage": "https://github.com/lurchmath/fic-experiment#readme"
+  "homepage": "https://github.com/lurchmath/fic-experiment#readme",
+  "dependencies": {
+    "openmath-js": "^1.2.0"
+  }
 }
