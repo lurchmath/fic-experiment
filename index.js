@@ -36,3 +36,16 @@ console.log( 'Verifying that these things aren\'t quantifiers by default...' )
 console.log( 'LC:', new LC().isAQuantifier )
 console.log( 'Statement:', new Statement().isAQuantifier )
 console.log( 'Environment:', new Environment().isAQuantifier )
+
+console.log( 'Verify that we can play with given/claim status...' )
+console.log( 'Default given value:', new LC().isAGiven )
+console.log( 'Default claim value:', new LC().isAClaim )
+var tmp = new LC()
+console.log( 'Making it a given...' )
+tmp.isAGiven = true
+console.log( 'Now the given value:', tmp.isAGiven )
+console.log( 'Now the claim value:', tmp.isAClaim )
+console.log( 'Making it a claim...' )
+tmp.isAClaim = true
+console.log( 'Now the given value:', tmp.isAGiven )
+console.log( 'Now the claim value:', tmp.isAClaim )

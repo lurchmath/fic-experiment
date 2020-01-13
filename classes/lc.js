@@ -7,6 +7,17 @@ class LC extends Structure {
     if ( child instanceof LC )
       Structure.prototype.insertChild.call( this, child, beforeIndex )
   }
+  // LCs have the isAGiven boolean, which defaults to false.
+  // We also define the isAClaim boolean, which is !isAGiven.
+  // Both of these use the private internal attribute _given.
+  constructor ( ...children ) {
+    super( ...children )
+    this._given = false
+  }
+  get isAGiven () { return this._given }
+  set isAGiven ( value ) { this._given = value }
+  get isAClaim () { return !this._given }
+  set isAClaim ( value ) { this._given = !value }
 }
 
 class Statement extends LC {
@@ -20,9 +31,9 @@ class Statement extends LC {
   // By default, neither of these options is in play.
   // Clients can set them manually by altering .identifier/.isAQuantifier.
   constructor ( ...children ) {
-    super( ...children );
-    this.identifier = null;
-    this.isAQuantifier = false;
+    super( ...children )
+    this.identifier = null
+    this.isAQuantifier = false
   }
 }
 
