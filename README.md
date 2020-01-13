@@ -12,3 +12,12 @@ Tests of the Lurch design team's FIC deduction ideas
  1. OpenMath - [see here](https://lurchmath.github.io/openmath-js/site/)
  2. Structure - [see here](https://github.com/lurchmath/lde/blob/master/src/structure.litcoffee)
 
+## To see the latest features
+
+Let's be honest, this repo just began, and does next to nothing.
+Thus the "latest features" means some tiny script that verifies that the tiny
+pieces we've assembled aren't completely broken.  But do this.
+
+```sh
+node index.js
+```
