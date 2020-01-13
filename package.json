@@ -17,6 +17,5 @@
   },
   "homepage": "https://github.com/lurchmath/fic-experiment#readme",
   "dependencies": {
-    "openmath-js": "^1.2.0"
   }
 }
