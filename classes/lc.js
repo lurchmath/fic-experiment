@@ -53,6 +53,112 @@ class LC extends Structure {
   }
   // An LC is said to be atomic if it has no children.
   get isAtomic () { return this.children().length == 0 }
+  // Reverse operation of the toString() functions defined below.
+  static fromString ( string ) {
+    const ident = /^[a-zA-Z_0-9]+/
+    var match
+    let stack = [ ]
+    let quantifier = false
+    let given = false
+    let position = 0
+    let setFlags = ( x ) => {
+      x.isAQuantifier = quantifier
+      x.isAGiven = given
+      quantifier = false
+      given = false
+      return x
+    }
+    // possible values of last: null : ~ identifier { } ( ) space
+    let last = null
+    let munge = ( n ) => {
+      last = string.substring( 0, n )
+      string = string.substring( n )
+      position += n
+    }
+    let stop = ( msg ) => {
+      throw( `Error at position ${position} `
+           + `(near "${string.substring(0,10)}"): ${msg}` )
+    }
+    let follows = ( ...list ) => {
+      return list.some( element => last == element )
+    }
+    while ( string.length > 0 ) {
+      // console.log( `@${position} reading "${string}"` )
+      // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
+      if ( string[0] == ':' ) {
+        if ( !follows( null, 'space', '~', '{' ) || given )
+          stop( 'Found a given marker (:) in the wrong place' )
+        given = true
+        munge( 1 )
+      } else if ( string[0] == '~' ) {
+        if ( !follows( null, 'space', ':', '{' ) || quantifier )
+          stop( 'Found a quantifier marker (~) in the wrong place' )
+        quantifier = true
+        munge( 1 )
+      } else if ( match = ident.exec( string ) ) {
+        let S = setFlags( new Statement() )
+        S.identifier = match[0]
+        stack.push( S )
+        munge( match[0].length )
+        last = 'identifier'
+      } else if ( string[0] == '{' ) {
+        if ( stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found an environment open bracket ({) inside a statement' )
+        let E = setFlags( new Environment() )
+        E._lastOpenBracket = true
+        stack.push( E )
+        munge( 1 )
+      } else if ( string[0] == '}' ) {
+        if ( given || quantifier )
+          stop( 'Either : or ~ (or both) tried to modify a close bracket (})' )
+        if ( stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found an environment close bracket (}) inside a statement' )
+        let args = [ ]
+        do { args.unshift( stack.pop() ) } while ( !args[0]._lastOpenBracket )
+        // console.log( '\targs: ' + args.map( x => x.toString() ).join( '; ' ) )
+        while ( args.length > 1 ) { args[0].insertChild( args.pop() ) }
+        delete args[0]._lastOpenBracket
+        stack.push( args[0] )
+        // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
+        munge( 1 )
+      } else if ( string[0] == '(' ) {
+        if ( stack.length == 0 || stack[stack.length-1] instanceof Environment )
+          stop( 'Found an open paren not following an identifier' )
+        stack[stack.length-1]._lastStatementHead = true
+        munge( 1 )
+      } else if ( string[0] == ')' ) {
+        if ( !stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found a close parent outside a statement' )
+        if ( given || quantifier )
+          stop( 'Either : or ~ (or both) tried to modify a close paren' )
+        let args = [ ]
+        do { args.unshift( stack.pop() ) } while ( !args[0]._lastStatementHead )
+        // console.log( '\targs: ' + args.map( x => x.toString() ).join( '; ' ) )
+        while ( args.length > 1 ) { args[0].insertChild( args.pop() ) }
+        delete args[0]._lastStatementHead
+        stack.push( args[0] )
+        // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
+        munge( 1 )
+      } else if ( string[0] == ',' ) {
+        if ( given || quantifier )
+          stop( 'Either : or ~ (or both) tried to modify a comma' )
+        if ( !stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found a comma outside a statement' )
+        munge( 1 )
+        last = 'space'
+      } else if ( /^ |^\t|^\n/.test( string[0] ) ) {
+        munge( 1 )
+        last = 'space'
+      } else {
+        stop( 'Unrecognized character' )
+      }
+    }
+    if ( stack.length > 1 )
+      stop( 'Unexpected end of input' )
+    if ( given || quantifier )
+      stop( 'Either : or ~ (or both) preceded the end of the input' )
+    return stack[0]
+  }
 }
 
 class Statement extends LC {
