@@ -9,5 +9,6 @@ function mixIn ( moduleName ) {
   '../dependencies/openmath.js',
   './lc.js',
   './statement.js',
-  './environment.js'
+  './environment.js',
+  './deduction.js'
 ].map( mixIn )
