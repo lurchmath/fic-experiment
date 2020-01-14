@@ -25,6 +25,28 @@ class LC extends Structure {
          + this.children().map( child => child.toString() ).join( ',' )
          + ')'
   }
+  // The conclusions of an LC X are all the Statements inside X, plus all the
+  // Statements inside claims inside X, plus all the Statements inside claims
+  // inside claims inside X, and so on, indenfinitely.
+  conclusions () {
+    let result = [ ]
+    this.children.map( child => {
+      if ( child instanceof Statement )
+        result.push( child )
+      else if ( child instanceof Environment && child.isAClaim )
+        result = result.concat( child.conclusions() )
+    } )
+    return result
+  }
+  // By the same definition, we might ask whether a given LC is a conclusion in
+  // one of its ancestors.
+  isAConclusionIn ( ancestor ) {
+    if ( !( this instanceof Statement ) ) return false
+    if ( this == ancestor ) return true
+    if ( this.isAGiven ) return false
+    if ( !this.parent() ) return true
+    return this.parent().isAConclusionIn( ancestor )
+  }
 }
 
 class Statement extends LC {
