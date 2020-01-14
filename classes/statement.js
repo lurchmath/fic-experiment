@@ -13,8 +13,17 @@ class Statement extends LC {
   // Clients can set them manually by altering .identifier/.isAQuantifier.
   constructor ( ...children ) {
     super( ...children )
-    this.identifier = null
-    this.isAQuantifier = false
+    this.isAQuantifier = false // indirectly uses an attribute; see below
+  }
+  get identifier () { return this.getAttribute( 'identifier' ) }
+  set identifier ( value ) {
+    this.setAttribute( 'identifier', value )
+    return value
+  }
+  get isAQuantifier () { return this.getAttribute( 'quantifier' ) == true }
+  set isAQuantifier ( value ) {
+    this.setAttribute( 'quantifier', !!value )
+    return value
   }
   // What do Statements look like, for printing/debugging purposes?
   toString () {
@@ -33,12 +42,7 @@ class Statement extends LC {
   // attribute and (b) is atomic.  You know, it's like "x" or something.
   get isAnIdentifier () { return !!this.identifier && this.isAtomic }
   // Hack for smart copying; see LC class for details:
-  copy () {
-    let result = LC.prototype.copy.call( this, Statement )
-    result.identifier = this.identifier
-    result.isAQuantifier = this.isAQuantifier
-    return result
-  }
+  copy () { return LC.prototype.copy.call( this, Statement ) }
 }
 
 module.exports.Statement = Statement

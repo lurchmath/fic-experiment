@@ -11,15 +11,15 @@ class LC extends Structure {
 
   // LCs have the isAGiven boolean, which defaults to false.
   // We also define the isAClaim boolean, which is !isAGiven.
-  // Both of these use the private internal attribute _given.
+  // Both of these use the private attribute "given."
   constructor ( ...children ) {
     super( ...children )
-    this._given = false
+    this.setAttribute( 'given', false )
   }
-  get isAGiven () { return this._given }
-  set isAGiven ( value ) { return this._given = value }
-  get isAClaim () { return !this._given }
-  set isAClaim ( value ) { return this._given = !value }
+  get isAGiven () { return this.getAttribute( 'given' ) }
+  set isAGiven ( value ) { return this.setAttribute( 'given', !!value ) }
+  get isAClaim () { return !this.getAttribute( 'given' ) }
+  set isAClaim ( value ) { return this.setAttribute( 'given', !value ) }
 
   // Abstract-like method that subclasses will fix:
   toString () {
@@ -37,7 +37,6 @@ class LC extends Structure {
     result.attributes = JSON.parse( JSON.stringify( this.attributes ) )
     result.childList = this.childList.map( child => child.copy() )
     result.childList.map( child => child.parentNode = result )
-    result._given = this._given
     return result
   }
 

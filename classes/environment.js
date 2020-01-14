@@ -1,24 +1,14 @@
 
 const { LC } = require( './lc.js' )
 
-// Environments can have a special flag called 'declaration' that can be one
-// of constant, variable, or none.  So we declare those constants here.
-const ConstantDeclaration = { toString : () => 'constant' }
-const VariableDeclaration = { toString : () => 'variable' }
-const NotADeclaration = { toString : () => 'none' }
-
 class Environment extends LC {
-  // Make the above constants easy to access as class attributes.
-  static get constant () { return ConstantDeclaration }
-  static get variable () { return VariableDeclaration }
-  static get none () { return NotADeclaration }
   // We initialize the declaration flag to "none" in the constructor.
   // Quite fussy rules for setting this attribute appear below.
   // We also initialize the formula flag to false in the constructor.
   constructor ( ...children ) {
     super( ...children )
-    this._declaration = Environment.none
-    this._formula = false
+    this.setAttribute( 'declaration', 'none' )
+    this.setAttribute( 'formula', false )
   }
   // An Environment can be a constant or variable declaration iff it has n>0
   // children, the first n-1 are identifiers, and the last one is a claim.
@@ -29,33 +19,40 @@ class Environment extends LC {
         && kids[kids.length-1].isAClaim
   }
   // If something's allowed to be a declaration as above, then we'll let you set
-  // it as one.  Otherwise, we don't let you.
+  // it as one, providing you're trying to set it as type "variable" or
+  // "constant" or "none".  Otherwise, this does nothing.
   set declaration ( value ) {
-    return this.canBeADeclaration() ? this._declaration = value
-                                    : Environment.none
+    return this.canBeADeclaration()
+        && [ 'variable', 'constant', 'none' ].indexOf( value ) > -1 ?
+      this.setAttribute( 'declaration', value ) : 'none'
   }
   // When querying if an Environment is a constant or variable declaration,
   // if it isn't allowed to be one, say it's not.
   get declaration () {
-    return this.canBeADeclaration() ? this._declaration : Environment.none
+    return this.canBeADeclaration() ?
+      this.getAttribute( 'declaration' ) : 'none'
   }
   // The getter and setter for formula status enforce the requirement that you
   // can't nest formulas.
   get isAFormula () {
     let walk = this.parent()
     while ( walk ) {
-      if ( walk._formula ) return false // sorry...we have a formula ancestor
+      if ( walk.getAttribute( 'formula' ) )
+        return false // sorry...we have a formula ancestor
       walk = walk.parent()
     }
-    return this._formula // no ancestor constrains us, so this flag is correct
+    // no ancestor constrains us, so this flag is correct:
+    return this.getAttribute( 'formula' )
   }
   set isAFormula ( value ) {
     let walk = this.parent()
     while ( walk ) {
-      if ( walk._formula ) return false // sorry...we have a formula ancestor
+      if ( walk.getAttribute( 'formula' ) )
+        return false // sorry...we have a formula ancestor
       walk = walk.parent()
     }
-    return this._formula = value // no ancestor constrains us, so proceed
+    // no ancestor constrains us, so we can obey the setting command:
+    return this.setAttribute( 'formula', value )
   }
   // What do Environments look like, for printing/debugging purposes?
   toString () {
@@ -65,12 +62,7 @@ class Environment extends LC {
          + ( this.isAFormula ? ' ]' : ' }' )
   }
   // Hack for smart copying; see LC class for details:
-  copy () {
-    let result = LC.prototype.copy.call( this, Environment )
-    result._declaration = this._declaration
-    result._formula = this._formula
-    return result
-  }
+  copy () { return LC.prototype.copy.call( this, Environment ) }
 }
 
 module.exports.Environment = Environment
