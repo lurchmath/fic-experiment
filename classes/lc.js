@@ -80,14 +80,63 @@ class LC extends Structure {
   fullyParenthesizedForm () {
     if ( this.children().length < 3 ) return this.copy()
     let kids = this.children().slice()
-    let result = new Environment( kids[kids.length-2], kids[kids.length-1] )
+    let result = new Environment( kids[kids.length-2].copy(),
+                                  kids[kids.length-1].copy() )
     kids.pop()
     kids.pop()
     while ( kids.length > 0 )
-      result = new Environment( kids.pop(), result )
+      result = new Environment( kids.pop().copy(), result )
     result.isAFormula = this.isAFormula
     result.isAGiven = this.isAGiven
     return result
+  }
+
+  // The FIC normal form of an LC has a lengthy definition.  We repeat it in
+  // the comments inside the implementation, below, to keep the documentation
+  // near the code:
+  normalForm () {
+    // console.log( '** N('+this+'):' )
+    let say = ( x ) => {
+      // console.log( `** = ${x}` )
+      return x
+    }
+    let fpf = this.fullyParenthesizedForm()
+    // console.log( '** FPF = '+fpf )
+    // If fpf is a statement, then that's the normal form.
+    if ( fpf instanceof Statement ) return say( fpf )
+    // console.log( '** It was not a Statement' )
+    // All of the following things have { } as their normal form:
+    // { }, { { } }, { :A }, { { } { } }, { { } :A }, { :A { } }, { :A :B },
+    // for any LCs A and B, plus all the above cases with any {...} pair
+    // replaced by :{...}, and any [...] is treated as {...} as well.
+    let isEmpty = ( x ) => x instanceof Environment && x.children().length == 0
+    if ( fpf.children().length < 3
+      && fpf.children().every( child => isEmpty( child ) || child.isAGiven ) )
+      return say( new Environment() )
+    // console.log( '** It was not a Type 1' )
+    // All of the following have a normal form equal to the normal form of A:
+    // { A }, { A :B }, { A { } }, { { } A }
+    // for any LC B, plus all the above cases with any {...} pair replaced by
+    // :{...}, and any [...] is treated as {...} as well.
+    if ( fpf.children().length == 1
+      || fpf.children().length == 2 &&
+         ( fpf.children()[1].isAGiven || isEmpty( fpf.children()[1] ) ) )
+      return say( fpf.children()[0].normalForm() )
+    if ( fpf.children().length == 2 && isEmpty( fpf.children()[0] ) )
+      return say( fpf.children()[1].normalForm() )
+    // console.log( '** It was not Type 2' )
+    // If none of the above cases apply, then fpf has two children, call them
+    // A and B, with normal forms NA and NB, respectively, and its normal form
+    // fits one of these cases:
+    //  { A B } ->  { NA NB }     { :A B } ->  { :NA NB }
+    // :{ A B } -> :{ NA NB }    :{ :A B } -> :{ :NA NB }
+    let NA = fpf.children()[0].normalForm()
+    let NB = fpf.children()[1].normalForm()
+    // console.log( '** NA = '+NA )
+    // console.log( '** NB = '+NB )
+    let result = new Environment( NA, NB )
+    result.isAGiven = fpf.isAGiven
+    return say( result )
   }
 
   // Reverse operation of the toString() functions defined below.

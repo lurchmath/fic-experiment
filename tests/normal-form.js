@@ -3,8 +3,9 @@ const { OM, LC, Statement, Environment } = require( '../classes/all.js' )
 
 function check ( text ) {
   let lc = LC.fromString( text )
-  console.log( 'Original LC: '+lc )
-  console.log( '\tFully parenthesized form: ' + lc.fullyParenthesizedForm() )
+  console.log( '\n  Original LC: '+lc )
+  console.log( 'Parenthesized: ' + lc.fullyParenthesizedForm() )
+  console.log( '  Normal Form: ' + lc.normalForm() )
 }
 
 check( 'A' )
