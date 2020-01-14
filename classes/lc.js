@@ -71,6 +71,25 @@ class LC extends Structure {
 
   // An LC is said to be atomic if it has no children.
   get isAtomic () { return this.children().length == 0 }
+
+  // The fully parenthesized form of an LC L = { L1 L2 ... Ln } is the form
+  // { L1 { L2 ... { Ln-1 Ln } ... } }.
+  // The formula and given statuses of the original L are copied over.
+  // The following routine computes this, which involves making copies of each
+  // Li, so that we do not destroy/alter the original LC L.
+  fullyParenthesizedForm () {
+    if ( this.children().length < 3 ) return this.copy()
+    let kids = this.children().slice()
+    let result = new Environment( kids[kids.length-2], kids[kids.length-1] )
+    kids.pop()
+    kids.pop()
+    while ( kids.length > 0 )
+      result = new Environment( kids.pop(), result )
+    result.isAFormula = this.isAFormula
+    result.isAGiven = this.isAGiven
+    return result
+  }
+
   // Reverse operation of the toString() functions defined below.
   static fromString ( string ) {
     const ident = /^[a-zA-Z_0-9]+/
