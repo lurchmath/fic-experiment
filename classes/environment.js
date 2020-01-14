@@ -64,6 +64,13 @@ class Environment extends LC {
          + this.children().map( child => child.toString() ).join( ' ' )
          + ( this.isAFormula ? ' ]' : ' }' )
   }
+  // Hack for smart copying; see LC class for details:
+  copy () {
+    let result = LC.prototype.copy.call( this, Environment )
+    result._declaration = this._declaration
+    result._formula = this._formula
+    return result
+  }
 }
 
 module.exports.Environment = Environment

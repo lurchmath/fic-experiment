@@ -32,6 +32,13 @@ class Statement extends LC {
   // We'll call a Statement an identifier if it (a) has a non-null identifier
   // attribute and (b) is atomic.  You know, it's like "x" or something.
   get isAnIdentifier () { return !!this.identifier && this.isAtomic }
+  // Hack for smart copying; see LC class for details:
+  copy () {
+    let result = LC.prototype.copy.call( this, Statement )
+    result.identifier = this.identifier
+    result.isAQuantifier = this.isAQuantifier
+    return result
+  }
 }
 
 module.exports.Statement = Statement

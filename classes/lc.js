@@ -2,11 +2,13 @@
 const { Structure } = require( '../dependencies/structure.js' )
 
 class LC extends Structure {
+
   // LCs may contain only other LCs:
   insertChild ( child, beforeIndex = 0 ) {
     if ( child instanceof LC )
       Structure.prototype.insertChild.call( this, child, beforeIndex )
   }
+
   // LCs have the isAGiven boolean, which defaults to false.
   // We also define the isAClaim boolean, which is !isAGiven.
   // Both of these use the private internal attribute _given.
@@ -18,6 +20,7 @@ class LC extends Structure {
   set isAGiven ( value ) { return this._given = value }
   get isAClaim () { return !this._given }
   set isAClaim ( value ) { return this._given = !value }
+
   // Abstract-like method that subclasses will fix:
   toString () {
     return ( this.isAGiven ? ':' : '' )
@@ -25,6 +28,19 @@ class LC extends Structure {
          + this.children().map( child => child.toString() ).join( ',' )
          + ')'
   }
+
+  // It's important that a copy of an LC not be a generic structure, but an LC
+  // instance.  This is sort of a hacky way to accomplish that...it's better if
+  // later we fix this hack, as described in the to-do.md file.
+  copy ( baseClass = LC ) {
+    let result = new baseClass()
+    result.attributes = JSON.parse( JSON.stringify( this.attributes ) )
+    result.childList = this.childList.map( child => child.copy() )
+    result.childList.map( child => child.parentNode = result )
+    result._given = this._given
+    return result
+  }
+
   // The conclusions of an LC X are all the Statements inside X, plus all the
   // Statements inside claims inside X, plus all the Statements inside claims
   // inside claims inside X, and so on, indenfinitely.
@@ -39,6 +55,7 @@ class LC extends Structure {
     } )
     return result
   }
+
   // By the same definition, we might ask whether a given LC is a conclusion in
   // one of its ancestors.
   isAConclusionIn ( ancestor ) {
@@ -51,6 +68,7 @@ class LC extends Structure {
     }
     return true
   }
+
   // An LC is said to be atomic if it has no children.
   get isAtomic () { return this.children().length == 0 }
   // Reverse operation of the toString() functions defined below.
@@ -184,6 +202,7 @@ class LC extends Structure {
       stop( 'Either : or ~ (or both) preceded the end of the input' )
     return stack[0]
   }
+
 }
 
 module.exports.LC = LC
