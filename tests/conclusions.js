@@ -1,6 +1,5 @@
 
-const { OM } = require( '../dependencies/openmath.js' )
-const { LC, Statement, Environment } = require( '../classes/lc.js' )
+const { OM, LC, Statement, Environment } = require( '../classes/all.js' )
 
 var A, B, C, D, _A, _B, _C, _D, outer
 

@@ -1,6 +1,5 @@
 
-const { OM } = require( '../dependencies/openmath.js' )
-const { LC, Statement, Environment } = require( '../classes/lc.js' )
+const { OM, LC, Statement, Environment } = require( '../classes/all.js' )
 
 function checkEverything ( lc, indent = '' ) {
   console.log( indent+'Is '+lc+' a formula?', lc.isAFormula )

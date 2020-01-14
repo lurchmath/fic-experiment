@@ -1,6 +1,5 @@
 
-const { OM } = require( '../dependencies/openmath.js' )
-const { LC, Statement, Environment } = require( '../classes/lc.js' )
+const { OM, LC, Statement, Environment } = require( '../classes/all.js' )
 
 console.log( 'Checking to be sure all defined classes exist...' )
 console.log( 'LC?', !!LC )
@@ -59,3 +58,4 @@ tmp.isAClaim = true
 console.log( 'Now the given value:', tmp.isAGiven )
 console.log( 'Now the claim value:', tmp.isAClaim )
 console.log( 'Appearance:', ''+tmp )
+
