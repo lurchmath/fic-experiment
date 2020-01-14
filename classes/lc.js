@@ -15,9 +15,9 @@ class LC extends Structure {
     this._given = false
   }
   get isAGiven () { return this._given }
-  set isAGiven ( value ) { this._given = value }
+  set isAGiven ( value ) { return this._given = value }
   get isAClaim () { return !this._given }
-  set isAClaim ( value ) { this._given = !value }
+  set isAClaim ( value ) { return this._given = !value }
   // Abstract-like method that subclasses will fix:
   toString () {
     return ( this.isAGiven ? ':' : '' )
@@ -51,6 +51,8 @@ class LC extends Structure {
     }
     return true
   }
+  // An LC is said to be atomic if it has no children.
+  get isAtomic () { return this.children().length == 0 }
 }
 
 class Statement extends LC {
@@ -81,10 +83,47 @@ class Statement extends LC {
               + ')'
     return result
   }
+  // We'll call a Statement an identifier if it (a) has a non-null identifier
+  // attribute and (b) is atomic.  You know, it's like "x" or something.
+  get isAnIdentifier () { return !!this.identifier && this.isAtomic }
 }
 
+// Environments can have a special flag called 'declaration' that can be one
+// of constant, variable, or none.  So we declare those constants here.
+const ConstantDeclaration = { toString : () => 'constant' }
+const VariableDeclaration = { toString : () => 'variable' }
+const NotADeclaration = { toString : () => 'none' }
+
 class Environment extends LC {
-  // Environments have no nesting rules beyond what LCs already require.
+  // Make the above constants easy to access as class attributes.
+  static get constant () { return ConstantDeclaration }
+  static get variable () { return VariableDeclaration }
+  static get none () { return NotADeclaration }
+  // We initialize the declaration flag to "none" in the constructor.
+  // Quite fussy rules for setting this attribute appear below.
+  constructor ( ...children ) {
+    super( ...children )
+    this._declaration = Environment.none
+  }
+  // An Environment can be a constant or variable declaration iff it has n>0
+  // children, the first n-1 are identifiers, and the last one is a claim.
+  canBeADeclaration () {
+    let kids = this.children()
+    return kids.length > 0
+        && kids.every( kid => kid.isAnIdentifier )
+        && kids[kids.length-1].isAClaim
+  }
+  // If something's allowed to be a declaration as above, then we'll let you set
+  // it as one.  Otherwise, we don't let you.
+  set declaration ( value ) {
+    return this.canBeADeclaration() ? this._declaration = value
+                                    : Environment.none
+  }
+  // When querying if an Environment is a constant or variable declaration,
+  // if it isn't allowed to be one, say it's not.
+  get declaration () {
+    return this.canBeADeclaration() ? this._declaration : Environment.none
+  }
   // What do Environments look like, for printing/debugging purposes?
   toString () {
     return ( this.isAGiven ? ':' : '' )
