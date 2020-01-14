@@ -68,7 +68,7 @@ class LC extends Structure {
       given = false
       return x
     }
-    // possible values of last: null : ~ identifier { } ( ) space
+    // possible values of last: null : ~ identifier { } ( ) [ ] space
     let last = null
     let munge = ( n ) => {
       last = string.substring( 0, n )
@@ -116,6 +116,31 @@ class LC extends Structure {
         let args = [ ]
         do { args.unshift( stack.pop() ) } while ( !args[0]._lastOpenBracket )
         // console.log( '\targs: ' + args.map( x => x.toString() ).join( '; ' ) )
+        if ( args[0].isAFormula )
+          stop( 'Open formula bracket ([) ended with environment bracket (})' )
+        while ( args.length > 1 ) { args[0].insertChild( args.pop() ) }
+        delete args[0]._lastOpenBracket
+        stack.push( args[0] )
+        // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
+        munge( 1 )
+      } else if ( string[0] == '[' ) {
+        if ( stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found a formula open bracket ([) inside a statement' )
+        let E = setFlags( new Environment() )
+        E._lastOpenBracket = true
+        E.isAFormula = true
+        stack.push( E )
+        munge( 1 )
+      } else if ( string[0] == ']' ) {
+        if ( given || quantifier )
+          stop( 'Either : or ~ (or both) tried to modify a close bracket (])' )
+        if ( stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found a formula close bracket (]) inside a statement' )
+        let args = [ ]
+        do { args.unshift( stack.pop() ) } while ( !args[0]._lastOpenBracket )
+        // console.log( '\targs: ' + args.map( x => x.toString() ).join( '; ' ) )
+        if ( !args[0].isAFormula )
+          stop( 'Open environment bracket ({) ended with formula bracket (])' )
         while ( args.length > 1 ) { args[0].insertChild( args.pop() ) }
         delete args[0]._lastOpenBracket
         stack.push( args[0] )
@@ -207,9 +232,11 @@ class Environment extends LC {
   static get none () { return NotADeclaration }
   // We initialize the declaration flag to "none" in the constructor.
   // Quite fussy rules for setting this attribute appear below.
+  // We also initialize the formula flag to false in the constructor.
   constructor ( ...children ) {
     super( ...children )
     this._declaration = Environment.none
+    this._formula = false
   }
   // An Environment can be a constant or variable declaration iff it has n>0
   // children, the first n-1 are identifiers, and the last one is a claim.
@@ -230,12 +257,30 @@ class Environment extends LC {
   get declaration () {
     return this.canBeADeclaration() ? this._declaration : Environment.none
   }
+  // The getter and setter for formula status enforce the requirement that you
+  // can't nest formulas.
+  get isAFormula () {
+    let walk = this.parent()
+    while ( walk ) {
+      if ( walk._formula ) return false // sorry...we have a formula ancestor
+      walk = walk.parent()
+    }
+    return this._formula // no ancestor constrains us, so this flag is correct
+  }
+  set isAFormula ( value ) {
+    let walk = this.parent()
+    while ( walk ) {
+      if ( walk._formula ) return false // sorry...we have a formula ancestor
+      walk = walk.parent()
+    }
+    return this._formula = value // no ancestor constrains us, so proceed
+  }
   // What do Environments look like, for printing/debugging purposes?
   toString () {
     return ( this.isAGiven ? ':' : '' )
-         + '{ '
+         + ( this.isAFormula ? '[ ' : '{ ' )
          + this.children().map( child => child.toString() ).join( ' ' )
-         + ' }'
+         + ( this.isAFormula ? ' ]' : ' }' )
   }
 }
 
