@@ -30,10 +30,11 @@ class LC extends Structure {
   // inside claims inside X, and so on, indenfinitely.
   conclusions () {
     let result = [ ]
-    this.children.map( child => {
+    this.children().map( child => {
+      if ( child.isAGiven ) return
       if ( child instanceof Statement )
         result.push( child )
-      else if ( child instanceof Environment && child.isAClaim )
+      else if ( child instanceof Environment )
         result = result.concat( child.conclusions() )
     } )
     return result
@@ -42,10 +43,13 @@ class LC extends Structure {
   // one of its ancestors.
   isAConclusionIn ( ancestor ) {
     if ( !( this instanceof Statement ) ) return false
-    if ( this == ancestor ) return true
     if ( this.isAGiven ) return false
-    if ( !this.parent() ) return true
-    return this.parent().isAConclusionIn( ancestor )
+    let walk = this.parent()
+    while ( walk && walk != ancestor ) {
+      if ( walk.isAGiven ) return false
+      walk = walk.parent()
+    }
+    return true
   }
 }
 
@@ -83,7 +87,8 @@ class Environment extends LC {
   // Environments have no nesting rules beyond what LCs already require.
   // What do Environments look like, for printing/debugging purposes?
   toString () {
-    return '{ '
+    return ( this.isAGiven ? ':' : '' )
+         + '{ '
          + this.children().map( child => child.toString() ).join( ' ' )
          + ' }'
   }
