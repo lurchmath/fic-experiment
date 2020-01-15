@@ -6,8 +6,9 @@ Tests of the Lurch design team's FIC deduction ideas
 ## How to get started
 
  1. Clone this repo
- 2. Run tests with `npm test`
- 3. Honestly there's not anything else to do yet
+ 2. Install dependencies with `npm install`
+ 3. Run tests with `npm test`
+ 4. Honestly there's not anything else to do yet
 
 The tests use [mocha](https://mochajs.org/)
 and [expect.js](https://github.com/Automattic/expect.js).
