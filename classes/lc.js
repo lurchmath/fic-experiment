@@ -174,7 +174,7 @@ class LC extends Structure {
       // console.log( `@${position} reading "${string}"` )
       // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
       if ( string[0] == ':' ) {
-        if ( !follows( null, 'space', '~', '{', '[' ) || given )
+        if ( !follows( null, 'space', '~', '{', '}', '[', ']' ) || given )
           stop( 'Found a given marker (:) in the wrong place' )
         given = true
         munge( 1 )
