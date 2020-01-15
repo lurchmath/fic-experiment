@@ -2,11 +2,13 @@
 function mixIn ( moduleName ) {
   let imported = require( moduleName )
   for ( let key in imported )
-    module.exports[key] = imported[key]
+    if ( imported.hasOwnProperty( key ) )
+      module.exports[key] = imported[key]
 }
 
 [
   '../dependencies/openmath.js',
+  '../dependencies/structure.js',
   './lc.js',
   './statement.js',
   './environment.js',

@@ -4,7 +4,7 @@
   "description": "Lurch design team experiments with FIC deduction",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --full-trace --ui tdd"
   },
   "repository": {
     "type": "git",
@@ -16,6 +16,9 @@
     "url": "https://github.com/lurchmath/fic-experiment/issues"
   },
   "homepage": "https://github.com/lurchmath/fic-experiment#readme",
-  "dependencies": {
+  "dependencies": {},
+  "devDependencies": {
+    "expect.js": "^0.3.1",
+    "mocha": "^7.0.0"
   }
 }
