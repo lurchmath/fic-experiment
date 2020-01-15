@@ -1,5 +1,6 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
+const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
 
 class Environment extends LC {
@@ -63,6 +64,11 @@ class Environment extends LC {
          + ( this.isAFormula ? '[ ' : '{ ' )
          + this.children().map( child => child.toString() ).join( ' ' )
          + ( this.isAFormula ? ' ]' : ' }' )
+  }
+  // What do Statements look like in OM form?
+  toOM () {
+    return this.copyFlagsTo( OM.app( OM.sym( 'Env', 'Lurch' ),
+      ...this.children().map( child => child.toOM() ) ) )
   }
 }
 

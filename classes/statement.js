@@ -1,5 +1,6 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
+const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
 
 class Statement extends LC {
@@ -39,6 +40,20 @@ class Statement extends LC {
               + this.children().map( child => child.toString() ).join( ',' )
               + ')'
     return result
+  }
+  // What do Statements look like in OM form?
+  toOM () {
+    let children = this.children().map( child => child.toOM() )
+    let head = this.isAQuantifier ? OM.sym( this.identifier, 'Lurch' )
+                                  : OM.var( this.identifier )
+    if ( this.isAQuantifier
+      && children.slice( 0, children.length-1 )
+                 .every( child => child.type == 'v' ) )
+      return this.copyFlagsTo( OM.bin( head, ...children ) )
+    else if ( children.length > 0 )
+      return this.copyFlagsTo( OM.app( head, ...children ) )
+    else
+      return this.copyFlagsTo( head )
   }
   // We'll call a Statement an identifier if it (a) has a non-null identifier
   // attribute and (b) is atomic.  You know, it's like "x" or something.

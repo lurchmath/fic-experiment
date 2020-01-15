@@ -1,5 +1,6 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
+const { OM } = require( '../dependencies/openmath.js' )
 
 class LC extends Structure {
 
@@ -30,6 +31,29 @@ class LC extends Structure {
          + 'LC('
          + this.children().map( child => child.toString() ).join( ',' )
          + ')'
+  }
+
+  // Abstract-like method that subclasses will fix:
+  toOM () {
+    return this.copyFlagsTo( OM.app( OM.sym( 'LC', 'Lurch' ),
+      ...this.children().map( child => child.toOM() ) ) )
+  }
+  // And its helper functions, which subclasses can use, too:
+  copyFlagsTo ( om ) {
+    if ( this.isAGiven )
+      om.setAttribute( OM.sym( 'given', 'Lurch' ), OM.str( 'true' ) )
+    if ( this.isAFormula )
+      om.setAttribute( OM.sym( 'formula', 'Lurch' ), OM.str( 'true' ) )
+    return om
+  }
+  copyFlagsFrom = ( om ) => {
+    let given = om.getAttribute( OM.sym( 'given', 'Lurch' ) )
+    this.isAGiven = !!given && given.value == 'true'
+    if ( this instanceof Environment ) {
+      let formula = om.getAttribute( OM.sym( 'formula', 'Lurch' ) )
+      this.isAFormula = !!formula && formula.value == 'true'
+    }
+    return this
   }
 
   // The conclusions of an LC X are all the Statements inside X, plus all the
@@ -283,6 +307,52 @@ class LC extends Structure {
     if ( given || quantifier )
       stop( 'Either : or ~ (or both) preceded the end of the input' )
     return stack[0]
+  }
+
+  // Reverse of toOM() function defined earlier
+  static fromOM ( expr ) {
+    // variables are Statements with identifiers
+    if ( expr.type == 'v' ) {
+      let result = new Statement()
+      result.identifier = expr.name
+      return result.copyFlagsFrom( expr )
+    }
+    // symbols are Statements that want to be quantifiers
+    if ( expr.type == 'sy' ) {
+      let result = new Statement()
+      result.identifier = expr.name
+      result.isAQuantifier = true
+      return result.copyFlagsFrom( expr )
+    }
+    // The input may be an application...
+    if ( expr.type == 'a' ) {
+      // But they can't be empty
+      if ( expr.children.length == 0 )
+        throw( 'Empty OpenMath applications not supported' )
+      // OM applications of the Environment symbol are environments
+      if ( expr.children[0].equals( OM.sym( 'Env', 'Lurch' ) ) ) {
+        let result = new Environment(
+          ...expr.children.slice( 1 ).map( LC.fromOM ) )
+        return result.copyFlagsFrom( expr )
+      }
+      // OM applications of other stuff ought to be Statements
+      let children = expr.children.map( LC.fromOM )
+      let result = children.shift()
+      if ( !( result instanceof Statement ) || !result.isAtomic )
+        throw( 'Invalid OpenMath application structure' )
+      children.map( ( child, index ) => result.insertChild( child, index ) )
+      return result.copyFlagsFrom( expr )
+    }
+    // The input may be a binding, in which case it ought to be a Statement
+    if ( expr.type == 'bi' ) {
+      let result = LC.fromOM( expr.symbol )
+      expr.variables.map( v =>
+        result.insertChild( LC.fromOM( v ), result.children().length ) )
+      result.insertChild( LC.fromOM( expr.body ), result.children().length )
+      return result.copyFlagsFrom( expr )
+    }
+    // Nothing else is convertible
+    throw( 'Cannot convert this type of OpenMath structure to LC' )
   }
 
 }
