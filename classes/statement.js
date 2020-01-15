@@ -33,8 +33,7 @@ class Statement extends LC {
     let result = ''
     if ( this.isAGiven ) result += ':'
     if ( this.isAQuantifier ) result += '~'
-    if ( this.identifier || this.children().length == 0 )
-      result += this.identifier
+    result += this.identifier
     if ( this.children().length > 0 )
       result += '('
               + this.children().map( child => child.toString() ).join( ',' )
