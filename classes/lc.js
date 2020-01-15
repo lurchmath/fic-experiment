@@ -163,12 +163,12 @@ class LC extends Structure {
       // console.log( `@${position} reading "${string}"` )
       // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
       if ( string[0] == ':' ) {
-        if ( !follows( null, 'space', '~', '{' ) || given )
+        if ( !follows( null, 'space', '~', '{', '[' ) || given )
           stop( 'Found a given marker (:) in the wrong place' )
         given = true
         munge( 1 )
       } else if ( string[0] == '~' ) {
-        if ( !follows( null, 'space', ':', '{' ) || quantifier )
+        if ( !follows( null, 'space', ':', '{', '(', '[' ) || quantifier )
           stop( 'Found a quantifier marker (~) in the wrong place' )
         quantifier = true
         munge( 1 )
@@ -179,6 +179,8 @@ class LC extends Structure {
         munge( match[0].length )
         last = 'identifier'
       } else if ( string[0] == '{' ) {
+        if ( quantifier )
+          stop( 'Trying to mark an environment as a quantifier' )
         if ( stack.some( entry => entry._lastStatementHead ) )
           stop( 'Found an environment open bracket ({) inside a statement' )
         let E = setFlags( new Environment() )
@@ -190,6 +192,8 @@ class LC extends Structure {
           stop( 'Either : or ~ (or both) tried to modify a close bracket (})' )
         if ( stack.some( entry => entry._lastStatementHead ) )
           stop( 'Found an environment close bracket (}) inside a statement' )
+        if ( !stack.some( entry => entry._lastOpenBracket ) )
+          stop( 'Found a close bracket (}) outside of any environment' )
         let args = [ ]
         do { args.unshift( stack.pop() ) } while ( !args[0]._lastOpenBracket )
         // console.log( '\targs: ' + args.map( x => x.toString() ).join( '; ' ) )
@@ -201,6 +205,8 @@ class LC extends Structure {
         // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
         munge( 1 )
       } else if ( string[0] == '[' ) {
+        if ( quantifier )
+          stop( 'Trying to mark a formula as a quantifier' )
         if ( stack.some( entry => entry._lastStatementHead ) )
           stop( 'Found a formula open bracket ([) inside a statement' )
         let E = setFlags( new Environment() )
@@ -213,6 +219,8 @@ class LC extends Structure {
           stop( 'Either : or ~ (or both) tried to modify a close bracket (])' )
         if ( stack.some( entry => entry._lastStatementHead ) )
           stop( 'Found a formula close bracket (]) inside a statement' )
+        if ( !stack.some( entry => entry._lastOpenBracket ) )
+          stop( 'Found a close bracket (}) outside of any environment' )
         let args = [ ]
         do { args.unshift( stack.pop() ) } while ( !args[0]._lastOpenBracket )
         // console.log( '\targs: ' + args.map( x => x.toString() ).join( '; ' ) )
@@ -257,6 +265,10 @@ class LC extends Structure {
     }
     if ( stack.length > 1 )
       stop( 'Unexpected end of input' )
+    if ( stack.some( entry => entry._lastStatementHead ) )
+      stop( 'Still amidst a statement at the end of the input' )
+    if ( stack.some( entry => entry._lastOpenBracket ) )
+      stop( 'Still amidst a formula or environment at the end of the input' )
     if ( given || quantifier )
       stop( 'Either : or ~ (or both) preceded the end of the input' )
     return stack[0]
