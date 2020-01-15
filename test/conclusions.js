@@ -31,8 +31,8 @@ suite( 'Conclusions', () => {
     expect( Y ).to.have.length( 2 )
     expect( Y ).to.contain( A )
     expect( Y ).to.contain( B )
-    expect( A.isAConclusionIn( C ) ).to.be( true )
-    expect( B.isAConclusionIn( C ) ).to.be( true )
+    expect( A.isAConclusionIn( X ) ).to.be( true )
+    expect( B.isAConclusionIn( X ) ).to.be( true )
   } )
 
   test( 'In :{ A B }, both A and B are conclusions', () => {
