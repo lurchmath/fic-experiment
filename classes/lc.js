@@ -84,8 +84,11 @@ class LC extends Structure {
 
   // The FIC normal form of an LC has a lengthy definition.  We repeat it in
   // the comments inside the implementation, below, to keep the documentation
-  // near the code:
+  // near the code.  Note that the intended use is that all formulas will
+  // be replaced by non-Formula environments whose variables are replaced by
+  // metavariables before running through the FIC recursions with Matching.
   normalForm () {
+    if (this.isAFormula) { throw('Normal form for Formulas is not defined.') }
     // console.log( '** N('+this+'):' )
     let say = ( x ) => {
       // console.log( `** = ${x}` )
@@ -96,24 +99,26 @@ class LC extends Structure {
     // If fpf is a statement, then that's the normal form.
     if ( fpf instanceof Statement ) return say( fpf )
     // console.log( '** It was not a Statement' )
-    // All of the following things have { } as their normal form:
-    // { }, { { } }, { :A }, { { } { } }, { { } :A }, { :A { } }, { :A :B },
-    // for any LCs A and B, plus all the above cases with any {...} pair
-    // replaced by :{...}, and any [...] is treated as {...} as well.
+    // An LC is said to be Empty if it is and environment with
+    // no children.
     let isEmpty = ( x ) => x instanceof Environment && x.children().length == 0
-    if ( fpf.children().length < 3
-      && fpf.children().every( child => isEmpty( child ) || child.isAGiven ) )
+    // An LC is said to be Trivial iff it is either Given or its
+    // normal form is Empty.
+    let isTrivial = ( x ) => x.isAGiven || isEmpty(x.normalForm())
+    // The normal form of a Trivial fpf is Empty. This takes care of { },
+    // { A } when A is Trivial, and { A B } where both A and B are Trivial.
+    if ( fpf.children().every( child => isTrivial( child ) ) )
       return say( new Environment() )
     // console.log( '** It was not a Type 1' )
-    // All of the following have a normal form equal to the normal form of A:
-    // { A }, { A :B }, { A { } }, { { } A }
-    // for any LC B, plus all the above cases with any {...} pair replaced by
-    // :{...}, and any [...] is treated as {...} as well.
+    // If A is nonTrivial, and B is Trivial, then { A } and { A B }
+    // have normal form N(A).
     if ( fpf.children().length == 1
       || fpf.children().length == 2 &&
-         ( fpf.children()[1].isAGiven || isEmpty( fpf.children()[1] ) ) )
+         isTrivial( fpf.children()[1] ) )
       return say( fpf.children()[0].normalForm() )
-    if ( fpf.children().length == 2 && isEmpty( fpf.children()[0] ) )
+    // Also A is nonTrivial and N(B) is Empty, { B A }
+    // also has normal form N(A).
+    if ( isEmpty( fpf.children()[0].normalForm() ) )
       return say( fpf.children()[1].normalForm() )
     // console.log( '** It was not Type 2' )
     // If none of the above cases apply, then fpf has two children, call them
