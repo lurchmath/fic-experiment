@@ -3,6 +3,9 @@ const { Structure } = require( '../dependencies/structure.js' )
 
 class LC extends Structure {
 
+  // register with Structure ancestor class for good serialization/copying
+  className = Structure.addSubclass( 'LC', LC )
+
   // LCs may contain only other LCs:
   insertChild ( child, beforeIndex = 0 ) {
     if ( child instanceof LC )
@@ -27,17 +30,6 @@ class LC extends Structure {
          + 'LC('
          + this.children().map( child => child.toString() ).join( ',' )
          + ')'
-  }
-
-  // It's important that a copy of an LC not be a generic structure, but an LC
-  // instance.  This is sort of a hacky way to accomplish that...it's better if
-  // later we fix this hack, as described in the to-do.md file.
-  copy ( baseClass = LC ) {
-    let result = new baseClass()
-    result.attributes = JSON.parse( JSON.stringify( this.attributes ) )
-    result.childList = this.childList.map( child => child.copy() )
-    result.childList.map( child => child.parentNode = result )
-    return result
   }
 
   // The conclusions of an LC X are all the Statements inside X, plus all the

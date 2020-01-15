@@ -1,7 +1,10 @@
 
+const { Structure } = require( '../dependencies/structure.js' )
 const { LC } = require( './lc.js' )
 
 class Statement extends LC {
+  // register with Structure ancestor class for good serialization/copying
+  className = Structure.addSubclass( 'Statement', Statement )
   // Statements may contain only other Statements:
   insertChild ( child, beforeIndex = 0 ) {
     if ( child instanceof Statement )
@@ -41,8 +44,6 @@ class Statement extends LC {
   // We'll call a Statement an identifier if it (a) has a non-null identifier
   // attribute and (b) is atomic.  You know, it's like "x" or something.
   get isAnIdentifier () { return !!this.identifier && this.isAtomic }
-  // Hack for smart copying; see LC class for details:
-  copy () { return LC.prototype.copy.call( this, Statement ) }
 }
 
 module.exports.Statement = Statement

@@ -1,7 +1,10 @@
 
+const { Structure } = require( '../dependencies/structure.js' )
 const { LC } = require( './lc.js' )
 
 class Environment extends LC {
+  // register with Structure ancestor class for good serialization/copying
+  className = Structure.addSubclass( 'Environment', Environment )
   // We initialize the declaration flag to "none" in the constructor.
   // Quite fussy rules for setting this attribute appear below.
   // We also initialize the formula flag to false in the constructor.
@@ -61,8 +64,6 @@ class Environment extends LC {
          + this.children().map( child => child.toString() ).join( ' ' )
          + ( this.isAFormula ? ' ]' : ' }' )
   }
-  // Hack for smart copying; see LC class for details:
-  copy () { return LC.prototype.copy.call( this, Environment ) }
 }
 
 module.exports.Environment = Environment
