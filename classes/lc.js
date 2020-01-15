@@ -114,12 +114,18 @@ class LC extends Structure {
     // have normal form N(A).
     if ( fpf.children().length == 1
       || fpf.children().length == 2 &&
-         isTrivial( fpf.children()[1] ) )
-      return say( fpf.children()[0].normalForm() )
+         isTrivial( fpf.children()[1] ) ) {
+      let NA = fpf.children()[0].normalForm()
+      NA.isAGiven = fpf.isAGiven
+      return say( NA )
+    }
     // Also A is nonTrivial and N(B) is Empty, { B A }
     // also has normal form N(A).
-    if ( isEmpty( fpf.children()[0].normalForm() ) )
-      return say( fpf.children()[1].normalForm() )
+    if ( isEmpty( fpf.children()[0].normalForm() ) ) {
+      let NA = fpf.children()[1].normalForm()
+      NA.isAGiven = fpf.isAGiven
+      return say( NA )
+    }
     // console.log( '** It was not Type 2' )
     // If none of the above cases apply, then fpf has two children, call them
     // A and B, with normal forms NA and NB, respectively, and its normal form
