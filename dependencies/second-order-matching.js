@@ -2,7 +2,7 @@
 
 // TODO: handle the case of this module running in the browser
 // Import openmath-js for testing purposes
-const OM = require('openmath-js').OM;
+const OM = require('../dependencies/openmath').OM;
 
 ////////////////////////////////////////////////////////////////////////////////
 // * The following are functions and constants related to metavariables.
