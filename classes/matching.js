@@ -8,6 +8,11 @@ const {
   isMetavariable, // function, queries attr set by previous
   makeGeneralExpressionFunction, // takes v1,...,vn,body, gives expr fn result
     // encodes as SecondOrderMatching.gEF[v1,...,vn,body]
+  makeGeneralExpressionFunctionApplication, // takes one of two forms:
+    // metavar, arg --> F(arg)
+    // general expression function, arg --> (lambda ...)(arg), ready to b-reduce
+    // in both forms, you can replace arg with [arg1,arg2,...]
+    // encodes as SecondOrderMatching.gEFA(func,arg)
   betaReduce, // takes lambda and inputs, does substitution in body
   Constraint, // class/constructor, takes pattern & expr, builds constraint pair
   ConstraintList, // class/constructor, takes list of >=0 pairs
@@ -21,7 +26,7 @@ const {
     // and you can MC.clone() them
     // and ask MC.isSolvable() or MC.numSolutions() or MC.getSolutions()
 } = require( '../dependencies/second-order-matching.js' )
-const { LC } = require( '../classes/lc.js' )
+const { OM, LC } = require( '../classes/all.js' )
 
 // We need a way to get/set metavariable status on LCs
 
@@ -36,7 +41,14 @@ class Matcher {
   // A constraint is a pattern-expression pair, each of which is an LC
   // (This is half of the job of this class, to convert to OM right here.)
   addConstraint ( pattern, expression ) {
-    this._MC.addConstraint( pattern.toOM(), expression.toOM() )
+    let patternAsOM = pattern.toOM()
+    const subSymbol = OM.var( 'SUB' )
+    patternAsOM.descendantsSatisfying( d =>
+      d.children.length == 3 && d.children[0].equals( subSymbol )
+    ).map( sub =>
+      sub.replaceWith( makeGeneralExpressionFunctionApplication(
+        sub.children[1], sub.children.slice( 2 ) ) ) )
+    this._MC.addConstraint( patternAsOM, expression.toOM() )
   }
   // You can make a copy of a matcher
   copy () {
