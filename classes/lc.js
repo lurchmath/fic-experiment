@@ -46,7 +46,7 @@ class LC extends Structure {
       om.setAttribute( OM.sym( 'formula', 'Lurch' ), OM.str( 'true' ) )
     return om
   }
-  copyFlagsFrom = ( om ) => {
+  copyFlagsFrom ( om ) {
     let given = om.getAttribute( OM.sym( 'given', 'Lurch' ) )
     this.isAGiven = !!given && given.value == 'true'
     if ( this instanceof Environment ) {
