@@ -12,5 +12,6 @@ function mixIn ( moduleName ) {
   './lc.js',
   './statement.js',
   './environment.js',
-  './deduction.js'
+  './deduction.js',
+  './matching.js'
 ].map( mixIn )
