@@ -97,12 +97,14 @@ class Statement extends LC {
   // listing the identifiers it tried to quantify over, but failed.  An empty
   // list counts as a valid quantified expression.
   markFailures ( identifierNames ) {
+    if ( !this.isAQuantifier )
+      return this.clearAttributes( 'binding failures' )
     let triedToBind = this.children().slice( 0, this.children().length - 1 )
       .map( boundThing => boundThing.identifier )
     this.setAttribute( 'binding failures',
       identifierNames.filter( name => triedToBind.indexOf( name ) > -1 ) )
   }
-  // A quantifier failed if it failed to bind any of its identifiers.
+  // A quantifier failed if it failed to bind any one of its identifiers.
   quantifierFailed () {
     return ( this.getAttribute( 'binding failures' ) || [ ] ).length > 0
   }
@@ -110,10 +112,11 @@ class Statement extends LC {
   // its list of bound identifiers but not on its list of failures (as in the
   // definition of markFailures(), above.)
   successfullyBinds ( identifierName ) {
-    return ( this.getAttribute( 'binding failures' ) || [ ] )
-      .indexOf( identifierName ) == -1 &&
-    this.children().slice( 0, this.children().length - 1 )
-      .some( boundThing => boundThing.identifier == identifierName )
+    return this.isAQuantifier &&
+      ( this.getAttribute( 'binding failures' ) || [ ] )
+        .indexOf( identifierName ) == -1 &&
+      this.children().slice( 0, this.children().length - 1 )
+        .some( bound => bound.identifier == identifierName )
   }
   // For all quantifiers inside this Statement (including possibly the Statement
   // itself), add an attribute called "binding failures" which is a list of
