@@ -96,20 +96,51 @@ suite( 'Declarations', () => {
 
   test( 'Modifying { A {} } can make it able to be a declaration', () => {
     let E = LC.fromString( '{ A {} }' )
+    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.declaration ).to.be( 'none' )
+    E.declaration = 'constant'
+    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.declaration ).to.be( 'constant' )
+  } )
+
+  test( 'Declarations can have compound bodies, as in { A { B :C D } }', () => {
+    let E = LC.fromString( '{ A { B :C D } }' )
+    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.declaration ).to.be( 'none' )
+    E.declaration = 'constant'
+    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.declaration ).to.be( 'constant' )
+  } )
+
+  test( 'Declarations cannot have givens as bodies, as in { A :B }', () => {
+    let E = LC.fromString( '{ A :B }' )
     expect( E.canBeADeclaration() ).to.be( false )
     expect( E.declaration ).to.be( 'none' )
     E.declaration = 'constant'
     expect( E.canBeADeclaration() ).to.be( false )
     expect( E.declaration ).to.be( 'none' )
+  } )
+
+  test( 'Declarations cannot have formulas in their bodies', () => {
+    let E = LC.fromString( '{ A { X [ Y Z ] } }' )
+    expect( E.canBeADeclaration() ).to.be( false )
+    expect( E.declaration ).to.be( 'none' )
+    E.declaration = 'constant'
+    expect( E.canBeADeclaration() ).to.be( false )
+    expect( E.declaration ).to.be( 'none' )
+  } )
+
+  test( 'Declarations cannot have declarations in their bodies', () => {
+    let E = LC.fromString( '{ A { X { Y Z } } }' )
+    expect( E.canBeADeclaration() ).to.be( true )
+    E.declaration = 'constant'
+    expect( E.declaration ).to.be( 'constant' )
+    E.children()[1].children()[1].declaration = 'constant'
+    expect( E.canBeADeclaration() ).to.be( false )
+    expect( E.declaration ).to.be( 'none' )
     E.declaration = 'variable'
     expect( E.canBeADeclaration() ).to.be( false )
     expect( E.declaration ).to.be( 'none' )
-    E.children()[1].removeFromParent()
-    expect( E.canBeADeclaration() ).to.be( true )
-    expect( E.declaration ).to.be( 'none' )
-    E.declaration = 'variable'
-    expect( E.canBeADeclaration() ).to.be( true )
-    expect( E.declaration ).to.be( 'variable' )
   } )
 
 } )
