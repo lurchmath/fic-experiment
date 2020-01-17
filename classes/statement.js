@@ -90,6 +90,24 @@ class Statement extends LC {
   // We'll call a Statement an identifier if it (a) has a non-null identifier
   // attribute and (b) is atomic.  You know, it's like "x" or something.
   get isAnIdentifier () { return !!this.identifier && this.isAtomic }
+  // A quantifier is not supposed to apply itself to symbols, as in
+  // "for all pi, pi^2>=0."  Thus we will want to validate quantifiers and mark
+  // them as valid or invalid.  The validation routine comes later, but it uses
+  // the following tool to mark a quantified expression as valid/invalid, by
+  // listing the identifiers it tried to quantify over, but failed.  An empty
+  // list counts as a valid quantified expression.
+  markFailures ( identifierNames ) {
+    this.setAttribute( 'binding failures', identifierNames )
+  }
+  // A quantifier "successfully binds" an identifier if that identifier is on
+  // its list of bound identifiers but not on its list of failures (as in the
+  // definition of markFailures(), above.)
+  successfullyBinds ( identifierName ) {
+    return ( this.getAttribute( 'binding failures' ) || [ ] )
+      .indexOf( identifierName ) == -1 &&
+    this.children().slice( 0, this.children().length - 1 )
+      .some( boundThing => boundThing.identifier == identifierName )
+  }
 }
 
 module.exports.Statement = Statement
