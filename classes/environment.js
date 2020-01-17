@@ -43,6 +43,35 @@ class Environment extends LC {
     return this.canBeADeclaration() ?
       this.getAttribute( 'declaration' ) : 'none'
   }
+  // A declaration is not supposed to re-declare any identifiers in whose scope
+  // it sits (e.g., if you've already got an x in your proof, you can't say "Let
+  // x be arbitrary").  Thus we will want to validate declarations and mark them
+  // as valid or invalid.  The validation routine comes later, but it uses the
+  // the following tool to mark a declaration as valid/invalid, by listing the
+  // identifiers it tried to declare, but failed.  An empty list counts as a
+  // valid declaration.
+  markFailures ( identifierNames ) {
+    if ( !this.declaration || this.declaration == 'none' )
+      return this.clearAttributes( 'declaration failures' )
+    let triedToDeclare = this.children().slice( 0, this.children().length - 1 )
+      .map( declared => declared.identifier )
+    this.setAttribute( 'declaration failures',
+      identifierNames.filter( name => triedToDeclare.indexOf( name ) > -1 ) )
+  }
+  // A declaration failed if it failed to declare any one of its identifiers.
+  declarationFailed () {
+    return ( this.getAttribute( 'declaration failures' ) || [ ] ).length > 0
+  }
+  // A declaration "successfully declares" an identifier if that identifier is
+  // on its list of declared identifiers but not on its list of failures (as in
+  // the definition of markFailures(), above.)
+  successfullyDeclares ( identifierName ) {
+    return this.declaration && this.declaration != 'none' &&
+      ( this.getAttribute( 'declaration failures' ) || [ ] )
+        .indexOf( identifierName ) == -1 &&
+      this.children().slice( 0, this.children().length - 1 )
+        .some( declared => declared.identifier == identifierName )
+  }
   // The getter and setter for formula status enforce the requirement that you
   // can't nest formulas.
   get isAFormula () {
