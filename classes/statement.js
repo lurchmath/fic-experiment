@@ -115,6 +115,20 @@ class Statement extends LC {
     this.children().slice( 0, this.children().length - 1 )
       .some( boundThing => boundThing.identifier == identifierName )
   }
+  // For all quantifiers inside this Statement (including possibly the Statement
+  // itself), add an attribute called "binding failures" which is a list of
+  // names of variables the quantifier tried to bind but that were actually
+  // declared constants, not variables.  To facilitate this, we provide a list
+  // of the names of all constants declared in the statement's context.
+  validateQuantifiers ( constantNames ) {
+    if ( this.isAQuantifier ) {
+      let boundVarNames = this.children().slice( 0, this.children().length - 1 )
+                              .map( boundVar => boundVar.identifier )
+      this.markFailures( boundVarNames.filter( name =>
+        constantNames.indexOf( name ) > -1 ) )
+    }
+    this.children().map( child => child.validateQuantifiers( constantNames ) )
+  }
 }
 
 module.exports.Statement = Statement
