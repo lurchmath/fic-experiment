@@ -15,15 +15,18 @@ class LC extends Structure {
 
   // LCs have the isAGiven boolean, which defaults to false.
   // We also define the isAClaim boolean, which is !isAGiven.
-  // Both of these use the private attribute "given."
-  constructor ( ...children ) {
-    super( ...children )
-    this.setAttribute( 'given', false )
+  get isAGiven () { return this.getAttribute( 'given' ) === true }
+  set isAGiven ( value ) {
+    if ( value ) {
+      this.setAttribute( 'given', true )
+      return true
+    } else {
+      this.clearAttributes( 'given' )
+      return false
+    }
   }
-  get isAGiven () { return this.getAttribute( 'given' ) }
-  set isAGiven ( value ) { return this.setAttribute( 'given', !!value ) }
-  get isAClaim () { return !this.getAttribute( 'given' ) }
-  set isAClaim ( value ) { return this.setAttribute( 'given', !value ) }
+  get isAClaim () { return !this.isAGiven }
+  set isAClaim ( value ) { return !( this.isAGiven = !value ) }
 
   // Abstract-like method that subclasses will fix:
   toString () {
@@ -46,7 +49,7 @@ class LC extends Structure {
       om.setAttribute( OM.sym( 'formula', 'Lurch' ), OM.str( 'true' ) )
     return om
   }
-  copyFlagsFrom = ( om ) => {
+  copyFlagsFrom ( om ) {
     let given = om.getAttribute( OM.sym( 'given', 'Lurch' ) )
     this.isAGiven = !!given && given.value == 'true'
     if ( this instanceof Environment ) {

@@ -1,7 +1,9 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
-const { LC } = require( '../classes/lc.js' )
+const { LC } = require( './lc.js' )
+const { isMetavariable, setMetavariable, clearMetavariable } =
+  require( '../dependencies/second-order-matching.js' )
 
 class Statement extends LC {
   // register with Structure ancestor class for good serialization/copying
@@ -11,22 +13,36 @@ class Statement extends LC {
     if ( child instanceof Statement )
       LC.prototype.insertChild.call( this, child, beforeIndex )
   }
-  // Statements may optionally have string identifiers attached,
-  // and may optionally have the "quantifier" flag set to true.
-  // By default, neither of these options is in play.
-  // Clients can set them manually by altering .identifier/.isAQuantifier.
+  // constructor takes >=0 child Statements as parameters
   constructor ( ...children ) {
     super( ...children )
-    this.isAQuantifier = false // indirectly uses an attribute; see below
+    this.isAQuantifier = false // see below for details
   }
+  // Statements may optionally have string identifiers attached,
+  // which you can get/set with the .identifier property:
   get identifier () { return this.getAttribute( 'identifier' ) }
   set identifier ( value ) {
     this.setAttribute( 'identifier', value )
     return value
   }
+  // Statements may optionally have the "quantifier" flag set to true,
+  // which you can get/set with the .isAQuantifier property:
   get isAQuantifier () { return this.getAttribute( 'quantifier' ) == true }
   set isAQuantifier ( value ) {
-    this.setAttribute( 'quantifier', !!value )
+    if ( value )
+      this.setAttribute( 'quantifier', true )
+    else
+      this.clearAttributes( 'quantifier' )
+    return value
+  }
+  // Statements may optionally have the "metavariable" flag set to true,
+  // which you can get/set with the .isAMetavariable property:
+  get isAMetavariable () { return this.getAttribute( 'metavariable' ) == true }
+  set isAMetavariable ( value ) {
+    if ( value )
+      this.setAttribute( 'metavariable', true )
+    else
+      this.clearAttributes( 'metavariable' )
     return value
   }
   get isValidated () { return !!this.getAttribute( 'validation' ) }
@@ -60,6 +76,22 @@ class Statement extends LC {
       return this.copyFlagsTo( OM.app( head, ...children ) )
     else
       return this.copyFlagsTo( head )
+  }
+  // Extending helper functions to support the metavariable attribute:
+  copyFlagsTo ( om ) {
+    LC.prototype.copyFlagsTo.call( this, om )
+    let mvTarget = om.children.length ? om.children[0] : om
+    if ( this.isAMetavariable )
+      setMetavariable( mvTarget )
+    else
+      clearMetavariable( mvTarget )
+    return om
+  }
+  copyFlagsFrom ( om ) {
+    LC.prototype.copyFlagsFrom.call( this, om )
+    let mvSource = om.children.length ? om.children[0] : om
+    this.isAMetavariable = isMetavariable( mvSource )
+    return this
   }
   // We'll call a Statement an identifier if it (a) has a non-null identifier
   // attribute and (b) is atomic.  You know, it's like "x" or something.

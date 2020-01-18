@@ -6,12 +6,20 @@ let expect = require( 'expect.js' )
 
 // import all LC subclasses and OM
 const { OM, LC, Statement, Environment } = require( '../classes/all.js' )
+const { isMetavariable, setMetavariable, clearMetavariable } =
+  require( '../dependencies/second-order-matching.js' )
 
 // helper function for testing
 let check = ( LCnotation, simpleOM ) => {
   // Take input strings and parse into real trees
-  let lc = LC.fromString( LCnotation )
-  // console.log( `LCnotation "${LCnotation}" parsed into lc "${lc}"` )
+  let lc = null
+  if ( LCnotation instanceof LC ) {
+    lc = LCnotation
+    // console.log( `LCnotation did not need parsing, so lc is "${lc}"` )
+  } else {
+    lc = LC.fromString( LCnotation )
+    // console.log( `LCnotation "${LCnotation}" parsed into lc "${lc}"` )
+  }
   let om = null
   if ( simpleOM instanceof OM ) {
     om = simpleOM
@@ -88,6 +96,24 @@ suite( 'OM Conversions', () => {
       OMEnv( OM.var( 'X' ) ),
       OMEnv( asAGiven( OM.var( 'A' ) ), OM.var( 'B' ) )
     ) ) )
+  } )
+
+  test( 'Check situations involving metavariables', () => {
+    let PofxLC = LC.fromString( 'P(x)' )
+    let PofxOM = OM.simple( 'P(x)' )
+    check( PofxLC, PofxOM )
+    PofxLC.isAMetavariable = true
+    setMetavariable( PofxOM.children[0] )
+    check( PofxLC, PofxOM )
+    PofxLC.isAMetavariable = false
+    clearMetavariable( PofxOM.children[0] )
+    check( PofxLC, PofxOM )
+    PofxLC.children()[0].isAMetavariable = true
+    setMetavariable( PofxOM.children[1] )
+    check( PofxLC, PofxOM )
+    PofxLC.children()[0].isAMetavariable = false
+    clearMetavariable( PofxOM.children[1] )
+    check( PofxLC, PofxOM )
   } )
 
   let tryingToConvert = ( x ) => () =>

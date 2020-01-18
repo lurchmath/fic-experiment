@@ -81,4 +81,13 @@ suite( 'Basics', () => {
     expect( tmp.isAClaim ).to.be( true )
   } )
 
+  test( 'Nothing is a metavariable by default, but you can turn it on', () => {
+    let tmp = new Statement()
+    expect( tmp.isAMetavariable ).to.be( false )
+    tmp.isAMetavariable = true
+    expect( tmp.isAMetavariable ).to.be( true )
+    tmp.isAMetavariable = false
+    expect( tmp.isAMetavariable ).to.be( false )
+  } )
+
 } )
