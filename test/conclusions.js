@@ -24,9 +24,31 @@ suite( 'Conclusions', () => {
     return result
   }
 
+  test( 'In { A } only A is a conclusion', () => {
+    let X = E( A )
+    expect( X.toString() ).to.be( '{ A }' )
+    let Y = X.conclusions()
+    expect( Y ).to.have.length( 1 )
+    expect( Y ).to.contain( A )
+    expect( A.isAConclusionIn( X ) ).to.be( true )
+  } )
+
   test( 'In { A B }, both A and B are conclusions', () => {
     let X = E( A, B )
     expect( X.toString() ).to.be( '{ A B }' )
+    let Y = X.conclusions()
+    expect( Y ).to.have.length( 2 )
+    expect( Y ).to.contain( A )
+    expect( Y ).to.contain( B )
+    expect( A.isAConclusionIn( X ) ).to.be( true )
+    expect( B.isAConclusionIn( X ) ).to.be( true )
+  } )
+
+
+
+  test( 'In { A { B } }, both A and B are conclusions', () => {
+    let X = E( A, E( B ) )
+    expect( X.toString() ).to.be( '{ A { B } }' )
     let Y = X.conclusions()
     expect( Y ).to.have.length( 2 )
     expect( Y ).to.contain( A )

@@ -117,7 +117,7 @@ suite( 'FIC Derivation', () => {
   } )
 
   test( 'But things that don\'t actually hold get marked invalid', () => {
-    expect( check( ':{A B}', '{A B}' ) ).to.be( false )
+    expect( check( ':{A B}', '{A B}' ) ).to.be( true )
     expect( check( 'alive', '{ :alive not(dead) }',
                    'completely_unrelated' ) ).to.be( false )
     expect( check( 'x', '{x x x x y {} {} {} {} {}}' ) ).to.be( false )

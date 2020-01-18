@@ -56,19 +56,34 @@ class LC extends Structure {
     return this
   }
 
-  // The conclusions of an LC X are all the Statements inside X, plus all the
-  // Statements inside claims inside X, plus all the Statements inside claims
-  // inside claims inside X, and so on, indenfinitely.
-  conclusions () {
-    let result = [ ]
-    this.children().map( child => {
-      if ( child.isAGiven ) return
-      if ( child instanceof Statement )
-        result.push( child )
-      else if ( child instanceof Environment )
-        result = result.concat( child.conclusions() )
-    } )
-    return result
+  // For FIC derivations we only care about certain attributes of an LC
+  // So we need to write a new function just for this purpose.
+  hasSameMeaningAs ( other ) {
+    let numkids = this.children().length
+    // they have to have the same number of children
+    if (numkids != other.children().length) return false
+    // if they do and it's positive, then just check if the children are equal
+    if (numkids>0) {
+      for (let i=0; i<numkids; i++)
+        if (!this.children()[i].hasSameMeaningAs(other.children()[i])) return false
+    }
+    // Check if they are the same class of object
+    if (this.constructor !== this.constructor) return false
+    // Check if the attributes that define an LC are the same
+    // (and nothing else).  Note we ignore the Given attribute because
+    // it does not affect the meaning, only states whether it is a
+    // hypothetical or a claim
+    const LCattr = ['declaration','quantifier','formula','identifier']
+    for (let i=0; i<LCattr.length; i++) {
+      let p = LCattr[i]
+      let ours = this.attributes
+      let theirs = other.attributes
+      if ( ours.hasOwnProperty(p) && !theirs.hasOwnProperty(p) ||
+          !ours.hasOwnProperty(p) &&  theirs.hasOwnProperty(p) ||
+           ours.hasOwnProperty(p) &&  theirs.hasOwnProperty(p) &&
+           ours[p] !== theirs[p]) return false
+    }
+    return true
   }
 
   // By the same definition, we might ask whether a given LC is a conclusion in
@@ -355,9 +370,36 @@ class LC extends Structure {
     throw( 'Cannot convert this type of OpenMath structure to LC' )
   }
 
+  // In order to use the FIC recursion for rules GR and GL we need
+  // to make copies of the LC :A that is not a given.  This accomplishes that.
+  // Note that this routine does not make a copy of something that is already
+  // a claim.
+  claim () {
+      if ( this.isAClaim ) return this
+      let copy = this.copy()
+      copy.isAClaim = true
+      return copy
+  }
+
+  // Validate!!  Here we go.
+  validate () {
+    let concs = this.conclusions()
+    concs.forEach( ( X ) => {
+      let LHS = X.allAccessibles().map( x => x.claim() )
+      let result = derives( ...LHS , X)
+      if (result) {
+        X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
+      } else {
+        X.setAttribute( 'validation' ,
+                        { status: result, feedback:'This doesn\'t follow.' } )
+      }
+    } )
+  }
+
 }
 
 module.exports.LC = LC
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
+const { derives } = require( '../classes/deduction.js' )

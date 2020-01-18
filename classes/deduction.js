@@ -8,8 +8,10 @@ function derives ( ...LCs ) {
     throw( 'The derives function accepts only LC instances as arguments' )
 
   // Compute normal forms of all arguments, splitting into premises & conclusion
+  // If any premises are Givens, convert them to Claims (since 'premise' means
+  // 'given' in LC-land.)
   let conclusion = LCs.pop().normalForm()
-  let premises = LCs.map( premise => premise.normalForm() )
+  let premises = LCs.map( premise => premise.normalForm().claim() )
   // console.log( '** ' + premises.map( x => ''+x ).join( ', ' )
   //            + ' |- ' + conclusion + ' ?' )
 
@@ -18,8 +20,8 @@ function derives ( ...LCs ) {
     throw( 'The derives function requires the conclusion to be a claim' )
 
   // S rule: Gamma, A |- A
-  if ( premises.some( premise => premise.equals( conclusion ) ) ) {
-    // console.log( '** S rule -> derivation holds.' )
+  if ( premises.some( premise => premise.hasSameMeaningAs( conclusion ) ) ) {
+    // console.log( '** S rule -> derivation holds.')
     return true
   }
 
@@ -42,37 +44,45 @@ function derives ( ...LCs ) {
     // GR rule: From Gamma, A |- B get Gamma |- { :A B }
     if ( cpair.A.isAGiven ) {
       // console.log( '** Try GR rule recursively:' )
-      return derives( ...premises, cpair.A.normalForm(), cpair.B.normalForm() )
+      return derives( ...premises, cpair.A.claim(), cpair.B )
     }
 
     // CR rule: From Gamma |- A and Gamma |- B get Gamma |- { A B }
     // (at this point, we know A is a claim)
     // console.log( '** Try CR rule recursively:' )
-    return derives( ...premises, cpair.A.normalForm() )
-        && derives( ...premises, cpair.B.normalForm() )
+    return derives( ...premises, cpair.A )
+        && derives( ...premises, cpair.B )
   }
 
   // Now we consider the rules which require a premise that's a pair
-  let ppairIndex = premises.findIndex( ABPair )
-  if ( ppairIndex > -1 ) {
-    let ppair = ABPair( premises[ppairIndex] )
-    premises.splice( ppairIndex, 1 )
+  // There might be more than one, so we have to try them all until we find
+  // a successful one.
 
-    // GL rule: From Gamma |- A and Gamma, B |- C get Gamma, { :A B } |- C
-    if ( ppair.A.isAGiven ) {
-      // console.log( '** Try GL rule recursively:' )
-      let newA = ppair.A.copy()
-      newA.isAGiven = false
-      return derives( ...premises, newA.normalForm() )
-          && derives( ...premises, ppair.B.normalForm(), conclusion )
+  // Define a boolean function to test each pair premise.  Then we just
+  // see if premises.some(premisePairWorks) returns true.
+  let premisePairWorks = (prem, premindex) => {
+
+      let ppair = ABPair(prem)
+      if (!ppair) return false
+      let gamma = premises.slice()
+      gamma.splice( premindex, 1 )
+
+      // GL rule: From Gamma |- A and Gamma, B |- C get Gamma, { :A B } |- C
+      if ( ppair.A.isAGiven ) {
+        // console.log( '** Try GL rule recursively:' )
+        return derives( ...gamma, ppair.A.claim() )
+            && derives( ...gamma, ppair.B, conclusion )
+      }
+
+      // CL rule: From Gamma, A, B |- C get Gamma, { A B } |- C
+      // (at this point, we know A is a claim)
+      // console.log( '** Try CL rule recursively:' )
+      return derives( ...gamma, ppair.A, ppair.B,
+                      conclusion )
     }
 
-    // CL rule: From Gamma, A, B |- C get Gamma, { A B } |- C
-    // (at this point, we know A is a claim)
-    // console.log( '** Try CL rule recursively:' )
-    return derives( ...premises, ppair.A.normalForm(), ppair.B.normalForm(),
-                    conclusion )
-  }
+  // So now we see if one of the premise pairs works...
+  if (premises.some(premisePairWorks)) return true
 
   // If none of those rules help, it doesn't follow.
   // console.log( '** no rule -> derivation does not hold.' )
