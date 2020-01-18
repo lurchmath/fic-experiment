@@ -16,11 +16,13 @@ class Environment extends LC {
     this.setAttribute( 'formula', false )
   }
   // An Environment can be a constant or variable declaration iff
-  // (a) it has n>0 children,
-  // (b) the first n-1 are identifiers,
-  // (c) the last one is a claim, and
-  // (d) that claim contains neither formulas nor other declarations.
+  // (a) it is not a formula,
+  // (b) it has n>0 children,
+  // (c) the first n-1 are identifiers,
+  // (d) the last one is a claim, and
+  // (e) that claim contains neither formulas nor other declarations.
   canBeADeclaration () {
+    if ( this.isAFormula ) return false
     let vars = this.children().slice()
     if ( vars.length == 0 ) return false
     let body = vars.pop()
