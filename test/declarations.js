@@ -145,7 +145,7 @@ suite( 'Declarations', () => {
 
 } )
 
-suite( 'Scopes', () => {
+suite( 'Marking declarations', () => {
 
   test( 'markDeclarations() handles a single empty environment, { }', () => {
     let E = LC.fromString( '{ }' )
@@ -204,11 +204,11 @@ suite( 'Scopes', () => {
     // now go ahead and compute all the scope feedback:
     E.markDeclarations()
     // we should find that:
-    //  - outer env: x is the implicit declaration and nothing failed
-    //  - inner env: y is the implicit declaration but the Let failed
-    expect( E.implicitDeclarations ).to.eql( [ 'x' ] )
+    //  - outer env: x,y are both implicit declarations and nothing failed
+    //  - inner env: no implicit declarations but the Let failed
+    expect( E.implicitDeclarations ).to.eql( [ 'x', 'y' ] )
     expect( E.declarationFailed() ).to.be( false )
-    expect( inner.implicitDeclarations ).to.eql( [ 'y' ] )
+    expect( inner.implicitDeclarations ).to.eql( [ ] )
     expect( inner.declaration ).to.be( 'variable' )
     expect( inner.declarationFailed() ).to.be( true )
     expect( inner.successfullyDeclares( 'x' ) ).to.be( false )
@@ -237,12 +237,12 @@ suite( 'Scopes', () => {
     //  - outer env: a is the implicit declaration and nothing failed
     //  - inner env 1: y is implicit, nothing failed, x succeeded
     //  - inner env 2: z is implicit, but the Let x failed
-    expect( E.implicitDeclarations ).to.eql( [ 'a' ] )
+    expect( E.implicitDeclarations ).to.eql( [ 'a', 'y', 'z' ] )
     expect( E.declarationFailed() ).to.be( false )
-    expect( in1.implicitDeclarations ).to.eql( [ 'y' ] )
+    expect( in1.implicitDeclarations ).to.eql( [ ] )
     expect( in1.declarationFailed() ).to.be( false )
     expect( in1.successfullyDeclares( 'x' ) ).to.be( true )
-    expect( in2.implicitDeclarations ).to.eql( [ 'z' ] )
+    expect( in2.implicitDeclarations ).to.eql( [ ] )
     expect( in2.declarationFailed() ).to.be( true )
     expect( in2.successfullyDeclares( 'x' ) ).to.be( false )
   } )
@@ -486,6 +486,128 @@ suite( 'Formulas', () => {
     expect( dec.successfullyDeclares( 'P' ) )
     expect( F.isAFormula ).to.be( true )
     expect( F.formulaMetavariables() ).to.eql( [ 'y', 'Q' ] )
+  } )
+
+} )
+
+suite( 'Identifier scopes', () => {
+
+  test( 'The scope of a non-identifier is undefined', () => {
+    expect( LC.fromString( 'f(x)' ).scope() ).to.be( undefined )
+    expect( LC.fromString( '~forall(x,P(x))' ).scope() ).to.be( undefined )
+  } )
+
+  test( 'The scope of a quantified variable is the quantifier', () => {
+    let E = LC.fromString( '{ ~forall(x,P(x)) }' )
+    let Q = E.children()[0]
+    let x1 = Q.children()[0]
+    let x2 = Q.children()[1].children()[0]
+    // be sure we've selected the right Structures inside the above env:
+    expect( Q.identifier ).to.be( 'forall' )
+    expect( x1.identifier ).to.be( 'x' )
+    expect( x2.identifier ).to.be( 'x' )
+    // (In this case w/only quantifiers, we don't need markVariables().)
+    // verify scopes of bound variables:
+    expect( x1.scope() ).to.be( Q )
+    expect( x2.scope() ).to.be( Q )
+  } )
+
+  test( 'The scope of an implicitly declared variable is its env', () => {
+    let E = LC.fromString( '{ ~forall(x,P(x)) }' )
+    let Q = E.children()[0]
+    let P = Q.children()[1]
+    // be sure we've selected the right Structures inside the above env:
+    expect( Q.identifier ).to.be( 'forall' )
+    expect( P.identifier ).to.be( 'P' )
+    // ensure we have all the scope info we need:
+    E.markDeclarations()
+    // verify scopes of bound variables:
+    expect( P.scope() ).to.be( E )
+  } )
+
+  test( 'The scope of an explicitly declared variable is its decl', () => {
+    let E = LC.fromString( '{ { P Q } ~forall(x,P(x)) }' )
+    let dec = E.children()[0]
+    dec.declaration = 'variable'
+    let Q = E.children()[1]
+    let P = Q.children()[1]
+    // be sure we've selected the right Structures inside the above env:
+    expect( dec.declaration ).to.be( 'variable' )
+    expect( Q.identifier ).to.be( 'forall' )
+    expect( P.identifier ).to.be( 'P' )
+    // (In this case w/only explicit decls, we don't need markVariables().)
+    expect( dec.successfullyDeclares( 'P' ) ).to.be( true )
+    // verify scopes of bound variables:
+    expect( P.scope() ).to.be( dec )
+  } )
+
+  test( 'All identifiers in a big example have the right scopes', () => {
+    let E = LC.fromString( '{'
+                         + '  foo(bar)'
+                         + '  {'
+                         + '    { x P(x) }' // Let x be such that P(x)
+                         + '    Q(x)'
+                         + '  }'
+                         + '  {'
+                         + '    { y { } }' // Declare y
+                         + '    gt(x,y)'
+                         + '  }'
+                         + '  foo(baz)'
+                         + '}' )
+    let dec1 = E.children()[1].children()[0]
+    dec1.declaration = 'variable'
+    expect( dec1.declaration ).to.be( 'variable' )
+    let dec2 = E.children()[2].children()[0]
+    dec2.declaration = 'constant'
+    expect( dec2.declaration ).to.be( 'constant' )
+    E.markDeclarations()
+    // first child of E: foo(bar), both identifiers implicitly declared in E
+    let foo = E.children()[0]
+    expect( foo.identifier ).to.be( 'foo' )
+    let bar = foo.children()[0]
+    expect( bar.identifier ).to.be( 'bar' )
+    expect( foo.scope() ).to.be( E )
+    expect( bar.scope() ).to.be( E )
+    // dec1: Let x be such that P(x)
+    //   both x instances have scope == dec1
+    //   P is implicitly declared in dec1.parent()
+    let x = dec1.children()[0]
+    expect( x.identifier ).to.be( 'x' )
+    expect( x.scope() ).to.be( dec1 )
+    x = dec1.children()[1].children()[0]
+    expect( x.identifier ).to.be( 'x' )
+    expect( x.scope() ).to.be( dec1 )
+    let P = dec1.children()[1]
+    expect( P.scope() ).to.be( dec1.parent() )
+    // Q(x): x is declared in dec1, Q is implicit in its parent
+    let Q = dec1.nextSibling()
+    expect( Q.identifier ).to.be( 'Q' )
+    expect( Q.scope() ).to.be( Q.parent() )
+    expect( Q.children()[0].scope() ).to.be( dec1 )
+    // dec2: Let y be a constant; the y has scope == dec2
+    expect( dec2.children()[0].identifier ).to.be( 'y' )
+    expect( dec2.children()[0].scope() ).to.be( dec2 )
+    // gt(x,y): g and x are implicit in parent, y is declared in dec2
+    let gt = dec2.nextSibling()
+    expect( gt.identifier ).to.be( 'gt' )
+    expect( gt.scope() ).to.be( gt.parent() )
+    expect( gt.children()[0].scope() ).to.be( gt.parent() )
+    expect( gt.children()[1].scope() ).to.be( dec2 )
+    // foo(baz): foo implicitly declared earlier, baz now, but in same parent
+    let last = E.children()[E.children().length-1]
+    expect( last.identifier ).to.be( 'foo' )
+    expect( last.scope() ).to.be( E )
+    expect( last.children()[0].identifier ).to.be( 'baz' )
+    expect( last.children()[0].scope() ).to.be( E )
+  } )
+
+  test( 'Scopes of implicit decls are undefined w/o markDeclarations()', () => {
+    let E = LC.fromString( '{ ~forall(x,P(x)) }' )
+    let Q = E.children()[0]
+    let P = Q.children()[1]
+    expect( Q.identifier ).to.be( 'forall' )
+    expect( P.identifier ).to.be( 'P' )
+    expect( P.scope() ).to.be( undefined )
   } )
 
 } )

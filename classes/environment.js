@@ -129,16 +129,24 @@ class Environment extends LC {
   //  - Every quantified expression will be marked with its binding failures,
   //    even if that list is empty.  See the markFailures() and
   //    successfullyBinds() functions in the Statement class for details.
-  markDeclarations ( declaredConstNames = [ ], declaredVarNames = [ ] ) {
-    // utility function:
-    let isDeclared = ( x ) =>
-      declaredConstNames.indexOf( x ) > -1 ||
-      declaredVarNames.indexOf( x ) > -1
+  markDeclarations ( declaredConstNames = [ ], declaredVarNames = [ ],
+                     enclosingEnvironment ) {
+    // utility functions:
+    let isDeclared = ( x ) => declaredConstNames.indexOf( x ) > -1
+                           || declaredVarNames.indexOf( x ) > -1
+    let union = ( list1, list2 ) => {
+      let result = list1.slice()
+      list2.map( entry => {
+        if ( result.indexOf( entry ) == -1 ) result.push( entry ) } )
+      return result
+    }
     let implicitDeclarations = [ ] // names of implicitly declared variables
+    let whereToSave = enclosingEnvironment ? enclosingEnvironment : this
     let recursiveCalls = [ ] // recursive function calls to make later
     // console.log( 'Mark declarations in ' + this + ' w/consts ['
     //            + declaredConstNames.join( ',' ) + '] and vars ['
     //            + declaredVarNames.join( ',' ) + ']:' )
+
     this.children().map( ( child, index ) => {
       // console.log( 'Handling child ' + child + ':' )
 
@@ -176,14 +184,18 @@ class Environment extends LC {
       // formulas, which ignore declared variables, as in the second parameter,
       // below.
       if ( child instanceof Environment ) {
-        recursiveCalls.push( ( function ( constants, variables ) {
-          return function ( implicitVars ) {
+        ( function ( constants, variables, enclosing ) {
+          recursiveCalls.push( function ( implicitVars ) {
             // console.log( 'Recurring inside child (environment) '+index+'...' )
             child.markDeclarations( constants,
-              child.isAFormula ? [ ] : variables.concat( implicitVars ) )
+              child.isAFormula ? [ ] : union( variables, implicitVars ),
+              enclosing )
             // console.log( '...stepping back out of recursion.' )
-          }
-        } )( declaredConstNames.slice(), declaredVarNames.slice() ) )
+          } )
+        } )( declaredConstNames.slice(), declaredVarNames.slice(),
+             enclosingEnvironment ? enclosingEnvironment :
+             child.declaration && child.declaration != 'none' ? this :
+             undefined )
       }
       // If this child is a statement, do two things:
       if ( child instanceof Statement ) {
@@ -199,18 +211,19 @@ class Environment extends LC {
           }
         } )
         // console.log( '\tIt\'s a statement; we validated quantifiers and now '
-        //            + 'implicit variables list is ['
+        //            + 'additional implicit vars are ['
         //            + implicitDeclarations.join( ',' ) + ']' )
       }
     } )
     // Now store in this environment anything that we must implicitly declare
     // in it, using the "implicit declarations" attribute.  This will often be
     // an empty array, but this attribute will be added to every environment.
-    this.implicitDeclarations = implicitDeclarations
+    whereToSave.implicitDeclarations =
+      union( whereToSave.implicitDeclarations, implicitDeclarations )
     // Then make any recursive calls into child environments that we saved until
     // now, to be sure we knew all the implicit variable declarations we would
     // need to add to them.
-    recursiveCalls.map( f => f( implicitDeclarations ) )
+    recursiveCalls.map( f => f( whereToSave.implicitDeclarations ) )
   }
   // This function should be called only in formulas.  If it is called in
   // anything else, it returns undefined.

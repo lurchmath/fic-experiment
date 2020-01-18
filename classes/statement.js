@@ -132,6 +132,61 @@ class Statement extends LC {
     }
     this.children().map( child => child.validateQuantifiers( constantNames ) )
   }
+  // The scope of a Statement that's an identifier is one of:
+  //  - The quantifier binding it, if it is (successfully) bound by one.
+  //  - The declaration declaring it, if it is (successfully) declared by one.
+  //  - The environment implicitly declaring it, in all other cases.
+  // If this function is called in a statement that's not an identifier,
+  // return undefined.
+  scope () {
+    // If I'm not an identifier, then I have no scope:
+    if ( !this.identifier ) return undefined
+    // If I have a quantifier ancestor binding me, that's my scope:
+    let me = this.identifier
+    // console.log( 'Computing scope of: ' + me )
+    let lastStatement = this
+    let ancestor = this.parent()
+    while ( ancestor instanceof Statement ) {
+      // console.log( 'Checking to see if I\'m bound in: ' + ancestor )
+      if ( ancestor.isAQuantifier && ancestor.successfullyBinds( me ) )
+        return ancestor
+      lastStatement = ancestor
+      ancestor = ancestor.parent()
+    }
+    // console.log( 'No ancestor binds me.' )
+    // So we have to look through our accessibles list for a declaration:
+    let walk = lastStatement
+    while ( walk ) {
+      // Seek a declaration of me among my previous siblings:
+      while ( walk.previousSibling() ) {
+        let sib = walk.previousSibling()
+        // console.log( 'Checking if declaration here: ' + sib )
+        if ( sib instanceof Environment && sib.successfullyDeclares( me ) )
+          return sib
+        walk = sib
+      }
+      // console.log( 'No declaration yet.' )
+      // No more siblings, so does my parent implicitly declare me?
+      let par = walk.parent()
+      // console.log( 'Maybe implicit/explicit in this parent: ' + par )
+      if ( par && ( par.implicitDeclarations.indexOf( me ) > -1
+                 || par.successfullyDeclares( me ) ) )
+        return par
+      // console.log( 'No, not implicit in parent.' )
+      // It didn't, so we have to look at accessibles one level higher:
+      walk = par
+    }
+    // console.log( 'I give up!' )
+    // Technically, this should never happen, because the client should call
+    // this function only if they've already called markDeclarations() on some
+    // higher-level ancestor of this identifier, which would have found its
+    // declaration, even if it was implicit.  But if the client hasn't called
+    // that, then this could happen, for implicit declarations only.  So we
+    // return undefined in that case.
+    return undefined // this is what JS does anyway, but just being explicit
+  }
 }
 
 module.exports.Statement = Statement
+
+const { Environment } = require( './environment.js' )
