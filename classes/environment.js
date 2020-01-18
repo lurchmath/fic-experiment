@@ -210,6 +210,35 @@ class Environment extends LC {
     // need to add to them.
     recursiveCalls.map( f => f( implicitDeclarations ) )
   }
+  // This function should be called only in formulas.  If it is called in
+  // anything else, it returns undefined.
+  // If the environment doesn't have an "implicit declarations" attribute, then
+  // this will return undefined, because it requires such data to function.  The
+  // client should instead call markDeclarations() on this (or its topmost
+  // parent instead, probably) to add scoping info to the tree, then call this
+  // to get a correct result.
+  // Within a formula, it returns list of all the identifiers (names, as
+  // strings) that appear in the formula and that should be marked as
+  // metavariables when the formula is used (as a formula).
+  formulaMetavariables () {
+    if ( !this.isAFormula
+      || this.getAttribute( 'implicit declarations' ) === undefined )
+      return undefined
+    let result = [ ]
+    let add = ( names ) => names.map( name => {
+      if ( result.indexOf( name ) == -1 ) result.push( name )
+    } )
+    let recur = ( env ) => {
+      add( env.implicitDeclarations )
+      if ( env.declaration && env.declaration != 'none' )
+        env.children().slice( 0, env.children().length - 1 ).map( declared => {
+          if ( env.successfullyDeclares( declared.identifier ) )
+            add( declared.identifier )
+        } )
+    }
+    recur( this )
+    return result
+  }
 }
 
 module.exports.Environment = Environment

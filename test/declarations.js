@@ -143,6 +143,10 @@ suite( 'Declarations', () => {
     expect( E.declaration ).to.be( 'none' )
   } )
 
+} )
+
+suite( 'Scopes', () => {
+
   test( 'markDeclarations() handles a single empty environment, { }', () => {
     let E = LC.fromString( '{ }' )
     // check to make sure nothing has been marked with scope feedback yet:
@@ -413,6 +417,75 @@ suite( 'Declarations', () => {
     expect( dec2.declarationFailed() ).to.be( false )
     expect( dec2.successfullyDeclares( 'P' ) ).to.be( true )
     expect( dec2.declaration ).to.be( 'variable' )
+  } )
+
+} )
+
+suite( 'Formulas', () => {
+
+  test( 'Asking for the metavariables in non-formulas is undefined', () => {
+    let F = LC.fromString( 'x' )
+    expect( F.formulaMetavariables ).to.be( undefined )
+    F = LC.fromString( '{ x }' )
+    expect( F.formulaMetavariables ).to.be.ok()
+    expect( F.formulaMetavariables() ).to.be( undefined )
+    F.markDeclarations()
+    expect( F.formulaMetavariables() ).to.be( undefined )
+  } )
+
+  test( 'Asking about metavars before markDeclarations() is undefined', () => {
+    let F = LC.fromString( '[ x ]' )
+    expect( F ).to.be.an( Environment )
+    expect( F.isAFormula ).to.be( true )
+    expect( F.formulaMetavariables() ).to.be( undefined )
+  } )
+
+  test( 'The formula [ x ] has one metavariable, x', () => {
+    let F = LC.fromString( '[ x ]' )
+    F.markDeclarations()
+    expect( F ).to.be.an( Environment )
+    expect( F.isAFormula ).to.be( true )
+    expect( F.formulaMetavariables() ).to.eql( [ 'x' ] )
+  } )
+
+  test( 'The formula [ ~forall(x,P(x)) ] has one metavariable, P', () => {
+    let F = LC.fromString( '[ ~forall(x,P(x)) ]' )
+    F.markDeclarations()
+    expect( F ).to.be.an( Environment )
+    expect( F.isAFormula ).to.be( true )
+    expect( F.formulaMetavariables() ).to.eql( [ 'P' ] )
+  } )
+
+  test( 'The formula [ ~forall(x,P(x,y)) Q ] has metavariables P,y,Q', () => {
+    let F = LC.fromString( '[ ~forall(x,P(x,y)) Q ]' )
+    F.markDeclarations()
+    expect( F ).to.be.an( Environment )
+    expect( F.isAFormula ).to.be( true )
+    expect( F.formulaMetavariables() ).to.eql( [ 'P', 'y', 'Q' ] )
+  } )
+
+  test( 'Variable declarations don\'t impact formula metavariables', () => {
+    let E = LC.fromString( '{ { P {} } [ ~forall(x,P(x,y)) Q ] }' )
+    let dec = E.children()[0]
+    expect( dec.canBeADeclaration() ).to.be( true )
+    dec.declaration = 'variable'
+    let F = E.children()[1]
+    E.markDeclarations()
+    expect( dec.successfullyDeclares( 'P' ) )
+    expect( F.isAFormula ).to.be( true )
+    expect( F.formulaMetavariables() ).to.eql( [ 'P', 'y', 'Q' ] )
+  } )
+
+  test( 'Constant declarations do impact formula metavariables', () => {
+    let E = LC.fromString( '{ { P {} } [ ~forall(x,P(x,y)) Q ] }' )
+    let dec = E.children()[0]
+    expect( dec.canBeADeclaration() ).to.be( true )
+    dec.declaration = 'constant'
+    let F = E.children()[1]
+    E.markDeclarations()
+    expect( dec.successfullyDeclares( 'P' ) )
+    expect( F.isAFormula ).to.be( true )
+    expect( F.formulaMetavariables() ).to.eql( [ 'y', 'Q' ] )
   } )
 
 } )
