@@ -2,6 +2,7 @@
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
+const { Statement } = require( './statement.js' )
 
 class Environment extends LC {
   // register with Structure ancestor class for good serialization/copying
@@ -105,6 +106,109 @@ class Environment extends LC {
   toOM () {
     return this.copyFlagsTo( OM.app( OM.sym( 'Env', 'Lurch' ),
       ...this.children().map( child => child.toOM() ) ) )
+  }
+  // Environment will need to be able to store lists of identifiers that they
+  // implicitly declare (by using them free and undeclared).  We thus make a
+  // getter/setter pair for conveniently doing so.
+  get implicitDeclarations () {
+    return this.getAttribute( 'implicit declarations' ) || [ ]
+  }
+  set implicitDeclarations ( list ) {
+    return this.setAttribute( 'implicit declarations', list )
+  }
+  // Traverse this environment and all its descendants, marking them in three
+  // ways:
+  //  - Every environment will be assigned its .implicitDeclarations list, even
+  //    environments for which that list is empty.  See explanation above for
+  //    the meaning of that attribute.
+  //  - Every environment that is also a declaration will be marked with its
+  //    declaration failures, even if that list is empty.  See the
+  //    markFailures() and successfullyDeclares() functions above for details.
+  //  - Every quantified expression will be marked with its binding failures,
+  //    even if that list is empty.  See the markFailures() and
+  //    successfullyBinds() functions in the Statement class for details.
+  markDeclarations ( declaredConstNames = [ ], declaredVarNames = [ ] ) {
+    // utility function:
+    let isDeclared = ( x ) =>
+      declaredConstNames.indexOf( x ) > -1 ||
+      declaredVarNames.indexOf( x ) > -1
+    let implicitDeclarations = [ ] // names of implicitly declared variables
+    let recursiveCalls = [ ] // recursive function calls to make later
+    // console.log( 'Mark declarations in ' + this + ' w/consts ['
+    //            + declaredConstNames.join( ',' ) + '] and vars ['
+    //            + declaredVarNames.join( ',' ) + ']:' )
+    this.children().map( ( child, index ) => {
+      // console.log( 'Handling child ' + child + ':' )
+
+      // If it's a declaration, grade whether any of its declarations are wrong.
+      // Do this by writing to the "declaration failures" attribute an array of
+      // names of things you tried to declare but failed.  If the declaration
+      // was 100% OK, this will be an empty list, but it will always be present.
+      if ( child.declaration && child.declaration != 'none' ) {
+        let names = child.children().slice( 0, child.children().length - 1 )
+                         .map( declareThis => declareThis.identifier )
+        let failures = [ ]
+        names.map( name => {
+          if ( isDeclared( name ) )
+            failures.push( name )
+          else if ( child.declaration == 'constant' )
+            declaredConstNames.push( name )
+          else // if ( child.declaration == 'variable' )
+            declaredVarNames.push( name )
+        } )
+        child.markFailures( failures )
+        // console.log( '\tIt\'s a declaration w/failures ['
+        //            + failures.join( ',' ) + '] and now consts ['
+        //            + declaredConstNames.join( ',' ) + '] and vars ['
+        //            + declaredVarNames.join( ',' ) + ']' )
+      }
+      // If this child is an environment (which includes declarations as a
+      // special case), we will want to recur inside it, but we can't do so yet,
+      // because we haven't yet checked to see if/where all the implicit variabe
+      // declarations are.  So instead, we're just going to store here the
+      // function we will call later to do the recursion.  To that recursion, we
+      // will pass copies of the parameters given to us, so the recursion can
+      // modify them without messing up our copies.  This is because anything
+      // declared in one of our children ends its scope at the end of the child,
+      // so it shouldn't impact later children.  Note that some environments are
+      // formulas, which ignore declared variables, as in the second parameter,
+      // below.
+      if ( child instanceof Environment ) {
+        recursiveCalls.push( ( function ( constants, variables ) {
+          return function ( implicitVars ) {
+            // console.log( 'Recurring inside child (environment) '+index+'...' )
+            child.markDeclarations( constants,
+              child.isAFormula ? [ ] : variables.concat( implicitVars ) )
+            // console.log( '...stepping back out of recursion.' )
+          }
+        } )( declaredConstNames.slice(), declaredVarNames.slice() ) )
+      }
+      // If this child is a statement, do two things:
+      if ( child instanceof Statement ) {
+        // First, make sure none of its quantifiers break the rule of not trying
+        // to bind something that's declared to be a constant:
+        child.validateQuantifiers( declaredConstNames )
+        // Second, notice any undeclared free variables in it, and put them on
+        // the list of things we have to implicitly declare in this environment:
+        child.toOM().freeVariables().map( name => {
+          if ( !isDeclared( name ) ) {
+            implicitDeclarations.push( name )
+            declaredVarNames.push( name )
+          }
+        } )
+        // console.log( '\tIt\'s a statement; we validated quantifiers and now '
+        //            + 'implicit variables list is ['
+        //            + implicitDeclarations.join( ',' ) + ']' )
+      }
+    } )
+    // Now store in this environment anything that we must implicitly declare
+    // in it, using the "implicit declarations" attribute.  This will often be
+    // an empty array, but this attribute will be added to every environment.
+    this.implicitDeclarations = implicitDeclarations
+    // Then make any recursive calls into child environments that we saved until
+    // now, to be sure we knew all the implicit variable declarations we would
+    // need to add to them.
+    recursiveCalls.map( f => f( implicitDeclarations ) )
   }
 }
 
