@@ -45,8 +45,12 @@ class Statement extends LC {
       this.clearAttributes( 'metavariable' )
     return value
   }
+  get isValidated () { return !!this.getAttribute( 'validation' ) }
+  get isValid () {
+    return this.getAttribute( 'validation' ).status
+  }
   // What do Statements look like, for printing/debugging purposes?
-  toString () {
+  toString (showValidation) {
     let result = ''
     if ( this.isAGiven ) result += ':'
     if ( this.isAQuantifier ) result += '~'
@@ -55,6 +59,8 @@ class Statement extends LC {
       result += '('
               + this.children().map( child => child.toString() ).join( ',' )
               + ')'
+    if ( showValidation && this.isValidated )
+       if (this.isValid) { result += '✓' } else { result += '✗' }
     return result
   }
   // What do Statements look like in OM form?

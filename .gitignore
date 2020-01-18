@@ -1,1 +1,4 @@
 node_modules/
+init.js
+debug
+.DS_Store
