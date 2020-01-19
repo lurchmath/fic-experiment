@@ -225,12 +225,6 @@ class LC extends Structure {
           stop( 'Found a quantifier marker (~) in the wrong place' )
         quantifier = true
         munge( 1 )
-      } else if ( match = ident.exec( string ) ) {
-        let S = setFlags( new Statement() )
-        S.identifier = match[0]
-        stack.push( S )
-        munge( match[0].length )
-        last = 'identifier'
       } else if ( string[0] == '{' ) {
         if ( quantifier )
           stop( 'Trying to mark an environment as a quantifier' )
@@ -240,6 +234,28 @@ class LC extends Structure {
         E._lastOpenBracket = true
         stack.push( E )
         munge( 1 )
+      } else if ( string.substring( 0, 4 ) == 'Let{' ) {
+        if ( quantifier )
+          stop( 'Trying to mark an environment as a quantifier' )
+        if ( stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found an environment open bracket ({) inside a statement' )
+        let E = setFlags( new Environment() )
+        E._wantsToBeALet = true
+        E._lastOpenBracket = true
+        stack.push( E )
+        munge( 4 )
+        last = '{'
+      } else if ( string.substring( 0, 8 ) == 'Declare{' ) {
+        if ( quantifier )
+          stop( 'Trying to mark an environment as a quantifier' )
+        if ( stack.some( entry => entry._lastStatementHead ) )
+          stop( 'Found an environment open bracket ({) inside a statement' )
+        let E = setFlags( new Environment() )
+        E._wantsToBeADeclare = true
+        E._lastOpenBracket = true
+        stack.push( E )
+        munge( 8 )
+        last = '{'
       } else if ( string[0] == '}' ) {
         if ( given || quantifier )
           stop( 'Either : or ~ (or both) tried to modify a close bracket (})' )
@@ -254,6 +270,20 @@ class LC extends Structure {
           stop( 'Open formula bracket ([) ended with environment bracket (})' )
         while ( args.length > 1 ) { args[0].insertChild( args.pop() ) }
         delete args[0]._lastOpenBracket
+        if ( args[0]._wantsToBeALet ) {
+          // console.log( '\tBuilt: '+args[0] )
+          if ( !args[0].canBeADeclaration() )
+            stop( 'Tried to apply Let to a non-declaration environment' )
+          args[0].declaration = 'variable'
+          delete args[0]._wantsToBeALet
+        }
+        if ( args[0]._wantsToBeADeclare ) {
+          // console.log( '\tBuilt: '+args[0] )
+          if ( !args[0].canBeADeclaration() )
+            stop( 'Tried to apply Declare to a non-declaration environment' )
+          args[0].declaration = 'constant'
+          delete args[0]._wantsToBeADeclare
+        }
         stack.push( args[0] )
         // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
         munge( 1 )
@@ -284,6 +314,12 @@ class LC extends Structure {
         stack.push( args[0] )
         // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
         munge( 1 )
+      } else if ( match = ident.exec( string ) ) {
+        let S = setFlags( new Statement() )
+        S.identifier = match[0]
+        stack.push( S )
+        munge( match[0].length )
+        last = 'identifier'
       } else if ( string[0] == '(' ) {
         if ( stack.length == 0 || stack[stack.length-1] instanceof Environment )
           stop( 'Found an open paren not following an identifier' )

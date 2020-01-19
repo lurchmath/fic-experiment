@@ -35,6 +35,29 @@ suite( 'Parsing', () => {
     result.isAGiven = true
     return result
   }
+  let D = ( ...args ) => {
+    let result = new Environment( ...args )
+    result.declaration = 'constant'
+    return result
+  }
+  let _D = ( ...args ) => {
+    let result = new Environment( ...args )
+    result.declaration = 'constant'
+    result.isAGiven = true
+    return result
+  }
+  let L = ( ...args ) => {
+    let result = new Environment( ...args )
+    result.declaration = 'variable'
+    return result
+  }
+  let _L = ( ...args ) => {
+    let result = new Environment( ...args )
+    result.declaration = 'variable'
+    result.isAGiven = true
+    return result
+  }
+
   let compare = ( toParse, parsedForm ) => {
     let actual = LC.fromString( toParse )
     expect( actual.equals( parsedForm ) ).to.be( true )
@@ -152,6 +175,14 @@ suite( 'Parsing', () => {
     expect( parsing( ']' ) ).to.throwException( /close bracket/ )
     expect( parsing( ')' ) ).to.throwException( /close paren/ )
     expect( parsing( '{(k)}' ) ).to.throwException( /open paren/ )
+  } )
+
+  test( '\'Let\' declarations parse as expected - even if illegal.', () => {
+    compare( 'Let{ A B }', L( I('A'), I('B') ) )
+    compare( 'Let{ A true }', L( I('A'), I('true') ) )
+    compare( 'Let{ x y P(x,y) }', L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) )
+    compare( '{ A Let{ x y P(x,y) } B }', E( I('A') , L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , I('B') ) )
+    compare( '{ Let{ x y P(x,y) } Let{ x y Q(x,y) } }', E( L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , L( I('x'), I('y'), I( 'Q', I('x'), I('y') ) ) ) )
   } )
 
 } )
