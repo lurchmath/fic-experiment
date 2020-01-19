@@ -114,17 +114,14 @@ class Environment extends LC {
   }
   // What do Environments look like, for printing/debugging purposes?
   toString ( showValidation ) {
-    if (showValidation) {
-      return ( this.isAGiven ? ':' : '' )
-           + ( this.isAFormula ? '[ ' : '{ ' )
+      return ( this.isAGiven    ? ':'         : '' )
+           + ( this.isAFormula  ? '[ '        :
+             ( this.declaration && this.declaration === 'variable'
+                                ? 'Let{ '     :
+             ( this.declaration && this.declaration === 'constant'
+                                ? 'Declare{ ' : '{ ' )))
            + this.children().map( child => child.toString(showValidation) ).join( ' ' )
            + ( this.isAFormula ? ' ]' : ' }' )
-    } else {
-      return ( this.isAGiven ? ':' : '' )
-           + ( this.isAFormula ? '[ ' : '{ ' )
-           + this.children().map( child => child.toString() ).join( ' ' )
-           + ( this.isAFormula ? ' ]' : ' }' )
-    }
   }
   // What do Statements look like in OM form?
   toOM () {
