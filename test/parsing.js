@@ -177,12 +177,36 @@ suite( 'Parsing', () => {
     expect( parsing( '{(k)}' ) ).to.throwException( /open paren/ )
   } )
 
-  test( '\'Let\' declarations parse as expected - even if illegal.', () => {
+  test( '\'Let\' declarations parse as expected.', () => {
     compare( 'Let{ A B }', L( I('A'), I('B') ) )
     compare( 'Let{ A true }', L( I('A'), I('true') ) )
     compare( 'Let{ x y P(x,y) }', L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) )
     compare( '{ A Let{ x y P(x,y) } B }', E( I('A') , L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , I('B') ) )
     compare( '{ Let{ x y P(x,y) } Let{ x y Q(x,y) } }', E( L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , L( I('x'), I('y'), I( 'Q', I('x'), I('y') ) ) ) )
   } )
+
+  test( '\'Declare\' declarations parse as expected.', () => {
+    compare( 'Declare{ A B }', D( I('A'), I('B') ) )
+    compare( 'Declare{ A true }', D( I('A'), I('true') ) )
+    compare( 'Declare{ x y P(x,y) }', D( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) )
+    compare( '{ A Declare{ x P } B }', E( I('A') , D( I('x'), I( 'P' ) ) , I('B') ) )
+    compare( '{ Declare{ x y P(x,y) } Declare{ x y Q(x,y) } }', E( D( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , D( I('x'), I('y'), I( 'Q', I('x'), I('y') ) ) ) )
+  } )
+
+  test( 'And a few mixed ones parse as expected.', () => {
+    compare( '{ Declare{ x y P(x,y) } Let{ x y Q(x,y) } }', E( D( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , L( I('x'), I('y'), I( 'Q', I('x'), I('y') ) ) ) )
+    compare( '{ Let{ x y P(x,y) } Declare{ x y Q(x,y) } }', E( L( I('x'), I('y'), I( 'P', I('x'), I('y') ) ) , D( I('x'), I('y'), I( 'Q', I('x'), I('y') ) ) ) )
+  } )
+
+  test( 'Throws errors for illegal inputs.', () => {
+    expect( parsing( 'Let{ x Let{ y } }' ) ).to.throwException( /non-declaration/ )
+    expect( parsing( 'Declare{ x Let{ y } }' ) ).to.throwException( /non-declaration/ )
+    expect( parsing( 'Let{ x Declare{ y } }' ) ).to.throwException( /non-declaration/ )
+    expect( parsing( 'Declare{ x Declare{ y } }' ) ).to.throwException( /non-declaration/ )
+    expect( parsing( 'Let{ }' ) ).to.throwException( /non-declaration/ )
+    expect( parsing( 'Declare{ }' ) ).to.throwException( /non-declaration/ )
+    expect( parsing( 'Declare{ Let{ x } }' ) ).to.throwException( /non-declaration/ )
+  } )
+
 
 } )
