@@ -28,6 +28,27 @@ class LC extends Structure {
   get isAClaim () { return !this.isAGiven }
   set isAClaim ( value ) { return !( this.isAGiven = !value ) }
 
+  // The following three are temporary sanity utilities until we can defined
+  // separate subclasses for Expressions and Declarations and define a
+  // separate tree for LC's that never has a Statement whose parent is a
+  // Statement. These should be removed after we do that upgrade.
+
+  // check if this LC is an actual identifier. This is different than
+  // isAnIdentifier defined in the Statements subclass because we
+  // sometimes need it to apply to an arbitrary LC.
+  isAnActualIdentifier () { return this instanceof Statement &&
+                             this.identifier &&
+                             this.children().length === 0 }
+  // check if this LC is a declaration
+  isAnActualDeclaration () { return this instanceof Environment &&
+                             this.declaration !== 'none' }
+  // check if this LC is a actual Statement (not a substatement)
+  isAnActualStatement () { return this instanceof Statement &&
+                                ( !this.parent() ||
+                                  this.parent() instanceof Environment ) }
+  // avoid recursing into compound statements when traversing the LC tree.
+  LCchildren () { this.isAnActualStatement() ? [] : this.children() }
+
   // Abstract-like method that subclasses will fix:
   toString () {
     return ( this.isAGiven ? ':' : '' )
@@ -92,7 +113,7 @@ class LC extends Structure {
   // By the same definition, we might ask whether a given LC is a conclusion in
   // one of its ancestors.
   isAConclusionIn ( ancestor ) {
-    if ( !( this instanceof Statement ) ) return false
+    if ( !( this.isAnActualStatement() ) ) return false
     if ( this.isAGiven ) return false
     let walk = this.parent()
     while ( walk && walk != ancestor ) {
@@ -132,6 +153,8 @@ class LC extends Structure {
   normalForm () {
     if (this.isAFormula) { throw('Normal form for Formulas is not defined.') }
     // console.log( '** N('+this+'):' )
+    // If this is a declaration, just return it.
+    if (this.declaration && this.declaration !== 'none') return this
     let say = ( x ) => {
       // console.log( `** = ${x}` )
       return x
