@@ -2,6 +2,9 @@
 const { LC } = require( './lc.js' )
 const { Environment } = require( './environment.js' )
 
+let verbose = false
+let debug = ( msg ) => { if (verbose) console.log(msg) }
+
 function derives ( ...LCs ) {
   // You are allowed to pass only LCs to this function:
   if ( LCs.some( arg => !( arg instanceof LC ) ) )
@@ -12,8 +15,8 @@ function derives ( ...LCs ) {
   // 'given' in LC-land.)
   let conclusion = LCs.pop().normalForm()
   let premises = LCs.map( premise => premise.normalForm().claim() )
-  // console.log( '** ' + premises.map( x => ''+x ).join( ', ' )
-  //            + ' |- ' + conclusion + ' ?' )
+  debug( '** ' + premises.map( x => ''+x ).join( ', ' )
+               + ' |- ' + conclusion + ' ?' )
 
   // You're not supposed to ask whether assumptions are provable:
   if ( conclusion.isAGiven )
@@ -21,18 +24,19 @@ function derives ( ...LCs ) {
 
   // S rule: Gamma, A |- A
   if ( premises.some( premise => premise.hasSameMeaningAs( conclusion ) ) ) {
-    // console.log( '** S rule -> derivation holds.')
+    debug( '** S rule -> derivation holds.')
     return true
   }
 
   // T rule: Gamma |- { }
   if ( conclusion instanceof Environment
     && conclusion.children().length == 0 ) {
-    // console.log( '** T rule -> derivation holds.' )
+    debug( '** T rule -> derivation holds.' )
     return true
   }
 
   // Now we consider the rules which require the conclusion to be a pair
+  // but not a declaration, which we handle separately
   let ABPair = ( lc ) =>
     lc instanceof Environment && lc.isAClaim
                               && lc.children().length == 2 ?
@@ -41,17 +45,26 @@ function derives ( ...LCs ) {
   let cpair = ABPair( conclusion )
   if ( cpair ) {
 
+    // DI rule: From Gamma, M |- L get
+    // Gamma, Declare(x1 ... xn M) |- Declare(x1 ... xn L)
+    if (cpair.B.declaration === 'constant') {
+
+    }
+
     // GR rule: From Gamma, A |- B get Gamma |- { :A B }
     if ( cpair.A.isAGiven ) {
-      // console.log( '** Try GR rule recursively:' )
+      debug( '** Try GR rule recursively:' )
       return derives( ...premises, cpair.A.claim(), cpair.B )
     }
 
     // CR rule: From Gamma |- A and Gamma |- B get Gamma |- { A B }
     // (at this point, we know A is a claim)
-    // console.log( '** Try CR rule recursively:' )
+    debug( '** Try CR rule recursively:' )
     return derives( ...premises, cpair.A )
         && derives( ...premises, cpair.B )
+  } else if (conclusion.declaration == 'none') {
+    debug("Validating a declaration: "+conclusion.toString())
+    return 'YES!'
   }
 
   // Now we consider the rules which require a premise that's a pair
@@ -69,14 +82,14 @@ function derives ( ...LCs ) {
 
       // GL rule: From Gamma |- A and Gamma, B |- C get Gamma, { :A B } |- C
       if ( ppair.A.isAGiven ) {
-        // console.log( '** Try GL rule recursively:' )
+        debug( '** Try GL rule recursively:' )
         return derives( ...gamma, ppair.A.claim() )
             && derives( ...gamma, ppair.B, conclusion )
       }
 
       // CL rule: From Gamma, A, B |- C get Gamma, { A B } |- C
       // (at this point, we know A is a claim)
-      // console.log( '** Try CL rule recursively:' )
+      debug( '** Try CL rule recursively:' )
       return derives( ...gamma, ppair.A, ppair.B,
                       conclusion )
     }
@@ -85,7 +98,7 @@ function derives ( ...LCs ) {
   if (premises.some(premisePairWorks)) return true
 
   // If none of those rules help, it doesn't follow.
-  // console.log( '** no rule -> derivation does not hold.' )
+  debug( '** no rule -> derivation does not hold.' )
   return false
 }
 
