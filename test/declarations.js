@@ -610,4 +610,16 @@ suite( 'Identifier scopes', () => {
     expect( P.scope() ).to.be( undefined )
   } )
 
+  test( 'Check that .satisfies() returns the last argument'
+       +' of a declaration or {  }.', () => {
+    let D = LC.fromString('Declare{ x P(x,y) }')
+    let L = LC.fromString('Let{ x P(x,y) }')
+    let D1 = LC.fromString('Declare{ x }')
+    let L1 = LC.fromString('Let{ x }')
+    expect( D.satisfies().toString() ).to.equal( 'P(x,y)' )
+    expect( L.satisfies().toString() ).to.equal( 'P(x,y)' )
+    expect( D1.satisfies().toString() ).to.equal( '{  }' )
+    expect( L1.satisfies().toString() ).to.equal( '{  }' )
+  } )
+
 } )
