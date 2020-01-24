@@ -28,24 +28,33 @@ class LC extends Structure {
   get isAClaim () { return !this.isAGiven }
   set isAClaim ( value ) { return !( this.isAGiven = !value ) }
 
-  // The following three are temporary sanity utilities until we can defined
+  // The following are temporary sanity utilities until we can defined
   // separate subclasses for Expressions and Declarations and define a
   // separate tree for LC's that never has a Statement whose parent is a
   // Statement. These should be removed after we do that upgrade.
 
-  // check if this LC is an actual identifier. This is different than
-  // isAnIdentifier defined in the Statements subclass because we
-  // sometimes need it to apply to an arbitrary LC.
+  // Despite our current implementation, we define the following 'actual'
+  // entities in terms of the classes environment and statement:
+  // Identifier: A statement with no children.
+  // Statement: A statement which does not have a parent which is a statement.
+  // Declaration: An environment with declaration attribute other than 'none'
+  // Environment: An environment that is not an actual Declaration.
+
+  // check if this LC is an actual Identifier (a Statement with no children)
   isAnActualIdentifier () { return this instanceof Statement &&
                              this.identifier &&
                              this.children().length === 0 }
-  // check if this LC is a declaration
+  // check if this LC is an actual Declaration
   isAnActualDeclaration () { return this instanceof Environment &&
                              this.declaration !== 'none' }
-  // check if this LC is a actual Statement (not a substatement)
+  // check if this LC is a actual Statement (not a substatement of a statement)
   isAnActualStatement () { return this instanceof Statement &&
-                                ( !this.parent() ||
+                                (!this.parent() ||
                                   this.parent() instanceof Environment ) }
+  // check if this LC is a actual Environment (not an actual Declaration).
+  isAnActualEnvironment () { return this instanceof Environment &&
+                                   !this.isAnActualDeclaration() }
+
   // avoid recursing into compound statements when traversing the LC tree.
   LCchildren () { this.isAnActualStatement() ? [] : this.children() }
 
