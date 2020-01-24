@@ -61,16 +61,6 @@ class Environment extends LC {
     return this.canBeADeclaration() ?
       this.getAttribute( 'declaration' ) : 'none'
   }
-  // For FIC validation we only need the declaration's last argument LC.
-  // Throws an error when it's not an actual declaration.
-  satisfies () {
-    if (!this.isAnActualDeclaration()) {
-       throw 'Invalid argument: Not an actual declaration.' }
-    let n = this.children().length
-    if ( n == 1 ) { return new Environment()
-    } else {        return this.children()[n-1]
-    }
-  }
   // A declaration is not supposed to re-declare any identifiers in whose scope
   // it sits (e.g., if you've already got an x in your proof, you can't say "Let
   // x be arbitrary").  Thus we will want to validate declarations and mark them

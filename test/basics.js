@@ -137,7 +137,6 @@ suite( 'Basics', () => {
     expect( L.children()[1].isAnActualStatement() ).to.be( true )
     expect( L.children()[1].isAnActualIdentifier() ).to.be( false )
     expect( L.children()[1].isAnActualDeclaration() ).to.be( false )
-
   } )
 
 

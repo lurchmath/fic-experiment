@@ -54,9 +54,20 @@ class LC extends Structure {
   // check if this LC is a actual Environment (not an actual Declaration).
   isAnActualEnvironment () { return this instanceof Environment &&
                                    !this.isAnActualDeclaration() }
+  // For FIC validation we only need the declaration's last argument LC.
+  // We call this it's 'value'. Everything else is it's own value.
+  value () {
+    if (!this.isAnActualDeclaration()) { return this }
+    let n = this.children().length
+    if ( n == 1 ) { return new Environment()
+    } else {        return this.children()[n-1]
+    }
+  }
 
-  // avoid recursing into compound statements when traversing the LC tree.
-  LCchildren () { this.isAnActualStatement() ? [] : this.children() }
+  // avoid recursing into compound statements and declarations when
+  // traversing the LC tree.
+  LCchildren () { this.isAnActualStatement() || this.isAnActualDeclaration()
+                  ? [] : this.children() }
 
   // Abstract-like method that subclasses will fix:
   toString () {
@@ -141,8 +152,8 @@ class LC extends Structure {
   // The following routine computes this, which involves making copies of each
   // Li, so that we do not destroy/alter the original LC L.
   fullyParenthesizedForm () {
-    if ( this.children().length < 3 ) return this.copy()
-    let kids = this.children().slice()
+    if ( this.LCchildren().length < 3 ) return this.copy()
+    let kids = this.LCchildren().slice()
     let result = new Environment( kids[kids.length-2].copy(),
                                   kids[kids.length-1].copy() )
     kids.pop()
