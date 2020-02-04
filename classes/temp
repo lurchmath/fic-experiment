@@ -1,0 +1,18 @@
+
+D = lc('Declare{ s t P(s,t) }');0
+Pst = lc('P(s,t)');0
+derives(D,D,Pst)
+derives(D,Pst)
+derives(Pst,D)
+D = lc('Declare{ s t { W P(s,t) H } }');0
+derives(D,Pst)
+W = lc('{ W H }');0
+derives(D,W)
+derives(W,D)
+proof = lc('{ :{ :in(a,N) :in(b,N) Declare{ q r { f(a,b,q,r) g(r,b) { :c d(q,r) } } } } :in(a,N) :in(b,N) Declare{ q r g(r,b) } }');0
+derives(proof)
+proof1 = lc('{ :{ :in(a,N) :in(b,N) Declare{ q r { f(a,b,q,r) g(r,b) { :c d(q,r) e(q,r) } } } } :in(a,N) :in(b,N) Declare{ q r { :c e(q,r) } } }');0
+derives(proof1)
+proof = lc('{ :{ :in(a,N) :in(b,N) Declare{ q r { f(a,b,q,r) g(r,b) { :c d(q,r) e(q,r) } } } } :in(a,N) :in(b,N) Declare{ q r { :c e(q,r) } } }');0
+derives(proof)
+proof.conclusions()+''

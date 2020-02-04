@@ -18,14 +18,15 @@ class Environment extends LC {
   // The conclusions of an LC X are all the claim Statements inside X, plus
   // all the claim Statements inside claims inside X, plus all the
   // claim Statements inside claims inside claims inside X, and so on,
-  // indefinitely.
+  // indefinitely.  For declarations that are claims, the entire declaration
+  // is considered to be an 'atomic' conclusion.
   conclusions () {
     let result = [ ]
-    this.children().map( child => {
+    this.LCchildren().map( child => {
       if ( child.isAGiven ) return
-      if ( child instanceof Statement )
+      if ( child.isAnActualDeclaration() || child.isAnActualStatement() ) {
         result.push( child )
-      else if ( child instanceof Environment )
+      } else if ( child.isAnActualEnvironment() )
         result = result.concat( child.conclusions() )
     } )
     return result
@@ -122,6 +123,8 @@ class Environment extends LC {
                                 ? 'Declare{ ' : '{ ' )))
            + this.children().map( child => child.toString(showValidation) ).join( ' ' )
            + ( this.isAFormula ? ' ]' : ' }' )
+           + ( ( showValidation && this.isValidated ) ?
+               ( (this.isValid) ? '✓' : '✗' ) : '' )
   }
   // What do Statements look like in OM form?
   toOM () {

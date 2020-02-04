@@ -82,4 +82,109 @@ suite( 'Validation', () => {
     expect(validate(proof)).to.be(validproof)
   } )
 
+  test( 'Testing derivation involving declarations.', () => {
+    let D = LC.fromString('Declare{ s t P(s,t) }')
+    let Pst = LC.fromString('P(s,t)')
+    let L = LC.fromString('Let{ s t { W P(s,t) H } }')
+    let X = LC.fromString('Let{ x x }')
+    let divalg= '{                       '
+              + '  :{ :in(a,N) :in(b,N)  '
+              + '     Declare{ q r       '
+              + '       { f(a,b,q,r)     '
+              + '         g(b,r)         '
+              + '         { :h(a,b,c,d)  '
+              + '           eq(c,q)      '
+              + '           eq(d,r)      '
+              + '         }              '
+              + '       }                '
+              + '     }                  '
+              + '   }                    '
+              + '  :in(b,N)              '
+              + '  :in(a,N)              '
+              + '  Declare{ q r          '
+              + '    { :h(a,b,c,d)       '
+              + '      eq(d,r)           '
+              + '    }                   '
+              + '  }                     '
+              + '}                       '
+      let DA = LC.fromString(divalg)
+      expect(derives(D,D)).to.be(true)
+      expect(derives(D,L,D)).to.be(true)
+      expect(derives(D,L,L)).to.be(true)
+      expect(derives(D,L)).to.be(false)
+      expect(derives(L,D)).to.be(false)
+      expect(derives(D,Pst)).to.be(true)
+      expect(derives(Pst,D)).to.be(false)
+      expect(derives(L,Pst)).to.be(true)
+      expect(derives(Pst,L)).to.be(false)
+      expect(derives(Pst)).to.be(false)
+      expect(derives(L)).to.be(false)
+      expect(derives(X)).to.be(false)
+      expect(derives(DA)).to.be(true)
+  } )
+
+  test( 'Testing valdation involving declarations.', () => {
+    expect(validate('{ Let{ x x } }')).to.be('{ Let{ x x }✗ }')
+    expect(validate('Declare{ s t P(s,t) }')).to.be('Declare{ s t P(s,t) }')
+    expect(validate('{ Declare{ s t P(s,t) } }'))
+              .to.be('{ Declare{ s t P(s,t) }✗ }')
+    expect(validate('{ :Declare{ s t P(s,t) } P(s,t) }'))
+             .to.be('{ :Declare{ s t P(s,t) } P(s,t)✓ }')
+    expect(validate('{ Declare{ s t P(s,t) } P(s,t) }'))
+             .to.be('{ Declare{ s t P(s,t) }✗ P(s,t)✓ }')
+    expect(validate('{ P Declare{ s { :P Q(s) } } Q(s) }'))
+             .to.be('{ P✗ Declare{ s { :P Q(s) } }✗ Q(s)✓ }')
+    expect(validate('{ :Let{ x y { :P W(y) Q(x,y) Z(x) } } :P Q(x,y) }'))
+            .to.be('{ :Let{ x y { :P W(y) Q(x,y) Z(x) } } :P Q(x,y)✓ }')
+    expect(validate('{ :Declare{ x { :P W(x) Z(x) } } :P Declare{ x W(x) } }'))
+            .to.be('{ :Declare{ x { :P W(x) Z(x) } } :P Declare{ x W(x) }✗ }')
+    expect(validate('{ :Declare{ x { :P W(x) Z(x) } } :P Declare{ x { :P W(x) } } W(x) }'))
+            .to.be('{ :Declare{ x { :P W(x) Z(x) } } :P Declare{ x { :P W(x) } }✓ W(x)✓ }')
+    expect(validate('{ :{ :P W(x) Z(x) } :P Declare{ x W(x) } }'))
+            .to.be('{ :{ :P W(x) Z(x) } :P Declare{ x W(x) }✗ }')
+    let divalg= '{                       '
+              + '  :{ :in(a,N) :in(b,N)  '
+              + '     Declare{ q r       '
+              + '       { f(a,b,q,r)     '
+              + '         g(b,r)         '
+              + '         { :h(a,b,c,d)  '
+              + '           eq(c,q)      '
+              + '           eq(d,r)      '
+              + '         }              '
+              + '       }                '
+              + '     }                  '
+              + '   }                    '
+              + '  :in(b,N)              '
+              + '  :in(a,N)              '
+              + '  Declare{ q r          '
+              + '    { :h(a,b,c,d)       '
+              + '      eq(d,r)           '
+              + '    }                   '
+              + '  }                     '
+              + '}                       '
+      let ans =   '{                       '
+                + '  :{ :in(a,N) :in(b,N)  '
+                + '     Declare{ q r       '
+                + '       { f(a,b,q,r)     '
+                + '         g(b,r)         '
+                + '         { :h(a,b,c,d)  '
+                + '           eq(c,q)      '
+                + '           eq(d,r)      '
+                + '         }              '
+                + '       }                '
+                + '     }                  '
+                + '   }                    '
+                + '  :in(b,N)              '
+                + '  :in(a,N)              '
+                + '  Declare{ q r          '
+                + '    { :h(a,b,c,d)       '
+                + '      eq(d,r)           '
+                + '    }                   '
+                + '  }✓                    '
+                + '}                       '
+      ans = ans.replace(/\s{2,}/g, ' ')
+      ans = ans.trim()
+      expect(validate(divalg)).to.be(ans)
+  } )
+
 } )

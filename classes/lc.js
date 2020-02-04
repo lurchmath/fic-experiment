@@ -2,6 +2,9 @@
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 
+const verbose = false
+let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
+
 class LC extends Structure {
 
   // register with Structure ancestor class for good serialization/copying
@@ -46,7 +49,7 @@ class LC extends Structure {
                              this.children().length === 0 }
   // check if this LC is an actual Declaration
   isAnActualDeclaration () { return this instanceof Environment &&
-                             this.declaration !== 'none' }
+                             this.declaration && this.declaration !== 'none' }
   // check if this LC is a actual Statement (not a substatement of a statement)
   isAnActualStatement () { return this instanceof Statement &&
                                 (!this.parent() ||
@@ -63,11 +66,19 @@ class LC extends Structure {
     } else {        return this.children()[n-1]
     }
   }
-
+  get isValidated () { return !!this.getAttribute( 'validation' ) }
+  get isValid () {
+    return this.getAttribute( 'validation' ).status
+  }
   // avoid recursing into compound statements and declarations when
   // traversing the LC tree.
-  LCchildren () { this.isAnActualStatement() || this.isAnActualDeclaration()
-                  ? [] : this.children() }
+  LCchildren () {
+    if ( this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+         return []
+    } else {
+       return this.children()
+    }
+  }
 
   // Abstract-like method that subclasses will fix:
   toString () {
@@ -109,10 +120,11 @@ class LC extends Structure {
     // if they do and it's positive, then just check if the children are equal
     if (numkids>0) {
       for (let i=0; i<numkids; i++)
-        if (!this.children()[i].hasSameMeaningAs(other.children()[i])) return false
+        if (!this.children()[i].hasSameMeaningAs(other.children()[i]))
+          return false
     }
     // Check if they are the same class of object
-    if (this.constructor !== this.constructor) return false
+    if (this.constructor !== other.constructor) return false
     // Check if the attributes that define an LC are the same
     // (and nothing else).  Note we ignore the Given attribute because
     // it does not affect the meaning, only states whether it is a
@@ -128,6 +140,26 @@ class LC extends Structure {
            ours[p] !== theirs[p]) return false
     }
     return true
+  }
+
+  // A utility to check if two declarations have the same type (constant or
+  // variable) and declare the same iodentifiers in the same order.
+  hasSimilarForm ( A ) {
+    if ( A.isAnActualDeclaration() && this.isAnActualDeclaration() &&
+         A.declaration === this.declaration &&
+         A.children().length === this.children().length ) {
+      let n = A.children().length
+      if (n === 1) { return A.children()[0].hasSameMeaningAs(
+                                              this.children()[0])}
+      for (let i=0; i<A.children().length-1; i++) {
+        if (!A.children()[i].hasSameMeaningAs(this.children()[i])) {
+          return false
+        }
+      }
+      return true
+    } else {
+      return false
+    }
   }
 
   // By the same definition, we might ask whether a given LC is a conclusion in
@@ -172,18 +204,24 @@ class LC extends Structure {
   // metavariables before running through the FIC recursions with Matching.
   normalForm () {
     if (this.isAFormula) { throw('Normal form for Formulas is not defined.') }
-    // console.log( '** N('+this+'):' )
-    // If this is a declaration, just return it.
-    if (this.declaration && this.declaration !== 'none') return this
+    debug( '** N('+this+'):' )
+    // If this is a declaration, only normalize its value.
+    if ( this.isAnActualDeclaration() ) {
+      let D = this.copy()
+      let n = D.children().length
+      let value = D.children()[n-1]
+      value.replaceWith(value.normalForm())
+      return D
+    }
     let say = ( x ) => {
-      // console.log( `** = ${x}` )
+      debug( `** = ${x}` )
       return x
     }
     let fpf = this.fullyParenthesizedForm()
-    // console.log( '** FPF = '+fpf )
+    debug( '** FPF = '+fpf )
     // If fpf is a statement, then that's the normal form.
     if ( fpf instanceof Statement ) return say( fpf )
-    // console.log( '** It was not a Statement' )
+    debug( '** It was not a Statement' )
     // An LC is said to be Empty if it is and environment with
     // no children.
     let isEmpty = ( x ) => x instanceof Environment && x.children().length == 0
@@ -194,7 +232,7 @@ class LC extends Structure {
     // { A } when A is Trivial, and { A B } where both A and B are Trivial.
     if ( fpf.children().every( child => isTrivial( child ) ) )
       return say( new Environment() )
-    // console.log( '** It was not a Type 1' )
+    debug( '** It was not a Type 1' )
     // If A is nonTrivial, and B is Trivial, then { A } and { A B }
     // have normal form N(A).
     if ( fpf.children().length == 1
@@ -211,7 +249,7 @@ class LC extends Structure {
       NA.isAGiven = fpf.isAGiven
       return say( NA )
     }
-    // console.log( '** It was not Type 2' )
+    debug( '** It was not Type 2' )
     // If none of the above cases apply, then fpf has two children, call them
     // A and B, with normal forms NA and NB, respectively, and its normal form
     // fits one of these cases:
@@ -219,8 +257,8 @@ class LC extends Structure {
     // :{ A B } -> :{ NA NB }    :{ :A B } -> :{ :NA NB }
     let NA = fpf.children()[0].normalForm()
     let NB = fpf.children()[1].normalForm()
-    // console.log( '** NA = '+NA )
-    // console.log( '** NB = '+NB )
+    debug( '** NA = '+NA )
+    debug( '** NB = '+NB )
     let result = new Environment( NA, NB )
     result.isAGiven = fpf.isAGiven
     return say( result )
@@ -467,13 +505,15 @@ class LC extends Structure {
   validate () {
     let concs = this.conclusions()
     concs.forEach( ( X ) => {
-      let LHS = X.allAccessibles().map( x => x.claim() )
+      let LHS = X.allAccessibles()
+      LHS = LHS.map( x => x.claim() )
       let result = derives( ...LHS , X)
+
       if (result) {
         X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
       } else {
-        X.setAttribute( 'validation' ,
-                        { status: result, feedback:'This doesn\'t follow.' } )
+        X.setAttribute( 'validation' , { status: result,
+                     feedback:'This doesn\'t follow.' } )
       }
     } )
   }

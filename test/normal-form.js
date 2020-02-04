@@ -113,4 +113,21 @@ suite( 'Normal Form', () => {
     expect( compare('{ :{ { :{ {} A :C } { B { :D :E } } } :{{ :C } :D} } }','{}') ).to.be(true)
   } )
 
+  test( 'Compound Statements are their own normal form, and Declarations '
+       +'only have their value converted to normal form.',
+    () => {
+    expect( compare('Declare{ A B }','Declare{ A B }') ).to.be(true)
+    expect( compare('Let{ A B }','Let{ A B }') ).to.be(true)
+    expect( compare('P(W(x),y,z)','P(W(x),y,z)') ).to.be(true)
+    expect( compare('{ x P(W(x),y,z) H(z) }','{ x { P(W(x),y,z) H(z) } }') )
+            .to.be(true)
+    expect( compare('{ x Let{ y z P(y,z) } }','{ x Let{ y z P(y,z) } }') )
+            .to.be(true)
+    expect( compare('{ x Let{ y z P(y,z) } H(x,y,z) }',
+                    '{ x { Let{ y z P(y,z) } H(x,y,z) } }') ).to.be(true)
+    expect( compare('{ Declare{ x P } w Let{ y } { x y z} }',
+                    '{ Declare{ x P } { w { Let{ y } { x { y z } } } } }') )
+                    .to.be(true)
+  } )
+
 } )
