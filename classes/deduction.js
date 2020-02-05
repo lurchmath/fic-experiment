@@ -2,7 +2,7 @@
 const { LC } = require( './lc.js' )
 const { Environment } = require( './environment.js' )
 
-let verbose = true
+let verbose = false
 let debug = ( msg ) => { if (verbose) console.log(msg) }
 
 function derives ( ...LCs ) {
@@ -93,6 +93,7 @@ function derives ( ...LCs ) {
                       derives(prem.value(),conclusion.value()) ) ) return true
 
   debug('** Rules DI and DL do not apply.  Converting premises to their values')
+
   // If we made it this far then none of the current premises worked for DI or
   // LI, so we should replace any premises that are declarations with their
   // values by the special case of rules (D) and (L) with M=L.
