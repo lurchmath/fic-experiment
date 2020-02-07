@@ -45,10 +45,6 @@ class Statement extends LC {
       this.clearAttributes( 'metavariable' )
     return value
   }
-  get isValidated () { return !!this.getAttribute( 'validation' ) }
-  get isValid () {
-    return this.getAttribute( 'validation' ).status
-  }
   // What do Statements look like, for printing/debugging purposes?
   toString (showValidation) {
     let result = ''
