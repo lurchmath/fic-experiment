@@ -503,7 +503,14 @@ class LC extends Structure {
 
   // Validate!!  Here we go.
   validate () {
+    // mark all declarations first.  We don't need to do anything else 
+    // with that here, because the only difference it will make is When
+    // toString(true) is called it will decorate bad variable declarations
+    this.markDeclarations()
+
+    // fetch the conclusions - they are the only things we validte with FIC
     let concs = this.conclusions()
+
     concs.forEach( ( X ) => {
       let LHS = X.allAccessibles()
       LHS = LHS.map( x => x.claim() )
