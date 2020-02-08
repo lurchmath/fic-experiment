@@ -51,8 +51,12 @@ class Statement extends LC {
     if ( this.isAGiven ) result += ':'
     if ( this.isAQuantifier ) result += '~'
     result += this.identifier
-    if ( this.isAnActualIdentifier() && this.parent() &&
-         this.parent().isAnActualDeclaration() && showValidation
+    // showValidation.Scopes determines if we show illegal identifier
+    // declarations.
+    if ( showValidation && showValidation.Scopes &&
+         this.isAnActualIdentifier() && this.parent() &&
+         this.parent().isAnActualDeclaration() &&
+         this.indexInParent() !== this.parent().children().length-1
        ) {
       ( this.parent().successfullyDeclares(this.identifier) ) ? result+='✓' :
       result+='✗'
@@ -61,7 +65,9 @@ class Statement extends LC {
       result += '('
               + this.children().map( child => child.toString() ).join( ',' )
               + ')'
-    if ( showValidation && this.isValidated )
+    // showValidation.FIC determines if we show illegal identifier
+    // declarations.
+    if ( showValidation && showValidation.FIC && this.isValidated )
        if (this.isValid) { result += '✓' } else { result += '✗' }
     return result
   }

@@ -114,6 +114,9 @@ class Environment extends LC {
     return this.setAttribute( 'formula', value )
   }
   // What do Environments look like, for printing/debugging purposes?
+  // The optional argument showValidation should be an object of the form
+  // { FIC: true/false Scopes: true/false } where FIC or Scopes can be omitted
+  // as a shortcut for 'false'.
   toString ( showValidation ) {
       return ( this.isAGiven    ? ':'         : '' )
            + ( this.isAFormula  ? '[ '        :
@@ -123,9 +126,10 @@ class Environment extends LC {
                                 ? 'Declare{ ' : '{ ' )))
            + this.children().map( child => child.toString(showValidation) ).join( ' ' )
            + ( this.isAFormula ? ' ]' : ' }' )
-           + ( ( showValidation && this.isValidated ) ?
+           + ( ( showValidation && showValidation.FIC && this.isValidated ) ?
                ( (this.isValid) ? '✓' : '✗' ) : '' )
   }
+
   // What do Statements look like in OM form?
   toOM () {
     return this.copyFlagsTo( OM.app( OM.sym( 'Env', 'Lurch' ),

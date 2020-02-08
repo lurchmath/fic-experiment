@@ -62,9 +62,7 @@ class LC extends Structure {
   value () {
     if (!this.isAnActualDeclaration()) { return this }
     let n = this.children().length
-    if ( n == 1 ) { return new Environment()
-    } else {        return this.children()[n-1]
-    }
+    return this.children()[n-1]
   }
   get isValidated () { return !!this.getAttribute( 'validation' ) }
   get isValid () {
@@ -113,9 +111,15 @@ class LC extends Structure {
 
   // For FIC derivations we only care about certain attributes of an LC
   // So we need to write a new function just for this purpose.
+  // This will be used in FIC Rule (S), namely Gamma, A |- A
+  // Note that when applying Rule (S) we will convert all of the premises
+  // that are Givens to Claims, so we can let this routine treat the Given
+  // attribute as meaningful.
   hasSameMeaningAs ( other ) {
-    let numkids = this.children().length
+    // Check if they are the same class of object
+    if (this.constructor !== other.constructor) return false
     // they have to have the same number of children
+    let numkids = this.children().length
     if (numkids != other.children().length) return false
     // if they do and it's positive, then just check if the children are equal
     if (numkids>0) {
@@ -123,17 +127,13 @@ class LC extends Structure {
         if (!this.children()[i].hasSameMeaningAs(other.children()[i]))
           return false
     }
-    // Check if they are the same class of object
-    if (this.constructor !== other.constructor) return false
     // Check if the attributes that define an LC are the same
-    // (and nothing else).  Note we ignore the Given attribute because
-    // it does not affect the meaning, only states whether it is a
-    // hypothetical or a claim
-    const LCattr = ['declaration','quantifier','formula','identifier']
+    // (and nothing else).
+    const LCattr = ['declaration','quantifier','formula','identifier','given']
+    let ours = this.attributes
+    let theirs = other.attributes
     for (let i=0; i<LCattr.length; i++) {
       let p = LCattr[i]
-      let ours = this.attributes
-      let theirs = other.attributes
       if ( ours.hasOwnProperty(p) && !theirs.hasOwnProperty(p) ||
           !ours.hasOwnProperty(p) &&  theirs.hasOwnProperty(p) ||
            ours.hasOwnProperty(p) &&  theirs.hasOwnProperty(p) &&
@@ -143,15 +143,17 @@ class LC extends Structure {
   }
 
   // A utility to check if two declarations have the same type (constant or
-  // variable) and declare the same iodentifiers in the same order.
+  // variable) and declare the same identifiers in the same order.
   hasSimilarForm ( A ) {
     if ( A.isAnActualDeclaration() && this.isAnActualDeclaration() &&
          A.declaration === this.declaration &&
          A.children().length === this.children().length ) {
       let n = A.children().length
-      if (n === 1) { return A.children()[0].hasSameMeaningAs(
-                                              this.children()[0])}
-      for (let i=0; i<A.children().length-1; i++) {
+      // By our newly discussed convention, declarations with one child don't
+      // declare any identifiers.  The last child is always assumed to be the
+      // value
+      if (n === 1) { return true }
+      for (let i=0; i<n-1; i++) {
         if (!A.children()[i].hasSameMeaningAs(this.children()[i])) {
           return false
         }
@@ -162,8 +164,7 @@ class LC extends Structure {
     }
   }
 
-  // By the same definition, we might ask whether a given LC is a conclusion in
-  // one of its ancestors.
+  // We can ask whether a given LC is a conclusion in one of its ancestors.
   isAConclusionIn ( ancestor ) {
     if ( !( this.isAnActualStatement() ) ) return false
     if ( this.isAGiven ) return false
@@ -503,9 +504,10 @@ class LC extends Structure {
 
   // Validate!!  Here we go.
   validate () {
-    // mark all declarations first.  We don't need to do anything else 
-    // with that here, because the only difference it will make is When
-    // toString(true) is called it will decorate bad variable declarations
+    // mark all declarations first.  We don't need to do anything else
+    // with that here, because the only difference it will make is when
+    // toString({ Scopes: true }) is called it will decorate bad variable
+    // declarations
     this.markDeclarations()
 
     // fetch the conclusions - they are the only things we validte with FIC
