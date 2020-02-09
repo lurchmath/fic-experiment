@@ -46,14 +46,26 @@ class Statement extends LC {
     return value
   }
   // What do Statements look like, for printing/debugging purposes?
-  toString (showValidation) {
+  toString (options) {
     let result = ''
     if ( this.isAGiven ) result += ':'
     if ( this.isAQuantifier ) result += '~'
     result += this.identifier
-    // showValidation.Scopes determines if we show illegal identifier
+    // options.Bound determines if we show bound variable statuses
+    if ( options && options.Bound &&
+         this.isAnActualIdentifier() && this.parent() &&
+         this.parent().isAQuantifier &&
+         this.indexInParent() !== this.parent().children().length-1
+       ) {
+      // WHY does the following work but NOT what is commented out after it??
+      if ( this.parent().successfullyBinds(this.identifier) ) { result+='✓' }
+      else { result+='✗'}
+      // ( this.parent().successfullyBinds(this.identifier) ) ? result+='✓' :
+      // result+='✗'
+    }
+    // options.Scopes determines if we show illegal identifier
     // declarations.
-    if ( showValidation && showValidation.Scopes &&
+    if ( options && options.Scopes &&
          this.isAnActualIdentifier() && this.parent() &&
          this.parent().isAnActualDeclaration() &&
          this.indexInParent() !== this.parent().children().length-1
@@ -63,11 +75,11 @@ class Statement extends LC {
     }
     if ( this.children().length > 0 )
       result += '('
-              + this.children().map( child => child.toString() ).join( ',' )
+              + this.children().map( child => child.toString(options) ).join( ',' )
               + ')'
-    // showValidation.FIC determines if we show illegal identifier
+    // options.FIC determines if we show illegal identifier
     // declarations.
-    if ( showValidation && showValidation.FIC && this.isValidated )
+    if ( options && options.FIC && this.isValidated )
        if (this.isValid) { result += '✓' } else { result += '✗' }
     return result
   }

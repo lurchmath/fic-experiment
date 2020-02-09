@@ -2,8 +2,8 @@
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 
-const verbose = false
-let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
+// const verbose = false
+// let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
 
 class LC extends Structure {
 
@@ -57,6 +57,9 @@ class LC extends Structure {
   // check if this LC is a actual Environment (not an actual Declaration).
   isAnActualEnvironment () { return this instanceof Environment &&
                                    !this.isAnActualDeclaration() }
+                                   // check if this LC is a actual Environment (not an actual Declaration).
+  isAnActualQuantifier () { return this instanceof Statement &&
+                                   this.isAQuantifier }
   // For FIC validation we only need the declaration's last argument LC.
   // We call this it's 'value'. Everything else is it's own value.
   value () {
@@ -205,7 +208,7 @@ class LC extends Structure {
   // metavariables before running through the FIC recursions with Matching.
   normalForm () {
     if (this.isAFormula) { throw('Normal form for Formulas is not defined.') }
-    debug( '** N('+this+'):' )
+    // debug( '** N('+this+'):' )
     // If this is a declaration, only normalize its value.
     if ( this.isAnActualDeclaration() ) {
       let D = this.copy()
@@ -215,14 +218,14 @@ class LC extends Structure {
       return D
     }
     let say = ( x ) => {
-      debug( `** = ${x}` )
+      // console.log( `** = ${x}` )
       return x
     }
     let fpf = this.fullyParenthesizedForm()
-    debug( '** FPF = '+fpf )
+    // debug( '** FPF = '+fpf )
     // If fpf is a statement, then that's the normal form.
     if ( fpf instanceof Statement ) return say( fpf )
-    debug( '** It was not a Statement' )
+    // debug( '** It was not a Statement' )
     // An LC is said to be Empty if it is and environment with
     // no children.
     let isEmpty = ( x ) => x instanceof Environment && x.children().length == 0
@@ -233,7 +236,7 @@ class LC extends Structure {
     // { A } when A is Trivial, and { A B } where both A and B are Trivial.
     if ( fpf.children().every( child => isTrivial( child ) ) )
       return say( new Environment() )
-    debug( '** It was not a Type 1' )
+    // debug( '** It was not a Type 1' )
     // If A is nonTrivial, and B is Trivial, then { A } and { A B }
     // have normal form N(A).
     if ( fpf.children().length == 1
@@ -250,7 +253,7 @@ class LC extends Structure {
       NA.isAGiven = fpf.isAGiven
       return say( NA )
     }
-    debug( '** It was not Type 2' )
+    // debug( '** It was not Type 2' )
     // If none of the above cases apply, then fpf has two children, call them
     // A and B, with normal forms NA and NB, respectively, and its normal form
     // fits one of these cases:
@@ -258,8 +261,8 @@ class LC extends Structure {
     // :{ A B } -> :{ NA NB }    :{ :A B } -> :{ :NA NB }
     let NA = fpf.children()[0].normalForm()
     let NB = fpf.children()[1].normalForm()
-    debug( '** NA = '+NA )
-    debug( '** NB = '+NB )
+    // debug( '** NA = '+NA )
+    // debug( '** NB = '+NB )
     let result = new Environment( NA, NB )
     result.isAGiven = fpf.isAGiven
     return say( result )

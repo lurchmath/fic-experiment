@@ -9,13 +9,14 @@ const { LC, Statement, Environment, derives } = require( '../classes/all.js' )
 
 let lc = ( s ) => LC.fromString( s )
 
-let validate = ( problem ) => {
+let validate = ( problem , opts ) => {
    // console.log('Checking: '+problem)
+   let options = (!opts) ? {FIC: true , Scopes: true , Bound: true } : opts
    let L = LC.fromString(problem)
    // console.log(L)
    L.validate()
    // console.log('Validated to: ', L.toString(true))
-   return L.toString( { FIC: true , Scopes: true } )
+   return L.toString( options )
 }
 
 suite( 'Validation', () => {
@@ -221,7 +222,16 @@ suite( 'Validation', () => {
       ans = ans.trim()
       expect(validate(divalg)).to.be(ans)
       expect(validate('{ :{ :{ :Let{ x W(x) } Z(x) } ~All(x,implies(W(x),Z(x))) } { :Let{ x W(x) } Z(x) } ~All(x,implies(W(x),Z(x))) }'))
-              .to.be('{ :{ :{ :Let{ x✓ W(x) } Z(x) } ~All(x,implies(W(x),Z(x))) } { :Let{ x✓ W(x) } Z(x)✗ } ~All(x,implies(W(x),Z(x)))✓ }')
+              .to.be('{ :{ :{ :Let{ x✓ W(x) } Z(x) } ~All(x✓,implies(W(x),Z(x))) } { :Let{ x✓ W(x) } Z(x)✗ } ~All(x✓,implies(W(x),Z(x)))✓ }')
+  } )
+
+  test( 'Testing valdation involving quantifiers.', () => {
+    expect(validate('{ :~All(x,x) }')).to.be('{ :~All(x✓,x) }')
+    expect(validate('{ ~Some(x,~All(x,x)) }')).to.be('{ ~Some(x✓,~All(x✓,x))✗ }')
+    expect(validate('{ :~Some(x,~All(y,x)) }')).to.be('{ :~Some(x✓,~All(y✓,x)) }')
+    expect(validate('{ :Let{ x { } } :~All(x,x) }')).to.be('{ :Let{ x✓ {  } } :~All(x✓,x) }')
+    expect(validate('{ :Declare{ x { } } :~All(x,x) }')).to.be('{ :Declare{ x✓ {  } } :~All(x✗,x) }')
+
   } )
 
 } )

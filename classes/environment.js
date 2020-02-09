@@ -114,19 +114,19 @@ class Environment extends LC {
     return this.setAttribute( 'formula', value )
   }
   // What do Environments look like, for printing/debugging purposes?
-  // The optional argument showValidation should be an object of the form
+  // The optional argument options should be an object of the form
   // { FIC: true/false Scopes: true/false } where FIC or Scopes can be omitted
   // as a shortcut for 'false'.
-  toString ( showValidation ) {
+  toString ( options ) {
       return ( this.isAGiven    ? ':'         : '' )
            + ( this.isAFormula  ? '[ '        :
              ( this.declaration && this.declaration === 'variable'
                                 ? 'Let{ '     :
              ( this.declaration && this.declaration === 'constant'
                                 ? 'Declare{ ' : '{ ' )))
-           + this.children().map( child => child.toString(showValidation) ).join( ' ' )
+           + this.children().map( child => child.toString(options) ).join( ' ' )
            + ( this.isAFormula ? ' ]' : ' }' )
-           + ( ( showValidation && showValidation.FIC && this.isValidated ) ?
+           + ( ( options && options.FIC && this.isValidated ) ?
                ( (this.isValid) ? '✓' : '✗' ) : '' )
   }
 
