@@ -130,10 +130,25 @@ class Environment extends LC {
                ( (this.isValid) ? '✓' : '✗' ) : '' )
   }
 
-  // What do Statements look like in OM form?
+  // What do Environments look like in OM form?
   toOM () {
     return this.copyFlagsTo( OM.app( OM.sym( 'Env', 'Lurch' ),
       ...this.children().map( child => child.toOM() ) ) )
+  }
+  // Extending helper functions to support the declaration attribute:
+  copyFlagsTo ( om ) {
+    LC.prototype.copyFlagsTo.call( this, om )
+    if ( this.declaration && this.declaration != 'none' )
+      om.setAttribute( OM.sym( 'Decl', 'Lurch' ), OM.str( this.declaration ) )
+    else
+      om.removeAttribute( OM.sym( 'Decl', 'Lurch' ) )
+    return om
+  }
+  copyFlagsFrom ( om ) {
+    LC.prototype.copyFlagsFrom.call( this, om )
+    let attr = om.getAttribute( OM.sym( 'Decl', 'Lurch' ) )
+    this.declaration = attr ? attr.value : 'none'
+    return this
   }
   // Environment will need to be able to store lists of identifiers that they
   // implicitly declare (by using them free and undeclared).  We thus make a
