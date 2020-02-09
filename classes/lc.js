@@ -31,6 +31,12 @@ class LC extends Structure {
   get isAClaim () { return !this.isAGiven }
   set isAClaim ( value ) { return !( this.isAGiven = !value ) }
 
+  // Does the LC have any descendant satisfying the given predicate?
+  hasDescendantSatisfying ( predicate ) {
+    return predicate( this ) || this.children().some( child =>
+      child.hasDescendantSatisfying( predicate ) )
+  }
+
   // The following are temporary sanity utilities until we can defined
   // separate subclasses for Expressions and Declarations and define a
   // separate tree for LC's that never has a Statement whose parent is a
@@ -58,7 +64,7 @@ class LC extends Structure {
   isAnActualEnvironment () { return this instanceof Environment &&
                                    !this.isAnActualDeclaration() }
   // For FIC validation we only need the declaration's last argument LC.
-  // We call this it's 'value'. Everything else is it's own value.
+  // We call this its 'value'. Everything else is its own value.
   value () {
     if (!this.isAnActualDeclaration()) { return this }
     let n = this.children().length
@@ -129,7 +135,8 @@ class LC extends Structure {
     }
     // Check if the attributes that define an LC are the same
     // (and nothing else).
-    const LCattr = ['declaration','quantifier','formula','identifier','given']
+    const LCattr = [ 'declaration', 'quantifier', 'formula', 'identifier',
+                     'given', 'metavariable' ]
     let ours = this.attributes
     let theirs = other.attributes
     for (let i=0; i<LCattr.length; i++) {

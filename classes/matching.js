@@ -26,7 +26,8 @@ const {
     // and you can MC.clone() them
     // and ask MC.isSolvable() or MC.numSolutions() or MC.getSolutions()
 } = require( '../dependencies/second-order-matching.js' )
-const { OM, LC } = require( '../classes/all.js' )
+const { OM } = require( '../dependencies/openmath.js' )
+const { LC } = require( './lc.js' )
 
 // We need a way to get/set metavariable status on LCs
 
@@ -67,6 +68,25 @@ class Matcher {
         pattern : LC.fromOM( constraint.pattern ),
         expression : LC.fromOM( constraint.expression )
       } ) ) )
+  }
+  solutionsToString () { // useful for debugging
+    let pairToString = ( pair ) =>
+      '(' + pair.pattern + ',' + pair.expression + ')'
+    let solutionToString = ( solution ) =>
+      '{ ' + solution.map( pairToString ).join( ', ' ) + ' }'
+    return '{ '
+         + this.getSolutions().map( solutionToString ).join( ', ' )
+         + ' }'
+  }
+  toString () {
+    let result = '{ '
+    for ( let i = 0 ; i < this._MC.challengeList.contents.length ; i++ ) {
+      let pair = this._MC.challengeList.contents[i]
+      if ( i > 0 ) result += ','
+      result += '(' + pair.pattern.simpleEncode()
+              + ',' + pair.expression.simpleEncode() + ')'
+    }
+    return result + ' }'
   }
 }
 
