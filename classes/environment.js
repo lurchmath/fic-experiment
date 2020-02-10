@@ -114,10 +114,35 @@ class Environment extends LC {
     return this.setAttribute( 'formula', value )
   }
   // What do Environments look like, for printing/debugging purposes?
-  // The optional argument options should be an object of the form
-  // { FIC: true/false Scopes: true/false } where FIC or Scopes can be omitted
-  // as a shortcut for 'false'.
+  // The optional argument options should be an object with named booleans
+  // which are false when omitted.
   toString ( options ) {
+    // options.Indent determines if we should indent and add newlines
+    if (options && options.Indent ) {
+      // indentLevel and tabsize are also optional options
+      if (!options.hasOwnProperty('indentLevel')) options.indentLevel = 0
+      if (!options.hasOwnProperty('tabsize')) options.tabsize = 1
+      let tab = () => ' '.repeat(options.tabsize).repeat(options.indentLevel)
+      let result = ''
+      result+=( this.isAGiven    ? ':'         : '' )
+            + ( this.isAFormula  ? '['        :
+              ( this.declaration && this.declaration === 'variable'
+                                 ? 'Let{'     :
+              ( this.declaration && this.declaration === 'constant'
+                                 ? 'Declare{' : '{' )))
+            + '\n'
+      options.indentLevel++
+      result+= tab()
+            + this.children().map( child => child.toString(options) )
+                             .join('\n'+tab())
+            + '\n'
+      options.indentLevel--
+      result+= tab()
+            + ( this.isAFormula  ? ']' : '}' )
+            + ( ( options && options.FIC && this.isValidated ) ?
+                ( (this.isValid) ? '✓' : '✗' ) : '' )
+      return result
+    } else {
       return ( this.isAGiven    ? ':'         : '' )
            + ( this.isAFormula  ? '[ '        :
              ( this.declaration && this.declaration === 'variable'
@@ -128,6 +153,7 @@ class Environment extends LC {
            + ( this.isAFormula ? ' ]' : ' }' )
            + ( ( options && options.FIC && this.isValidated ) ?
                ( (this.isValid) ? '✓' : '✗' ) : '' )
+    }
   }
 
   // What do Environments look like in OM form?
