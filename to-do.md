@@ -32,3 +32,4 @@
     Expressions only, so we can distinguish top-level from inner Expressions.
  1. Create lots of utility functions to clean up code (e.g., array `without()`,
     plus var list getters for quantifiers and declarations, etc.).
+ 1. Change it so that you can't have nested bound variables with the same name, like @x,#x,x<x.  I notice that I don't allow that in my lecture notes and I can't think of a situation where that can be useful for anything.
