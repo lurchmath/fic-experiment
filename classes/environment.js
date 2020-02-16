@@ -121,7 +121,7 @@ class Environment extends LC {
     if (options && options.Indent ) {
       // indentLevel and tabsize are also optional options
       if (!options.hasOwnProperty('indentLevel')) options.indentLevel = 0
-      if (!options.hasOwnProperty('tabsize')) options.tabsize = 1
+      if (!options.hasOwnProperty('tabsize')) options.tabsize = 2
       let tab = () => ' '.repeat(options.tabsize).repeat(options.indentLevel)
       let result = ''
       result+=( this.isAGiven    ? ':'         : '' )
