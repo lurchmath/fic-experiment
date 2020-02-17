@@ -6,7 +6,8 @@ let expect = require( 'expect.js' )
 
 // import relevant classes and the deduction routine
 const {
-  LC, Statement, Environment, derives, iterateHowToDerive, generatorToArray
+  LC, Statement, Environment, derives, iterateHowToDerive, generatorToArray,
+  derivesWithMatching
 } = require( '../classes/all.js' )
 
 suite( 'FIC Derivation', () => {
@@ -211,9 +212,13 @@ suite( 'FIC Derivation with matching', () => {
       checkSolution( allSolutions[i], stringMappings[i] )
   }
 
-  let checkDerivation = ( Gamma, conclusion, stringMappings ) =>
-    checkSolutions( generatorToArray( iterateHowToDerive( Gamma, conclusion ) ),
-                    stringMappings )
+  let checkDerivation = ( Gamma, conclusion, stringMappings ) => {
+    let foundSolutions =
+      generatorToArray( iterateHowToDerive( Gamma, conclusion ) )
+    checkSolutions( foundSolutions, stringMappings )
+    expect( derivesWithMatching( Gamma, conclusion ) ).to.be(
+      stringMappings.length > 0 )
+  }
 
   test( 'Has all the functions needed for derivation with matching', () => {
     expect( iterateHowToDerive ).to.be.ok()
