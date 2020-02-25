@@ -299,6 +299,12 @@ function* iterateHowToDerive ( Gamma, conclusion, matchingProblems ) {
 
 }
 
+function derivesWithMatching ( premises, conclusion )
+{
+  return !iterateHowToDerive( premises, conclusion ).next().done
+}
+
 module.exports.derives = derives
 module.exports.iterateHowToDerive = iterateHowToDerive
 module.exports.generatorToArray = generatorToArray
+module.exports.derivesWithMatching = derivesWithMatching
