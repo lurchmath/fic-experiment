@@ -121,7 +121,7 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( P[1] ).to.be( L )
   } )
 
-  test( 'applyInstantiation() works on various examples', () => {
+  test( 'MatchingSolution.apply() works on various examples', () => {
     // Test 1
     //
     // Match f(X,Y) against f(2,g(3))
