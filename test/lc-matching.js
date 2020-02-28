@@ -5,8 +5,90 @@
 let expect = require( 'expect.js' )
 
 // import all classes defined in this repo
-const { MatchingProblem } = require( '../classes/matching.js' )
+const { MatchingSolution, MatchingProblem } =
+  require( '../classes/matching.js' )
 const { LC, Statement } = require( '../classes/all.js' )
+
+suite( 'MatchingSolution', () => {
+
+  test( 'can create solutions and query their contents', () => {
+    const solution = new MatchingSolution()
+    expect( solution.keys() ).to.eql( [ ] )
+    expect( solution.has( 'x' ) ).to.be( false )
+    expect( solution.lookup( 'x' ) ).to.be( undefined )
+    solution.add( 'x', LC.fromString( 'thing(1)' ) )
+    expect( solution.keys() ).to.eql( [ 'x' ] )
+    expect( solution.has( 'x' ) ).to.be( true )
+    expect( solution.lookup( 'x' ) ).to.be.an( LC )
+    expect( solution.lookup( 'x' ).equals( LC.fromString( 'thing(1)' ) ) )
+      .to.be( true )
+    solution.add( 'YO', LC.fromString( 'DUDE' ) )
+    expect( solution.keys() ).to.have.length( 2 )
+    expect( solution.keys().includes( 'x' ) ).to.be( true )
+    expect( solution.keys().includes( 'YO' ) ).to.be( true )
+    expect( solution.has( 'x' ) ).to.be( true )
+    expect( solution.lookup( 'x' ) ).to.be.an( LC )
+    expect( solution.lookup( 'x' ).equals( LC.fromString( 'thing(1)' ) ) )
+      .to.be( true )
+    expect( solution.has( 'YO' ) ).to.be( true )
+    expect( solution.lookup( 'YO' ) ).to.be.an( LC )
+    expect( solution.lookup( 'YO' ).equals( LC.fromString( 'DUDE' ) ) )
+      .to.be( true )
+  } )
+
+  test( 'can correctly compare instances for equality', () => {
+    const solution1 = new MatchingSolution()
+    const solution2 = new MatchingSolution()
+    expect( solution1.equals( solution2 ) ).to.be( true )
+    solution1.add( 'x', LC.fromString( 'thing(1)' ) )
+    expect( solution1.equals( solution2 ) ).to.be( false )
+    solution2.add( 'x', LC.fromString( 'thing(1)' ) )
+    expect( solution1.equals( solution2 ) ).to.be( true )
+    solution2.add( 'YO', LC.fromString( 'D(U,D,E)' ) )
+    expect( solution1.equals( solution2 ) ).to.be( false )
+    solution1.add( 'YO', LC.fromString( 'D(U,D(E))' ) )
+    expect( solution1.equals( solution2 ) ).to.be( false )
+  } )
+
+  test( 'can be applied to instantiate metavariables', () => {
+    const solution1 = new MatchingSolution()
+    const original = LC.fromString( 'f(x,Y,z,YO)' )
+    original.children()[0].isAMetavariable = true
+    original.children()[3].isAMetavariable = true
+    // make a copy of the original into which we will substitute
+    const pattern1 = original.copy()
+    expect( original.equals( pattern1 ) ).to.be( true )
+    // applying an empty solution in place changes nothing
+    solution1.apply( pattern1 )
+    expect( original.equals( pattern1 ) ).to.be( true )
+    // applying a non-empty solution in place changes pattern1 in place
+    const solution2 = new MatchingSolution()
+    solution2.add( 'x', LC.fromString( 'thing(1)' ) )
+    solution2.add( 'YO', LC.fromString( 'DUDE' ) )
+    solution2.applyInPlace( pattern1 )
+    expect( original.equals( pattern1 ) ).to.be( false )
+    // and it does so correctly
+    expect( pattern1.equals( LC.fromString( 'f(thing(1),Y,z,DUDE)' ) ) )
+      .to.be( true )
+    // make another copy of the original into which we will substitute
+    const pattern2 = original.copy()
+    expect( original.equals( pattern2 ) ).to.be( true )
+    // applying an empty solution not in place makes an identical copy
+    // and does nothing to pattern2
+    const pattern3 = solution1.apply( pattern2 )
+    expect( original.equals( pattern2 ) ).to.be( true )
+    expect( original.equals( pattern3 ) ).to.be( true )
+    // applying a non-empty solution not in place makes a changed version
+    // but does nothing to pattern2
+    const pattern4 = solution2.apply( pattern2 )
+    expect( original.equals( pattern2 ) ).to.be( true )
+    expect( original.equals( pattern4 ) ).to.be( false )
+    // and the coversion happened correctly
+    expect( pattern4.equals( LC.fromString( 'f(thing(1),Y,z,DUDE)' ) ) )
+      .to.be( true )
+  } )
+
+} )
 
 // utility function
 // 1. mark as metavars, in pattern, all the metavars listed in the 2nd argument.

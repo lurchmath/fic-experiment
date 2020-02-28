@@ -52,8 +52,9 @@ class MatchingSolution {
   // after constructing it.  The metavariable can be a string or a Statement LC
   // that is a metavariable.
   add ( metavariable, expression ) {
-    const metavariableName = metavariable instanceof String ? metavariable :
-      metavariable.identifier
+    const metavariableName =
+      ( metavariable instanceof String || typeof metavariable == 'string' ) ?
+      metavariable : metavariable.identifier
     if ( !metavariableName )
       throw Error( 'Invalid metavariable given to MatchingSolution.add()' )
     if ( !( expression instanceof LC ) )
