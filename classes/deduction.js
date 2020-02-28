@@ -40,22 +40,25 @@ const pairUp = ( LC1, LC2 ) => {
 const canonicalPremises = ( premises ) => {
   const results = [ ]
   for ( const premise of premises ) {
-    const prev = ( LC ) =>
-      LC.previousSibling() ? LC.previousSibling() :
-      LC.parent() && LC.parent() != premise ? prev( LC.parent() ) : null
+    const prev = ( lc ) =>
+      lc.previousSibling() ? lc.previousSibling() :
+      lc.parent() && lc.parent() != premise ? prev( lc.parent() ) : null
     const conclusions = premise instanceof Statement ?
       ( premise.isAGiven ? [ ] : [ premise ] ) : premise.conclusions()
     for ( const conclusion of conclusions ) {
-      const result = [ conclusion.copy() ]
-      let walk
-      while ( walk = prev( result[0] ) ) result.unshift( walk.copy() )
-      for ( let i = 0 ; i < result.length - 1 ; i++ )
-        result[i].isAGiven = true
-      results.push( new Environment( ...result ) )
+      const result = [ conclusion ]
+      let walk = conclusion
+      console.log( result.map( x => `${x}` ) )
+      while ( walk = prev( walk ) ) {
+        if ( walk.isAGiven ) result.unshift( walk )
+        console.log( result.map( x => `${x}` ) )
+      }
+      results.push( new Environment( ...result.map( x => x.copy() ) ) )
     }
   }
   results.sort( ( a, b ) => a.children().length - b.children().length )
-  return results
+  return results.map( premise =>
+    premise.children().length == 1 ? premise.children()[0] : premise )
 }
 
 // This function is not intended for client use; call derivationMatches()
