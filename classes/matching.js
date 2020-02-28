@@ -87,7 +87,9 @@ class MatchingSolution {
       target.children().map( child => this.applyInPlace( child ) )
     } else if ( target.isAnIdentifier && target.isAMetavariable
                                       && this.has( target.identifier ) ) {
-      target.replaceWith( this.lookup( target.identifier ).copy() )
+      const replacement = this.lookup( target.identifier ).copy()
+      replacement.isAGiven = target.isAGiven
+      target.replaceWith( replacement )
     }
   }
   // Apply this solution as a metavariable instantiation to the given LC,
