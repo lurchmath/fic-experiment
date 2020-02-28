@@ -42,7 +42,7 @@ let check = ( pattern, metavars, expression, expectations ) => {
   M.addConstraint( pattern, expression )
 
   // run it
-  solutions = M.getSolutions()
+  let solutions = M.getSolutions()
 
   //// If you need to debug the solutions, uncomment these:
   // for ( let i = 0 ; i < solutions.length ; i++ ) {
@@ -70,6 +70,12 @@ let check = ( pattern, metavars, expression, expectations ) => {
       }
     }
   }
+
+  // also run it as an iterator, which should give the same stuff
+  let iterator = M.enumerateSolutions()
+  for ( let i = 0 ; i < solutions.length ; i++ )
+    expect( solutions[i].equals( iterator.next().value ) )
+  expect( iterator.next().done )
 }
 
 suite( 'MatchingProblem', () => {

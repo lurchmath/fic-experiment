@@ -71,6 +71,12 @@ class MatchingSolution {
     return this.has( metavariableName ) ? this._mapping[metavariableName]
                                         : undefined
   }
+  // Equality relation for solutions
+  equals ( other ) {
+    return other.keys().every( key => this.has( key ) )
+        && this.keys().every( key => other.has( key )
+          && other.lookup( key ).equals( this.lookup( key ) ) )
+  }
   // Apply this solution as a metavariable intantiation to the given LC
   // (It assumes all instantiations are free to be done and does not do any
   // variable capture checks in this function.)
@@ -140,6 +146,13 @@ class MatchingProblem {
   getOneSolution () {
     const solution = this._MC.getOneSolution()
     return solution ? new MatchingSolution( solution ) : null
+  }
+  // If you'd like to be able to iterate through the solutions one at a time,
+  // call the following function.  This does not add anything to any cache, so
+  // walking through this iterator doesn't actually speed up any future calls.
+  *enumerateSolutions () {
+    for ( let solution of this._MC.solutionsIterator() )
+      yield new MatchingSolution( solution )
   }
   // The following function may not complete quickly, because it requires
   // finding all solutions that exist, which may require a lengthy search.
