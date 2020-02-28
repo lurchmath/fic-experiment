@@ -5,7 +5,7 @@ const { Environment } = require( './environment.js' )
 const { MatchingProblem, MatchingSolution } =
   require( '../classes/matching.js' )
 
-let verbose = true
+let verbose = false
 let debug = ( ...msgs ) => { if (verbose) console.log(...msgs) }
 
 // Does the given LC contain a metavariable anywhere in its hierarchy?
