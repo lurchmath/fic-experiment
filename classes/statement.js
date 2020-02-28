@@ -3,7 +3,7 @@ const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
 const { isMetavariable, setMetavariable, clearMetavariable } =
-  require( '../dependencies/second-order-matching.js' )
+  require( '../dependencies/matching.js' )
 
 class Statement extends LC {
   // register with Structure ancestor class for good serialization/copying

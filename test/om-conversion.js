@@ -7,7 +7,7 @@ let expect = require( 'expect.js' )
 // import all LC subclasses and OM
 const { OM, LC, Statement, Environment } = require( '../classes/all.js' )
 const { isMetavariable, setMetavariable, clearMetavariable } =
-  require( '../dependencies/second-order-matching.js' )
+  require( '../dependencies/matching.js' )
 
 // helper function for testing
 let check = ( LCnotation, simpleOM ) => {

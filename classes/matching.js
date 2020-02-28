@@ -25,7 +25,7 @@ const {
     // or you can do MC.addConstraint(p,e) later
     // and you can MC.clone() them
     // and ask MC.isSolvable() or MC.numSolutions() or MC.getSolutions()
-} = require( '../dependencies/second-order-matching.js' )
+} = require( '../dependencies/matching.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
 
