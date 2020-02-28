@@ -6,134 +6,190 @@ let expect = require( 'expect.js' )
 
 // import relevant classes and the deduction routine
 const {
-  LC, Statement, Environment, derives, iterateHowToDerive, generatorToArray,
-  derivesWithMatching
+  LC, Statement, Environment, containsMetavariables, pairUp,
+  applyInstantiation, canonicalPremises, derivationMatches, allDerivationMatches
 } = require( '../classes/all.js' )
+// we also need the matcher for various tests; matching and deduction are linked
+const { MatchingProblem } = require( '../classes/matching.js' )
 
-suite( 'FIC Derivation', () => {
+suite( 'Auxiliary functions supporting derivation', () => {
 
-  let check = ( ...LCs ) => derives( ...LCs.map( lc => LC.fromString( lc ) ) )
-  let checking = ( ...LCs ) => () => check( ...LCs )
-
-  test( 'Verify that the S rule alone works (A |- A)', () => {
-    expect( check( 'A', 'A' ) ).to.be( true )
-    expect( check( 'A(x)', 'A(x)' ) ).to.be( true )
-    expect( check( '~t(2,5)', '~t(2,5)' ) ).to.be( true )
-    expect( check( '{ 1 2 3 { 4 } }', '{ 1 2 3 { 4 } }' ) ).to.be( true )
+  test( 'containsMetavariables performs correctly on examples', () => {
+    let L = LC.fromString( 'foo' )
+    expect( L.isAMetavariable ).to.be( false )
+    expect( containsMetavariables( L ) ).to.be( false )
+    L.isAMetavariable = true
+    expect( L.isAMetavariable ).to.be( true )
+    expect( containsMetavariables( L ) ).to.be( true )
+    L = LC.fromString( 'f(x)' )
+    expect( L.isAMetavariable ).to.be( false )
+    expect( L.children()[0].isAMetavariable ).to.be( false )
+    expect( containsMetavariables( L ) ).to.be( false )
+    L.isAMetavariable = true
+    expect( L.isAMetavariable ).to.be( true )
+    expect( L.children()[0].isAMetavariable ).to.be( false )
+    expect( containsMetavariables( L ) ).to.be( true )
+    L.isAMetavariable = false
+    L.children()[0].isAMetavariable = true
+    expect( L.isAMetavariable ).to.be( false )
+    expect( L.children()[0].isAMetavariable ).to.be( true )
+    expect( containsMetavariables( L ) ).to.be( true )
+    L = LC.fromString( 'bury(this(deeply(haha)))' )
+    expect( containsMetavariables( L ) ).to.be( false )
+    L.children()[0].children()[0].children()[0].isAMetavariable = true
+    expect( containsMetavariables( L ) ).to.be( true )
   } )
 
-  test( 'One statement cannot derive a different statement (A |-/- B)', () => {
-    expect( check( 'A', 'B' ) ).to.be( false )
-    expect( check( 'A(x)', 'B(y)' ) ).to.be( false )
-    expect( check( '~t(2,5)', 't(2,5)' ) ).to.be( false )
+  test( 'pairUp of two LCs without metavariables compares equality', () => {
+    let L = LC.fromString( 'foo' )
+    let M = LC.fromString( 'bar' )
+    expect( L.equals( M ) ).to.be( false )
+    expect( pairUp( L, M ) ).to.be( false )
+    let L2 = L.copy()
+    let M2 = M.copy()
+    expect( L.equals( L2 ) ).to.be( true )
+    expect( pairUp( L, L2 ) ).to.be( true )
+    expect( M.equals( M2 ) ).to.be( true )
+    expect( pairUp( M, M2 ) ).to.be( true )
+    L = LC.fromString( 'example(1,2,3,f(4))' )
+    M = LC.fromString( 'other(~thing,a(b),~c)' )
+    expect( L.equals( M ) ).to.be( false )
+    expect( pairUp( L, M ) ).to.be( false )
+    L2 = L.copy()
+    M2 = M.copy()
+    expect( L.equals( L2 ) ).to.be( true )
+    expect( pairUp( L, L2 ) ).to.be( true )
+    expect( M.equals( M2 ) ).to.be( true )
+    expect( pairUp( M, M2 ) ).to.be( true )
   } )
 
-  test( 'Verify the T rule: anything derives the "true" constant, { }', () => {
-    expect( check( '{ }' ) ).to.be( true )
-    expect( check( 'X', 'Y', 'Z', '{ }' ) ).to.be( true )
-    expect( check( '{ }', '{ }' ) ).to.be( true )
-    expect( check( '{ things may go __here__ }', '{ }' ) ).to.be( true )
+  test( 'pairUp of two LCs both with metavariables compares equality', () => {
+    let L = LC.fromString( 'foo' )
+    let M = LC.fromString( 'bar' )
+    L.isAMetavariable = true
+    M.isAMetavariable = true
+    expect( L.equals( M ) ).to.be( false )
+    expect( pairUp( L, M ) ).to.be( false )
+    let L2 = L.copy()
+    let M2 = M.copy()
+    expect( L2.isAMetavariable ).to.be( true )
+    expect( M2.isAMetavariable ).to.be( true )
+    expect( L.equals( L2 ) ).to.be( true )
+    expect( pairUp( L, L2 ) ).to.be( true )
+    expect( M.equals( M2 ) ).to.be( true )
+    expect( pairUp( M, M2 ) ).to.be( true )
+    L = LC.fromString( 'example(1,2,3,f(4))' )
+    M = LC.fromString( 'other(~thing,a(b),~c)' )
+    L.children()[3].isAMetavariable = true
+    M.children()[1].isAMetavariable = true
+    expect( L.equals( M ) ).to.be( false )
+    expect( pairUp( L, M ) ).to.be( false )
+    L2 = L.copy()
+    M2 = M.copy()
+    expect( L.equals( L2 ) ).to.be( true )
+    expect( pairUp( L, L2 ) ).to.be( true )
+    expect( M.equals( M2 ) ).to.be( true )
+    expect( pairUp( M, M2 ) ).to.be( true )
   } )
 
-  test( 'But nothing with actual content is derivable without premises', () => {
-    expect( check( 'A' ) ).to.be( false )
-    expect( check( '{A B C}' ) ).to.be( false )
-    expect( check( '{{A}{}{}}' ) ).to.be( false )
-    expect( check( '{ f(t) g(t) h(t) }' ) ).to.be( false )
+  test( 'pairUp of one LC with metavariables and one w/o sorts them', () => {
+    let L = LC.fromString( 'foo' )
+    let M = LC.fromString( 'bar' )
+    L.isAMetavariable = true
+    expect( containsMetavariables( L ) ).to.be( true )
+    expect( containsMetavariables( M ) ).to.be( false )
+    let P = pairUp( L, M )
+    expect( P ).to.have.length( 2 )
+    expect( P[0] ).to.be( L )
+    expect( P[1] ).to.be( M )
+    P = pairUp( M, L )
+    expect( P ).to.have.length( 2 )
+    expect( P[0] ).to.be( L )
+    expect( P[1] ).to.be( M )
+    L = LC.fromString( 'example(1,2,3,f(4))' )
+    M = LC.fromString( 'other(~thing,a(b),~c)' )
+    M.children()[1].isAMetavariable = true
+    expect( containsMetavariables( L ) ).to.be( false )
+    expect( containsMetavariables( M ) ).to.be( true )
+    P = pairUp( L, M )
+    expect( P ).to.have.length( 2 )
+    expect( P[0] ).to.be( M )
+    expect( P[1] ).to.be( L )
+    P = pairUp( M, L )
+    expect( P ).to.have.length( 2 )
+    expect( P[0] ).to.be( M )
+    expect( P[1] ).to.be( L )
   } )
 
-  test( 'Verify that the GR rule alone works (G |- {:A B} if G,A |- B)', () => {
-    expect( check( 'B', '{:A B }' ) ).to.be( true )
-    expect( check( 'K', '{:T K }' ) ).to.be( true )
-    expect( check( '{ u v(w) }', '{:Lurch { u v(w) } }' ) ).to.be( true )
-    expect( check( 'C', '{:A {} }' ) ).to.be( true )
+  test( 'applyInstantiation() works on various examples', () => {
+    // Test 1
+    //
+    // Match f(X,Y) against f(2,g(3))
+    let pattern = LC.fromString( 'f(X,Y)' )
+    pattern.children()[0].isAMetavariable = true
+    pattern.children()[1].isAMetavariable = true
+    let expression = LC.fromString( 'f(a,g(b))' )
+    let problem = new MatchingProblem()
+    problem.addConstraint( pattern, expression )
+    expect( problem.numSolutions() ).to.be( 1 )
+    // Verify that we get the instantiation X:2, Y:g(3).
+    let match = problem.getSolutions()[0]
+    expect( match.keys() ).to.have.length( 2 )
+    expect( match.keys().includes( 'X' ) ).to.be( true )
+    expect( match.keys().includes( 'Y' ) ).to.be( true )
+    expect( match.lookup( 'X' ).equals( LC.fromString( 'a' ) ) ).to.be( true )
+    expect( match.lookup( 'Y' ).equals( LC.fromString( 'g(b)' ) ) ).to.be( true )
+    // Use that solution to instantiate plus(Y,X,Y)
+    let newPattern = LC.fromString( 'plus(Y,X,Y)' )
+    newPattern.children()[0].isAMetavariable = true
+    newPattern.children()[1].isAMetavariable = true
+    newPattern.children()[2].isAMetavariable = true
+    let newExpression = match.apply( newPattern )
+    // Verify that we get plus(g(b),a,g(b))
+    expect( `${newExpression}` ).to.be( 'plus(g(b),a,g(b))' )
+
+    // Test 2
+    //
+    // Apply the same solution to plus(Y,X,Y) *with no metavars in it*
+    // (that is, this time around, X and Y are not metavariables)
+    newPattern = LC.fromString( 'plus(Y,X,Y)' )
+    newExpression = match.apply( newPattern )
+    expect( `${newExpression}` ).to.be( 'plus(Y,X,Y)' )
   } )
 
-  test( 'But slightly wrong uses of the GR rule fail', () => {
-    expect( check( 'A', '{:A B }' ) ).to.be( false )
-    expect( check( '{}', '{:T K }' ) ).to.be( false )
-    expect( check( '{ u v(w) }', '{:Lurch { u v(v) } }' ) ).to.be( false )
-    expect( check( 'C', '{:{} A C}' ) ).to.be( false )
-  } )
-
-  test( 'Verify that the GL rule alone works '
-      + '(G,{:A B} |- C if G |- A and G,B |- C)', () => {
-    expect( check( '{:{} Y}', 'Y' ) ).to.be( true )
-    expect( check( '{:{} Y}', '{}' ) ).to.be( true )
-    expect( check( 'g', '{:g c}', 'c' ) ).to.be( true )
-  } )
-
-  test( 'But slightly wrong uses of the GL rule fail', () => {
-    expect( check( '{:{} Y}', 'Z' ) ).to.be( false )
-    expect( check( '{:Y {}}', 'Y' ) ).to.be( false )
-    expect( check( 'g', '{:c g}', 'c' ) ).to.be( false )
-    expect( check( 'g', '{ {:g c} c }' ) ).to.be( false )
-  } )
-
-  test( 'Verify that the CR rule alone works '
-      + '(G |- {A B} if G |- A and G |- B)', () => {
-    expect( check( 'A', 'B', '{A B}' ) ).to.be( true )
-    expect( check( '{A}', 'B', '{{A} B}' ) ).to.be( true )
-    expect( check( 'u(t)', 'pow(2,10)', '{pow(2,10) u(t)}' ) ).to.be( true )
-    expect( check( 'B', '{B B}' ) ).to.be( true )
-    expect( check( 'B', '{{} B}' ) ).to.be( true )
-    expect( check( 'B', '{B {}}' ) ).to.be( true )
-    expect( check( '{{} {}}' ) ).to.be( true )
-  } )
-
-  test( 'But slightly wrong uses of the CR rule fail', () => {
-    expect( check( 'A', 'A', '{A B}' ) ).to.be( false )
-    expect( check( 'A', 'B', '{A ~B}' ) ).to.be( false )
-    expect( check( 'u(2)', 'pow(t,10)', '{pow(2,10) u(t)}' ) ).to.be( false )
-    expect( check( 'B1', '{B B}' ) ).to.be( false )
-    expect( check( 'B', '{{A} B}' ) ).to.be( false )
-  } )
-
-  test( 'Verify that the CL rule alone works '
-      + '(G,{A B} |- C if G,A,B |- C)', () => {
-    expect( check( '{A B}', 'A' ) ).to.be( true )
-    expect( check( '{A B}', 'B' ) ).to.be( true )
-    expect( check( '{A A}', 'A' ) ).to.be( true )
-    expect( check( '{A A}', '{}' ) ).to.be( true )
-    expect( check( 'X', '{A B}', 'X' ) ).to.be( true )
-    expect( check( '{A B}', 'X', 'X' ) ).to.be( true )
-  } )
-
-  test( 'But slightly wrong uses of the CL rule fail', () => {
-    expect( check( '{A B}', 'C' ) ).to.be( false )
-    expect( check( '{:A B}', 'B' ) ).to.be( false )
-    expect( check( '{A A}', '~A' ) ).to.be( false )
-    expect( check( 'X', '{A B}', 'C' ) ).to.be( false )
-  } )
-
-  test( 'We can verify multi-step derivations using multiple rules', () => {
-    expect( check( '{A B}', '{B A}' ) ).to.be( true )
-    expect( check( '{:A B}', '{:A B}' ) ).to.be( true )
-    expect( check( '{A B}', '{:A B}' ) ).to.be( true )
-    expect( check( 'alive', '{ :alive not(dead) }', 'extraneous',
-                   'not(dead)' ) ).to.be( true )
-    expect( check( 'x', '{x x x x x {} {} {} {} {}}' ) ).to.be( true )
-    expect( check( 'per', 'mute', 'these', '{mute per per these}' ) )
-      .to.be( true )
-    expect( check( '{:A :B :C D}', '{:X B}', 'C', '{X A}', '{D D}' ) )
-      .to.be( true )
-  } )
-
-  test( 'But things that don\'t actually hold get marked invalid', () => {
-    expect( check( ':{A B}', '{A B}' ) ).to.be( true )
-    expect( check( 'alive', '{ :alive not(dead) }',
-                   'completely_unrelated' ) ).to.be( false )
-    expect( check( 'x', '{x x x x y {} {} {} {} {}}' ) ).to.be( false )
-    expect( check( '{}', '{x x x x x {} {} {} {} {}}' ) ).to.be( false )
-    expect( check( 'per', 'mute', 'these', '{mute per HI these}' ) )
-      .to.be( false )
-    expect( check( '{:A :B :C D}', '{:X C}', 'C', '{X A}', '{D D}' ) )
-      .to.be( false )
-  } )
-
-  test( 'And some invalid questions throw errors', () => {
-    expect( () => derives( 'X', 'X' ) ).to.throwException( /only LC instances/ )
-    expect( checking( '{A B}', ':{B A}' ) ).to.throwException( /be a claim/ )
+  test( 'we can convert premise lists to canonical form', () => {
+    // [ :A, B, { :C D } ]  --canonical-->  [ B, { :C D } ]
+    let premises = [ ':A', 'B', '{ :C D }' ].map( LC.fromString )
+    let expected = [ 'B', '{ :C D }' ].map( LC.fromString )
+    let computed = canonicalPremises( premises )
+    expect( computed ).to.have.length( 2 )
+    expect( computed[0].equals( expected[0] ) )
+    expect( computed[1].equals( expected[1] ) )
+    // [ { :C { :D E } }, F ]  --canonical-->  [ F, { :C :D E } ]
+    premises = [ '{ :C { :D E } }', 'F' ].map( LC.fromString )
+    expected = [ 'F', '{ :C :D E }' ].map( LC.fromString )
+    computed = canonicalPremises( premises )
+    expect( computed ).to.have.length( 2 )
+    expect( computed[0].equals( expected[0] ) )
+    expect( computed[1].equals( expected[1] ) )
+    // [ G, { :H I }, { J K } ]  --canonical-->  [ G, J, K, { :H I } ]
+    premises = [ 'G', '{ :H I }', '{ J K }' ].map( LC.fromString )
+    expected = [ 'G', 'J', 'K', '{ :H I }' ].map( LC.fromString )
+    computed = canonicalPremises( premises )
+    expect( computed ).to.have.length( 4 )
+    expect( computed[0].equals( expected[0] ) )
+    expect( computed[1].equals( expected[1] ) )
+    expect( computed[2].equals( expected[2] ) )
+    expect( computed[3].equals( expected[3] ) )
+    // [ { :A B C }, { :D :E F } ]  --canonical-->
+    //   [ { :A B }, { :A C }, { :D :E F } ]
+    premises = [ '{ :A B C }', '{ :D :E F }' ].map( LC.fromString )
+    expected = [ '{ :A B }', '{ :A C }', '{ :D :E F }' ].map( LC.fromString )
+    computed = canonicalPremises( premises )
+    expect( computed ).to.have.length( 3 )
+    expect( computed[0].equals( expected[0] ) )
+    expect( computed[1].equals( expected[1] ) )
+    expect( computed[2].equals( expected[2] ) )
   } )
 
 } )
@@ -141,7 +197,7 @@ suite( 'FIC Derivation', () => {
 // In all the tests below, we adopt the convention that variable names of the
 // form _A_ are shorthand for a variable named A that is marked as a
 // metavariable.
-suite( 'FIC Derivation with matching', () => {
+suite( 'Derivation with matching', () => {
 
   let makeExpression = ( string ) => LC.fromString( string )
   let makePattern = ( string ) => {
@@ -159,40 +215,13 @@ suite( 'FIC Derivation with matching', () => {
   }
 
   let checkSolution = ( solution, stringMapping ) => {
-    expect( solution ).to.have.length( Object.keys( stringMapping ).length )
-    for ( let pair of solution ) {
-      let metavarName = pair.pattern.toString()
-      let shouldEqual = pair.expression.toString()
-      expect( shouldEqual ).to.be( stringMapping[metavarName] )
-    }
-  }
-
-  let sameSolution = ( sol1, sol2 ) => {
-    if ( sol1.length != sol2.length ) return false
-    for ( let i = 0 ; i < sol1.length ; i++ ) {
-      let pair = sol1[i]
-      let match = sol2.find( otherPair =>
-        otherPair.pattern.toString() == pair.pattern.toString() )
-      if ( !match ) return false
-      if ( pair.expression.toString() != match.expression.toString() )
-        return false
-    }
-    return true
-  }
-
-  let uniqueSolutions = ( matchingProblems ) => {
-    let result = [ ]
-    matchingProblems.map( mp => {
-      mp.getSolutions().map( sol => {
-        if ( !result.find( other => sameSolution( sol, other ) ) )
-          result.push( sol )
-      } )
-    } )
-    return result
+    expect( Object.keys( stringMapping ).every( key => solution.has( key ) ) )
+      .to.be( true )
+    for ( const key in stringMapping )
+      expect( solution.lookup( key ) ).to.be( stringMapping[key] )
   }
 
   let checkSolutions = ( matchingProblems, stringMappings ) => {
-    let allSolutions = uniqueSolutions( matchingProblems )
     // //
     // console.log( 'Checking solution set:' )
     // allSolutions.map( sol => {
@@ -207,311 +236,301 @@ suite( 'FIC Derivation with matching', () => {
     //       '('+key+','+strmap[key]+')' ).join( ',' ), '}' )
     // } )
     // //
-    expect( allSolutions ).to.have.length( stringMappings.length )
-    for ( let i = 0 ; i < allSolutions.length ; i++ )
-      checkSolution( allSolutions[i], stringMappings[i] )
-  }
-
-  let checkDerivation = ( Gamma, conclusion, stringMappings ) => {
-    let foundSolutions =
-      generatorToArray( iterateHowToDerive( Gamma, conclusion ) )
-    checkSolutions( foundSolutions, stringMappings )
-    expect( derivesWithMatching( Gamma, conclusion ) ).to.be(
-      stringMappings.length > 0 )
+    expect( matchingProblems ).to.have.length( stringMappings.length )
+    for ( let i = 0 ; i < matchingProblems.length ; i++ )
+      checkSolution( matchingProblems[i], stringMappings[i] )
   }
 
   test( 'Has all the functions needed for derivation with matching', () => {
-    expect( iterateHowToDerive ).to.be.ok()
-    expect( generatorToArray ).to.be.ok()
+    expect( allDerivationMatches ).to.be.ok()
+    expect( derivationMatches ).to.be.ok()
   } )
 
   test( 'Correctly uses the T rule in matching', () => {
     // any pile of stuff on the left, with or without metavariables, ought to
     // give a positive answer to |- { } without any instantiations needed
     // example 1:
-    checkDerivation(
-      [ ],
-      makeExpression( '{ }' ),
-      [
-        { }
-      ] )
+    checkSolutions(
+      allDerivationMatches( [ ], makeExpression( '{ }' ) ),
+      [ { } ]
+    )
     // example 2:
-    checkDerivation(
-      [ makePattern( '{ A B }' ) ],
-      makeExpression( '{ }' ),
-      [
-        { }
-      ] )
+    checkSolutions(
+      allDerivationMatches( [ makePattern( '{ A B }' ) ],
+                            makeExpression( '{ }' ) ),
+      [ { } ]
+    )
     // example 3:
-    checkDerivation(
-      [ makePattern( '_A_(_B_,_C_)' ), makePattern( 'not(a,metavar)' ) ],
-      makeExpression( '{ }' ),
-      [
-        { }
-      ] )
+    checkSolutions(
+      allDerivationMatches( [
+        makePattern( '_A_(_B_,_C_)' ),
+        makePattern( 'not(a,metavar)' )
+      ], makeExpression( '{ }' ) ),
+      [ { } ]
+    )
   } )
 
-  test( 'Correctly uses the S rule in matching', () => {
-    // First consider A |- A, which should pass, no metavariables present
-    checkDerivation(
-      [ makePattern( 'A' ) ],
-      makeExpression( 'A' ),
-      [
-        { }
-      ] )
-    // Next consider _A_ |- A, which should pass as well
-    checkDerivation(
-      [ makePattern( '_A_' ) ],
-      makeExpression( 'A' ),
-      [
-        { 'A' : 'A' }
-      ] )
-    // Next consider _X_ |- A, which should pass as well
-    checkDerivation(
-      [ makePattern( '_X_' ) ],
-      makeExpression( 'A' ),
-      [
-        { 'X' : 'A' }
-      ] )
-    // Next consider _X_, _Y_ |- A, which should pass in two different ways
-    checkDerivation(
-      [ makePattern( '_X_' ), makePattern( '_Y_' ) ],
-      makeExpression( 'A' ),
-      [
-        { 'X' : 'A' },
-        { 'Y' : 'A' }
-      ] )
-    // Next consider _X_(_Y_) |- A, which should fail
-    checkDerivation(
-      [ makePattern( '_X_(_Y_)' ) ],
-      makeExpression( 'A' ),
-      [ ] )
-  } )
-
-  test( 'Correctly uses the GR rule in matching', () => {
-    // First consider |- { :A A }, which should pass, no metavariables present
-    checkDerivation(
-      [ ],
-      makeExpression( '{ :A A }' ),
-      [
-        { }
-      ] )
-    // Next consider |- { :_X_ A }, which should pass also
-    checkDerivation(
-      [ ],
-      makePattern( '{ :_X_ A }' ),
-      [
-        { 'X' : 'A' }
-      ] )
-    // Next consider |- { :_X_ { :_Y_ A } }, which should pass in 2 ways
-    checkDerivation(
-      [ ],
-      makePattern( '{ :_X_ { :_Y_ A } }' ),
-      [
-        { 'X' : 'A' },
-        { 'Y' : 'A' }
-      ] )
-  } )
-
-  test( 'Correctly uses the CR rule in matching', () => {
-    // First consider A |- { A A }, which should pass, no metavariables present
-    checkDerivation(
-      [ makeExpression( 'A' ) ],
-      makeExpression( '{ A A }' ),
-      [
-        { }
-      ] )
-    // Next consider _X_ |- { A A }, which should pass also
-    checkDerivation(
-      [ makePattern( '_X_' ) ],
-      makeExpression( '{ A A }' ),
-      [
-        { 'X' : '{ A A }' },
-        { 'X' : 'A' }
-      ] )
-    // Next consider _X_, _Y_ |- { A B }, which should pass in 4 ways
-    checkDerivation(
-      [ makePattern( '_X_' ), makePattern( '_Y_' ) ],
-      makeExpression( '{ A B }' ),
-      [
-        { 'X' : '{ A B }' },
-        { 'Y' : '{ A B }' },
-        { 'X' : 'A', 'Y' : 'B' },
-        { 'X' : 'B', 'Y' : 'A' }
-      ] )
-    // Next consider _X_, _X_ |- { A B }, which should pass in 1 way
-    checkDerivation(
-      [ makePattern( '_X_' ), makePattern( '_X_' ) ],
-      makeExpression( '{ A B }' ),
-      [
-        { 'X' : '{ A B }' }
-      ] )
-  } )
-
-  test( 'Correctly uses the LI and DI rules in matching', () => {
-    // First consider Let{ x P } |- Let{ x P }, which should pass, w/o metavars
-    // (Then check the exact same thing for Declare{ ... })
-    checkDerivation(
-      [ makeExpression( 'Let{ x P }' ) ],
-      makeExpression( 'Let{ x P }' ),
-      [
-        { }
-      ] )
-    checkDerivation(
-      [ makeExpression( 'Declare{ x P }' ) ],
-      makeExpression( 'Declare{ x P }' ),
-      [
-        { }
-      ] )
-    // Next check to be sure it works with metavariables in a simple way:
-    // Let{ _x_ _P_ } |- Let{ y Q } works with x=y, P=Q.
-    // (Then check the exact same thing for Declare{ ... })
-    checkDerivation(
-      [ makePattern( 'Let{ _x_ _P_ }' ) ],
-      makeExpression( 'Let{ y Q }' ),
-      [
-        { 'x' : 'y', 'P' : 'Q' }
-      ] )
-    checkDerivation(
-      [ makePattern( 'Declare{ _x_ _P_ }' ) ],
-      makeExpression( 'Declare{ y Q }' ),
-      [
-        { 'x' : 'y', 'P' : 'Q' }
-      ] )
-    // Next check to be sure it works with metavariables in a nontrivial way:
-    // Let{ a _P_(a) } |- Let{ a Q(a) } works with P=Q.
-    // (Then check the exact same thing for Declare{ ... })
-    checkDerivation(
-      [ makePattern( 'Let{ a _P_(a) }' ) ],
-      makeExpression( 'Let{ a Q(a) }' ),
-      [
-        { 'P' : 'Q' }
-      ] )
-    checkDerivation(
-      [ makePattern( 'Declare{ a _P_(a) }' ) ],
-      makeExpression( 'Declare{ a Q(a) }' ),
-      [
-        { 'P' : 'Q' }
-      ] )
-    // Next check to be sure it knows when to fail because of metavariables:
-    // Let{ a and(_P_,_P_) } |- Let{ a and(Q,R) } should fail.
-    // (Then check the exact same thing for Declare{ ... })
-    checkDerivation(
-      [ makePattern( 'Let{ a and(_P_,_P_) }' ) ],
-      makeExpression( 'Let{ a and(Q,R) }' ),
-      [ ] )
-    checkDerivation(
-      [ makePattern( 'Declare{ a and(_P_,_P_) }' ) ],
-      makeExpression( 'Declare{ a and(Q,R) }' ),
-      [ ] )
-  } )
-
-  test( 'Correctly uses the GL rule in matching', () => {
-    // First consider { :R Q }, R |- Q, which works without metavariables
-    checkDerivation(
-      [ makeExpression( '{ :R Q }' ), makeExpression( 'R' ) ],
-      makeExpression( 'Q' ),
-      [
-        { }
-      ] )
-    // Next consider { :_P_ Q }, R |- Q, which works with P=R only
-    checkDerivation(
-      [ makePattern( '{ :_P_ Q }' ), makeExpression( 'R' ) ],
-      makeExpression( 'Q' ),
-      [
-        { 'P' : 'R' }
-      ] )
-    // Next consider { :_P1_ _P2_ }, R |- Q, which works with P1=R,P2=Q only
-    checkDerivation(
-      [ makePattern( '{ :_P1_ _P2_ }' ), makeExpression( 'R' ) ],
-      makeExpression( 'Q' ),
-      [
-        { 'P1' : 'R', 'P2' : 'Q' }
-      ] )
-  } )
-
-  test( 'Correctly uses the CL rule in matching', () => {
-    // First consider { R Q } |- R and { R Q } |- Q,
-    // both of which work without metavariables
-    checkDerivation(
-      [ makeExpression( '{ R Q }' ) ],
-      makeExpression( 'R' ),
-      [
-        { }
-      ] )
-    checkDerivation(
-      [ makeExpression( '{ R Q }' ) ],
-      makeExpression( 'Q' ),
-      [
-        { }
-      ] )
-    // Next consider { _A_ B } |- Q, which works with A=Q only
-    checkDerivation(
-      [ makePattern( '{ _A_ B }' ) ],
-      makeExpression( 'Q' ),
-      [
-        { 'A' : 'Q' }
-      ] )
-    // Next consider { _A_ _B_(x) } |- Q(x), which works two ways:
-    // A=Q(x) or B=Q
-    checkDerivation(
-      [ makePattern( '{ _A_ _B_(x) }' ) ],
-      makeExpression( 'Q(x)' ),
-      [
-        { 'A' : 'Q(x)' },
-        { 'B' : 'Q' }
-      ] )
-  } )
-
-  test( 'Correctly uses rules in combination, with matching', () => {
-    // First consider _X_ |- { :{ } A }, which should pass
-    checkDerivation(
-      [ makePattern( '_X_' ) ],
-      makeExpression( '{ :{ } A }' ),
-      [
-        { 'X' : '{ :{  } A }' },
-        { 'X' : 'A' }
-      ] )
-    // Next consider _P_, Let{ _x_ _P_(_x_) } |- { Let{ z Q(z) } Q },
-    // which should pass in precisely 2 ways:
-    // There's the way you'd expect, with x=z and P=Q,
-    // plus the sledgehammer way, with P=the whole conclusion.
-    checkDerivation(
-      [ makePattern( '_P_' ), makePattern( 'Let{ _x_ _P_(_x_) }' ) ],
-      makeExpression( '{ Let{ z Q(z) } Q }' ),
-      [
-        { 'P' : '{ Let{ z Q(z) } Q }' },
-        { 'x' : 'z', 'P' : 'Q' }
-      ] )
-    // Next consider { _A_ _B_ } |- { }, which can work by the T rule with no
-    // instantiation, or by letting either _A_ or _B_ be { }.
-    checkDerivation(
-      [ makePattern( '{ _A_ _B_ }' ) ],
-      makeExpression( '{ }' ),
-      [
-        { },
-        { 'A' : '{  }' },
-        { 'B' : '{  }' }
-      ] )
-    // Next consider { :imp(_A_,_B_) :_A_ _B_ }, imp(P,Q), P |- Q
-    checkDerivation(
-      [ makePattern( '{ :imp(_A_,_B_) { :_A_ _B_ } }' ),
-        makeExpression( 'imp(P,Q)' ), makeExpression( 'P' ) ],
-      makeExpression( 'Q' ),
-      [
-        { 'A' : 'P', 'B' : 'Q' }
-      ] )
-    // Finally, consider:
-    // { :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }, imp(yo,dude),
-    // imp(hey,dude), or(hey,yo) |- dude
-    checkDerivation(
-      [ makePattern( '{ :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }' ),
-        makeExpression( 'imp(yo,dude)' ), makeExpression( 'imp(hey,dude)' ),
-        makeExpression( 'or(hey,yo)' ) ],
-      makeExpression( 'dude' ),
-      [
-        { 'A' : 'hey', 'B' : 'yo', 'C' : 'dude' }
-      ] )
-  } )
+  // test( 'Correctly uses the S rule in matching', () => {
+  //   // First consider A |- A, which should pass, no metavariables present
+  //   checkDerivation(
+  //     [ makePattern( 'A' ) ],
+  //     makeExpression( 'A' ),
+  //     [
+  //       { }
+  //     ] )
+  //   // Next consider _A_ |- A, which should pass as well
+  //   checkDerivation(
+  //     [ makePattern( '_A_' ) ],
+  //     makeExpression( 'A' ),
+  //     [
+  //       { 'A' : 'A' }
+  //     ] )
+  //   // Next consider _X_ |- A, which should pass as well
+  //   checkDerivation(
+  //     [ makePattern( '_X_' ) ],
+  //     makeExpression( 'A' ),
+  //     [
+  //       { 'X' : 'A' }
+  //     ] )
+  //   // Next consider _X_, _Y_ |- A, which should pass in two different ways
+  //   checkDerivation(
+  //     [ makePattern( '_X_' ), makePattern( '_Y_' ) ],
+  //     makeExpression( 'A' ),
+  //     [
+  //       { 'X' : 'A' },
+  //       { 'Y' : 'A' }
+  //     ] )
+  //   // Next consider _X_(_Y_) |- A, which should fail
+  //   checkDerivation(
+  //     [ makePattern( '_X_(_Y_)' ) ],
+  //     makeExpression( 'A' ),
+  //     [ ] )
+  // } )
+  //
+  // test( 'Correctly uses the GR rule in matching', () => {
+  //   // First consider |- { :A A }, which should pass, no metavariables present
+  //   checkDerivation(
+  //     [ ],
+  //     makeExpression( '{ :A A }' ),
+  //     [
+  //       { }
+  //     ] )
+  //   // Next consider |- { :_X_ A }, which should pass also
+  //   checkDerivation(
+  //     [ ],
+  //     makePattern( '{ :_X_ A }' ),
+  //     [
+  //       { 'X' : 'A' }
+  //     ] )
+  //   // Next consider |- { :_X_ { :_Y_ A } }, which should pass in 2 ways
+  //   checkDerivation(
+  //     [ ],
+  //     makePattern( '{ :_X_ { :_Y_ A } }' ),
+  //     [
+  //       { 'X' : 'A' },
+  //       { 'Y' : 'A' }
+  //     ] )
+  // } )
+  //
+  // test( 'Correctly uses the CR rule in matching', () => {
+  //   // First consider A |- { A A }, which should pass, no metavariables present
+  //   checkDerivation(
+  //     [ makeExpression( 'A' ) ],
+  //     makeExpression( '{ A A }' ),
+  //     [
+  //       { }
+  //     ] )
+  //   // Next consider _X_ |- { A A }, which should pass also
+  //   checkDerivation(
+  //     [ makePattern( '_X_' ) ],
+  //     makeExpression( '{ A A }' ),
+  //     [
+  //       { 'X' : '{ A A }' },
+  //       { 'X' : 'A' }
+  //     ] )
+  //   // Next consider _X_, _Y_ |- { A B }, which should pass in 4 ways
+  //   checkDerivation(
+  //     [ makePattern( '_X_' ), makePattern( '_Y_' ) ],
+  //     makeExpression( '{ A B }' ),
+  //     [
+  //       { 'X' : '{ A B }' },
+  //       { 'Y' : '{ A B }' },
+  //       { 'X' : 'A', 'Y' : 'B' },
+  //       { 'X' : 'B', 'Y' : 'A' }
+  //     ] )
+  //   // Next consider _X_, _X_ |- { A B }, which should pass in 1 way
+  //   checkDerivation(
+  //     [ makePattern( '_X_' ), makePattern( '_X_' ) ],
+  //     makeExpression( '{ A B }' ),
+  //     [
+  //       { 'X' : '{ A B }' }
+  //     ] )
+  // } )
+  //
+  // test( 'Correctly uses the LI and DI rules in matching', () => {
+  //   // First consider Let{ x P } |- Let{ x P }, which should pass, w/o metavars
+  //   // (Then check the exact same thing for Declare{ ... })
+  //   checkDerivation(
+  //     [ makeExpression( 'Let{ x P }' ) ],
+  //     makeExpression( 'Let{ x P }' ),
+  //     [
+  //       { }
+  //     ] )
+  //   checkDerivation(
+  //     [ makeExpression( 'Declare{ x P }' ) ],
+  //     makeExpression( 'Declare{ x P }' ),
+  //     [
+  //       { }
+  //     ] )
+  //   // Next check to be sure it works with metavariables in a simple way:
+  //   // Let{ _x_ _P_ } |- Let{ y Q } works with x=y, P=Q.
+  //   // (Then check the exact same thing for Declare{ ... })
+  //   checkDerivation(
+  //     [ makePattern( 'Let{ _x_ _P_ }' ) ],
+  //     makeExpression( 'Let{ y Q }' ),
+  //     [
+  //       { 'x' : 'y', 'P' : 'Q' }
+  //     ] )
+  //   checkDerivation(
+  //     [ makePattern( 'Declare{ _x_ _P_ }' ) ],
+  //     makeExpression( 'Declare{ y Q }' ),
+  //     [
+  //       { 'x' : 'y', 'P' : 'Q' }
+  //     ] )
+  //   // Next check to be sure it works with metavariables in a nontrivial way:
+  //   // Let{ a _P_(a) } |- Let{ a Q(a) } works with P=Q.
+  //   // (Then check the exact same thing for Declare{ ... })
+  //   checkDerivation(
+  //     [ makePattern( 'Let{ a _P_(a) }' ) ],
+  //     makeExpression( 'Let{ a Q(a) }' ),
+  //     [
+  //       { 'P' : 'Q' }
+  //     ] )
+  //   checkDerivation(
+  //     [ makePattern( 'Declare{ a _P_(a) }' ) ],
+  //     makeExpression( 'Declare{ a Q(a) }' ),
+  //     [
+  //       { 'P' : 'Q' }
+  //     ] )
+  //   // Next check to be sure it knows when to fail because of metavariables:
+  //   // Let{ a and(_P_,_P_) } |- Let{ a and(Q,R) } should fail.
+  //   // (Then check the exact same thing for Declare{ ... })
+  //   checkDerivation(
+  //     [ makePattern( 'Let{ a and(_P_,_P_) }' ) ],
+  //     makeExpression( 'Let{ a and(Q,R) }' ),
+  //     [ ] )
+  //   checkDerivation(
+  //     [ makePattern( 'Declare{ a and(_P_,_P_) }' ) ],
+  //     makeExpression( 'Declare{ a and(Q,R) }' ),
+  //     [ ] )
+  // } )
+  //
+  // test( 'Correctly uses the GL rule in matching', () => {
+  //   // First consider { :R Q }, R |- Q, which works without metavariables
+  //   checkDerivation(
+  //     [ makeExpression( '{ :R Q }' ), makeExpression( 'R' ) ],
+  //     makeExpression( 'Q' ),
+  //     [
+  //       { }
+  //     ] )
+  //   // Next consider { :_P_ Q }, R |- Q, which works with P=R only
+  //   checkDerivation(
+  //     [ makePattern( '{ :_P_ Q }' ), makeExpression( 'R' ) ],
+  //     makeExpression( 'Q' ),
+  //     [
+  //       { 'P' : 'R' }
+  //     ] )
+  //   // Next consider { :_P1_ _P2_ }, R |- Q, which works with P1=R,P2=Q only
+  //   checkDerivation(
+  //     [ makePattern( '{ :_P1_ _P2_ }' ), makeExpression( 'R' ) ],
+  //     makeExpression( 'Q' ),
+  //     [
+  //       { 'P1' : 'R', 'P2' : 'Q' }
+  //     ] )
+  // } )
+  //
+  // test( 'Correctly uses the CL rule in matching', () => {
+  //   // First consider { R Q } |- R and { R Q } |- Q,
+  //   // both of which work without metavariables
+  //   checkDerivation(
+  //     [ makeExpression( '{ R Q }' ) ],
+  //     makeExpression( 'R' ),
+  //     [
+  //       { }
+  //     ] )
+  //   checkDerivation(
+  //     [ makeExpression( '{ R Q }' ) ],
+  //     makeExpression( 'Q' ),
+  //     [
+  //       { }
+  //     ] )
+  //   // Next consider { _A_ B } |- Q, which works with A=Q only
+  //   checkDerivation(
+  //     [ makePattern( '{ _A_ B }' ) ],
+  //     makeExpression( 'Q' ),
+  //     [
+  //       { 'A' : 'Q' }
+  //     ] )
+  //   // Next consider { _A_ _B_(x) } |- Q(x), which works two ways:
+  //   // A=Q(x) or B=Q
+  //   checkDerivation(
+  //     [ makePattern( '{ _A_ _B_(x) }' ) ],
+  //     makeExpression( 'Q(x)' ),
+  //     [
+  //       { 'A' : 'Q(x)' },
+  //       { 'B' : 'Q' }
+  //     ] )
+  // } )
+  //
+  // test( 'Correctly uses rules in combination, with matching', () => {
+  //   // First consider _X_ |- { :{ } A }, which should pass
+  //   checkDerivation(
+  //     [ makePattern( '_X_' ) ],
+  //     makeExpression( '{ :{ } A }' ),
+  //     [
+  //       { 'X' : '{ :{  } A }' },
+  //       { 'X' : 'A' }
+  //     ] )
+  //   // Next consider _P_, Let{ _x_ _P_(_x_) } |- { Let{ z Q(z) } Q },
+  //   // which should pass in precisely 2 ways:
+  //   // There's the way you'd expect, with x=z and P=Q,
+  //   // plus the sledgehammer way, with P=the whole conclusion.
+  //   checkDerivation(
+  //     [ makePattern( '_P_' ), makePattern( 'Let{ _x_ _P_(_x_) }' ) ],
+  //     makeExpression( '{ Let{ z Q(z) } Q }' ),
+  //     [
+  //       { 'P' : '{ Let{ z Q(z) } Q }' },
+  //       { 'x' : 'z', 'P' : 'Q' }
+  //     ] )
+  //   // Next consider { _A_ _B_ } |- { }, which can work by the T rule with no
+  //   // instantiation, or by letting either _A_ or _B_ be { }.
+  //   checkDerivation(
+  //     [ makePattern( '{ _A_ _B_ }' ) ],
+  //     makeExpression( '{ }' ),
+  //     [
+  //       { },
+  //       { 'A' : '{  }' },
+  //       { 'B' : '{  }' }
+  //     ] )
+  //   // Next consider { :imp(_A_,_B_) :_A_ _B_ }, imp(P,Q), P |- Q
+  //   checkDerivation(
+  //     [ makePattern( '{ :imp(_A_,_B_) { :_A_ _B_ } }' ),
+  //       makeExpression( 'imp(P,Q)' ), makeExpression( 'P' ) ],
+  //     makeExpression( 'Q' ),
+  //     [
+  //       { 'A' : 'P', 'B' : 'Q' }
+  //     ] )
+  //   // Finally, consider:
+  //   // { :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }, imp(yo,dude),
+  //   // imp(hey,dude), or(hey,yo) |- dude
+  //   checkDerivation(
+  //     [ makePattern( '{ :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }' ),
+  //       makeExpression( 'imp(yo,dude)' ), makeExpression( 'imp(hey,dude)' ),
+  //       makeExpression( 'or(hey,yo)' ) ],
+  //     makeExpression( 'dude' ),
+  //     [
+  //       { 'A' : 'hey', 'B' : 'yo', 'C' : 'dude' }
+  //     ] )
+  // } )
 
 } )

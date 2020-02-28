@@ -1,310 +1,232 @@
 
 const { LC } = require( './lc.js' )
+const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
-const { Matcher } = require( '../classes/matching.js' )
+const { MatchingProblem, MatchingSolution } =
+  require( '../classes/matching.js' )
 
 // let verbose = false
 // let debug = ( msg ) => { if (verbose) console.log(msg) }
 
-function derives ( ...LCs ) {
-  // You are allowed to pass only LCs to this function:
-  if ( LCs.some( arg => !( arg instanceof LC ) ) )
-    throw( 'The derives function accepts only LC instances as arguments' )
+// Does the given LC contain a metavariable anywhere in its hierarchy?
+const containsMetavariables = lc =>
+  lc.isAMetavariable || lc.children().some( containsMetavariables )
 
-  // Compute normal forms of all arguments, splitting into premises & conclusion
-  // If any premises are Givens, convert them to Claims (since 'premise' means
-  // 'given' in LC-land.)
-  let conclusion = LCs.pop().normalForm()
-  let premises = LCs.map( premise => premise.normalForm().claim() )
-
-  // if (premises) {
-  //   debug( '** Does ' + premises.map( x => ''+x ).join( ', ' )
-  //              + ' |- ' + conclusion + ' ?' )
-  // } else {
-  //   debug( '** Does |- ' + conclusion + ' ?' )
-  // }
-
-  // You're not supposed to ask whether assumptions are provable:
-  if ( conclusion.isAGiven )
-    throw( 'The derives function requires the conclusion to be a claim' )
-
-  // debug('** Checking Rule S...')
-  // S rule: Gamma, A |- A  and a special case of rules D and L
-  if ( premises.some( premise => premise.value().hasSameMeaningAs( conclusion ) ) ) {
-    // debug( '** S rule -> derivation holds.')
-    return true
-  }
-
-  // debug('** Checking Rule T...')
-  // T rule: Gamma |- { }
-  if ( conclusion instanceof Environment
-    && conclusion.children().length == 0 ) {
-    // debug( '** T rule -> derivation holds.' )
-    return true
-  }
-
-  // Now we consider the rules which require the conclusion to be a pair
-  // but not a Declaration
-
-  // a convenient utility for working with pairs
-  let ABPair = ( lc ) =>
-    lc instanceof Environment && lc.isAClaim
-                              && lc.children().length == 2
-                              && !lc.isAnActualDeclaration() ?
-      { A : lc.children()[0], B : lc.children()[1] }
-    : null
-
-  // check if the conclusion is ab pair
-  let cpair = ABPair( conclusion )
-  if ( cpair ) {
-
-    // debug('** Conclusion is a pair')
-
-    // GR rule: From Gamma, A |- B get Gamma |- { :A B }
-    if ( cpair.A.isAGiven ) {
-      // debug( '** Try GR rule recursively:' )
-      return derives( ...premises, cpair.A.claim(), cpair.B )
-    }
-
-    // CR rule: From Gamma |- A and Gamma |- B get Gamma |- { A B }
-    // (at this point, we know A is a claim)
-    // debug( '** Try CR rule recursively:' )
-    return derives( ...premises, cpair.A )
-        && derives( ...premises, cpair.B )
-  }
-
-  // debug('** The conclusion is not a pair.')
-
-  // At this point we have taken care of the cases where the conclusion is { },
-  // or a pair. Since it is in normal form, that leaves only the cases where
-  // the conclusion is either a Declaration or a Statement.
-
-  // If it is a declaration it can only follow from a Declaration of the
-  // same type by rules (DI) and (LI).
-  // But we might have to drill down into a pair to find it.
-
-  // So we first check the current premises to see if any is a Declaration of
-  // a similar form and check if its value justifies the value of
-  // the conclusion.  This checks Rules (DI) and (LI), namely
-  // from M|-L we can conclude Gamma,Declare{ ...c M } |- Declare{ ...c L }
-  // and similarly for Lets.
-
-  // debug('** Checking rules DI and DL')
-  if ( premises.some( prem => prem.hasSimilarForm(conclusion) &&
-                      derives(prem.value(),conclusion.value()) ) ) return true
-
-  // debug('** Rules DI and DL do not apply.  Converting premises to their values')
-
-  // If we made it this far then none of the current premises worked for DI or
-  // LI, so we should replace any premises that are declarations with their
-  // values by the special case of rules (D) and (L) with M=L.
-  let premisevalues = premises.map( x => x.value() )
-
-  // debug('** New premises are '+premisevalues)
-
-  // OK, so the only rules we haven't tried are GL and CL.  We check each
-  // with the following proc to see if one of these rules succeeds.
-  let premiseWorks = (prem, premindex) => {
-      let ppair = ABPair(prem)
-      // if it isn't, then we are done with this premise.
-      if (!ppair) return false
-
-      let gamma = premisevalues.slice()
-      gamma.splice( premindex, 1 )
-      // debug( '** The premise being tested is a pair, so here is gamma:'+gamma )
-
-      // GL rule: From Gamma |- A and Gamma, B |- C get Gamma, { :A B } |- C
-      if ( ppair.A.isAGiven ) {
-        // debug( '** Try GL rule recursively:' )
-        return derives( ...gamma, ppair.A.claim() )
-            && derives( ...gamma, ppair.B, conclusion )
-      } else {
-      // CL rule: From Gamma, A, B |- C get Gamma, { A B } |- C
-      // (at this point, we know A is a claim)
-      // debug( '** Try CL rule recursively:' )
-      return derives( ...gamma, ppair.A, ppair.B,
-                      conclusion )
-    }
-  }
-
-  if (premisevalues.some(premiseWorks)) return true
-
-  // If none of those rules help, it doesn't follow.
-  // debug( '** no rule -> derivation does not hold.' )
-  return false
+// Pair up two LCs in a way that is useful for the derivation checker, below.
+// Specifically, it follows these rules:
+//  - If LC1 and LC2 both contain metavariables, then the only way that they can
+//    match is if they are identical, so we return the answer to the question of
+//    whether they can match--that is, are they exactly equal?  True or false.
+//  - If LC1 and LC2 both do not contain metavariables, the exact same story is
+//    true, and thus we do the exact same thing.  Equal?  True or false.
+//  - If precisely one of them contains a metavariable, we return a pair (that
+//    is, a length-2 JS array) with the pattern first and the expression second,
+//    that is, either [ LC1, LC2 ] or [ LC2, LC1 ], depending on which of the
+//    two contains metavariables.  (The one with metavariables goes first.)
+const pairUp = ( LC1, LC2 ) => {
+  const mv1 = containsMetavariables( LC1 )
+  const mv2 = containsMetavariables( LC2 )
+  return mv1 == mv2 ? LC1.equals( LC2 ) :
+         mv1 ? [ LC1, LC2 ] : [ LC2, LC1 ]
 }
 
-// Takes any generator and computes all its values, creating an array.
-let generatorToArray = ( gen ) => {
-  let next = gen.next()
-  return next.done ? [ ] : [ next.value ].concat( generatorToArray( gen ) )
+// The canonical form of a premise list is this:
+// Let C1, ..., Cn be the list of conslusions in the premise list.
+// Then the set of entries in the canonical form is E1, ..., En, where each
+// Ei = { :P1 ... :Pk Ci }, with P1 through Pk being all the givens accessible
+// to Ci within the given premise list.
+// The Ei should be returned as a list, sorted in increasing order of length of
+// children (i.e., number of givens).
+const canonicalPremises = ( premises ) => {
+  const results = [ ]
+  for ( const premise of premises ) {
+    const prev = ( LC ) =>
+      LC.previousSibling() ? LC.previousSibling() :
+      LC.parent() && LC.parent() != premise ? prev( LC.parent() ) : null
+    const conclusions = premise instanceof Statement ?
+      ( premise.isAGiven ? [ ] : [ premise ] ) : premise.conclusions()
+    for ( const conclusion of conclusions ) {
+      const result = [ conclusion.copy() ]
+      let walk
+      while ( walk = prev( result[0] ) ) result.unshift( walk.copy() )
+      for ( let i = 0 ; i < result.length - 1 ; i++ )
+        result[i].isAGiven = true
+      results.push( new Environment( ...result ) )
+    }
+  }
+  results.sort( ( a, b ) => a.children().length - b.children().length )
+  return results
 }
 
-// Creates a generator that will iterate through all instantiations of
-// metavariables that would let Gamma |- conclusion.  Clients should ignore
-// the third parameter, which is used only in recursion.
-function* iterateHowToDerive ( Gamma, conclusion, matchingProblems ) {
-
-  // If this is a top-level call, the client will not pass a third argument,
-  // and the default is a single, empty matching problem.
-  if ( !matchingProblems ) matchingProblems = [ new Matcher() ]
-
-  // // debugging stuff:
-  // console.log( 'How to derive?' )
-  // console.log( '\t', Gamma.map( x => x.toString() ).join( ', ' ),
-  //              '|-', conclusion.toString(), '?' )
-  // if ( !( matchingProblems instanceof Array ) )
-  //   matchingProblems = generatorToArray( matchingProblems )
-  // for ( let mp of matchingProblems )
-  //   console.log( '\t', mp.toString() )
-  // // end debugging stuff
-
-  // Handle rule T:
-  // If the conclusion is the empty environment (meaning "true") then every
-  // matching problem we received as input trivially counts as a valid solution.
-  if ( conclusion instanceof Environment && conclusion.children().length == 0 )
-    yield* matchingProblems
-
-  // Handle rule S:
-  // For each premise in Gamma, could it alone justify the conclusion?
-  for ( let premise of Gamma ) {
-    // It may directly match, including having the same metavariable on both
-    // sides of the turnstile.  We handle that simple case first.
-    if ( premise.hasSameMeaningAs( conclusion ) ) {
-      yield* matchingProblems
-      continue
-    }
-    // If neither of the two have metavariables, that was our only hope, so
-    // let's move on and not waste time exploring this rule further.
-    let premiseHasMetavars =
-      premise.hasDescendantSatisfying( x => x.isAMetavariable )
-    let conclusionHasMetavars =
-      conclusion.hasDescendantSatisfying( x => x.isAMetavariable )
-    if ( !premiseHasMetavars && !conclusionHasMetavars ) continue
-    // Conversely, if both sides have metavariables in them, we are stuck,
-    // because that would be properly unification, not just matching,
-    // so we don't have software to support it.
-    if ( premiseHasMetavars && conclusionHasMetavars ) continue
-    // Now figure out which one has the metavars...
-    let withMV = premiseHasMetavars ? premise : conclusion
-    let withoutMV = premiseHasMetavars ? conclusion : premise
-    // We consider each currently existing possibility for how to instantiate
-    // metavariables that's consistent with the needs of this derivation so far:
-    for ( let possibility of matchingProblems ) {
-      // Augment that possibility with the pair (withMV,withoutMV).
-      // If the match is still possible, then yield it as one solution.
-      // (We know this is OK because conclusion contains no metavariables.)
-      let augmented = possibility.copy()
-      augmented.addConstraint( withMV, withoutMV )
-      if ( augmented.copy().isSolvable() ) yield augmented
-    }
-  }
-
-  // Next we consider the two rules in which the conclusion is a pair:
-  if ( conclusion instanceof Environment && conclusion.children().length == 2 )
-  {
-    let A = conclusion.children()[0]
-    let B = conclusion.children()[1]
-
-    // Handle rule GR:
-    // If the conclusion is of the form { :A B }, then we just yield the same
-    // thing we would if the problem had been Gamma,A |- B instead.
-    if ( A.isAGiven && B.isAClaim )
-      yield* iterateHowToDerive( Gamma.concat( [ A.claim() ] ), B,
-                                 matchingProblems )
-
-    // Handle rule CR:
-    // If the conclusion is of the form { A B }, then we must be able to
-    // establish both Gamma |- A and Gamma |- B.  This requires exploring
-    // whether our current matching problems can be extended to support both of
-    // those derivations, one after the other.
-    if ( A.isAClaim && B.isAClaim )
-      yield* iterateHowToDerive( Gamma, A,
-        generatorToArray( iterateHowToDerive( Gamma, B, matchingProblems ) ) )
-  }
-
-  // Handle rules DI and LI:
-  // If the conclusion is of the form Declare{ y1 ... yn B }, then any premise
-  // of the form Declare{ x1 ... xn A } will justify it iff we can match each
-  // xi to yi and Gamma, A |- B, once we've removed Declare{ x1 ... xn A } from
-  // Gamma.
-  // That's rule DI.  The same holds for Let{ ... } and is called rule LI.
-  if ( conclusion.declaration && conclusion.declaration != 'none' ) {
-    for ( let i = 0 ; i < Gamma.length ; i++ ) {
-      let premise = Gamma[i]
-      // A perfect match between premise and conclusion will always work:
-      if ( premise.hasSameMeaningAs( conclusion ) ) {
-        yield* matchingProblems
-        continue
+// This function is not intended for client use; call derivationMatches()
+// instead, and it will call this one after preparing the parameters
+// appropriately.
+// This function creates an iterator that yields all matches (that is,
+// metavariable instantiations) that cause the premises to derive the conclusion
+// using only the rules in FIC.  The third parameter must be a MatchingSolution
+// instance, and this routine will consider only solutions that extend that one.
+// The premises must each be of the form { :G1 ... :Gn C }, for n>=0.
+// Premises not of this form can be converted to this form with the use of
+// appropriate logical equivalences; derivationMatches() will do this, which is
+// one of its roles, and why it is the appropriate API.
+// This function yields an iterator which creates items of the form
+// { solution, premises, conclusion }, where the solution has been applied to
+// the other two already, so none of its metavariables remain uninstantiated in
+// them.
+function* findDerivationMatches ( premises, conclusion, toExtend ) {
+  // Consider the case where the conclusion is a Statement
+  if ( conclusion.isAStatement ) {
+    for ( const premise of premises ) {
+      if ( premise.isAStatement ) {
+        const P = pairUp( premise, conclusion )
+        if ( P === true ) { // premise equals conclusion -- apply rule S
+          yield ({
+            solution : toExtend,
+            premises : premises,
+            conclusion : conclusion
+          })
+        } else if ( P instanceof Array ) {
+          // premise may match conclusion or vice versa; let's check
+          const problem = toExtend.asProblem()
+          problem.addConstraint( P[0], P[1] )
+          // for each way that it matches, return that way as a solution
+          for ( const solution of problem.enumerateSolutions() ) {
+            yield ({
+              solution : solution,
+              premises : premises.map( p => solution.apply( p ) ),
+              conclusion : solution.apply( conclusion )
+            })
+          }
+        }
+      } else { // premise is an environment, call it { :A1 ... :An B }
+        const As = premise.children().slice().map( A => A.claim() )
+        const B = As.pop()
+        const P = pairUp( B, conclusion )
+        if ( P === true ) { // B equals conclusion -- apply rule GL
+          yield* findDerivationMatches(
+            premises, new Environment( ...As ), toExtend )
+        } else if ( P instanceof Array ) {
+          // B may match conclusion or vice versa; let's check
+          const problem = toExtend.asProblem()
+          problem.addConstraint( P[0], P[1] )
+          // for each way that it matches, check to see if that match
+          // can be extended to a proof of the required parts of rule GL,
+          // and yield each way that it can
+          for ( const solution of problem.enumerateSolutions() ) {
+            yield* findDerivationMatches(
+              premises.map( p => solution.apply( p ) ),
+              solution.apply( new Environment( ...As ) ),
+              solution )
+          }
+        }
       }
-      // If that's not the case, and the right hand side has metavariables in it,
-      // we can go no further, because that would be properly unification, not
-      // just matching, so we don't have software to support it.
-      if ( conclusion.hasDescendantSatisfying( x => x.isAMetavariable ) )
-        continue
-      if ( premise.declaration == conclusion.declaration
-        && premise.children().length == conclusion.children().length ) {
-        let n = premise.children().length - 1
-        let xs = premise.children().slice( 0, n )
-        let A = premise.children()[n]
-        let ys = conclusion.children().slice( 0, n )
-        let B = conclusion.children()[n]
-        let newGamma = Gamma.slice()
-        newGamma.splice( i, 1 )
-        newGamma.push( A )
-        // We consider each currently existing possibility for how to
-        // instantiate metavariables that's consistent with the needs of this
-        // derivation so far:
-        for ( let possibility of matchingProblems ) {
-          // Augment that possibility with the pairs (xi,yi) for each i.
-          // Generate all solutions to Gamma, A |- B under that constraint.
-          let augmented = possibility.copy()
-          for ( let j = 0 ; j < xs.length ; j++ )
-            augmented.addConstraint( xs[j], ys[j] )
-          yield* iterateHowToDerive( newGamma, B, [ augmented ] )
+    }
+  } else { // conclusion is an Environment, call it { C1 ... Cn }
+    // (Some of the C1,...Cn may be givens and some may be claims.)
+    let Cs = conclusion.children().slice()
+    if ( Cs.length == 0 ) {
+      // We've been asked to prove the constant True, so just apply rule T.
+      yield ({
+        solution : toExtend,
+        premises : premises,
+        conclusion : conclusion
+      })
+    } else {
+      const C1 = Cs.shift()
+      Cs = new Environment( ...Cs )
+      if ( C1.isAGiven ) {
+        // In order to justify { :C1 C2 ... Cn }, we must assume C1 by moving it
+        // to the premise list, and then prove { C2 ... Cn } (which contains
+        // some combination of givens/claims unspecified here).
+        // Because C1 may be a complex hierarchy, we first apply to it the
+        // canonicalization scheme that gets it into the appropriate premise
+        // form, then re-sort premises to preserve order.
+        const combined = canonicalPremises( [ C1.claim() ] ).concat( premises )
+        combined.sort( ( a, b ) => a.children().length - b.children().length )
+        yield* findDerivationMatches( combined, Cs, toExtend )
+      } else { // C1 is a claim
+        // In order to justify the full set of Cs, we must first prove C1, then
+        // see if any matching solution that let us do so is extendable to prove
+        // the remaining Cs in the list.
+        for ( const result1 of
+              findDerivationMatches( premises, C1, toExtend ) ) {
+          // result1 thus contains solution that can be used to prove C1.
+          // But can it be used to prove the remaining conclusions C2,...,Cn?
+          // Our new goal is to prove those, with the solution we've found so
+          // far applied to them, to instantiate any now-determined
+          // metavariables:
+          Cs = result1.solution.apply( Cs )
+          // Recur to try to prove the remaining environment { C2 ... Cn }
+          // (which, again, may contain a combination of givens and claims).
+          for ( const result2 of findDerivationMatches(
+                  result1.premises, Cs, result1.solution ) ) {
+            // For each solution that proved all of them, assemble a result:
+            // Its solution is the solution we return.
+            // Its premises are the premises we return.
+            // Its conclusion is almost the conclusion we return; we just have
+            // to re-add onto it the fully-instantiated copy of C1 we proved.
+            yield ({
+              solution : result2.match,
+              premises : result2.premises,
+              conclusion : new Environment(
+                result1.conclusion, ...result2.conclusion.children() )
+            })
+          }
         }
       }
     }
   }
+}
 
-  // Last we consider the two rules in which a premise is a pair:
-  for ( let i = 0 ; i < Gamma.length ; i++ ) {
-    let premise = Gamma[i]
-    if ( premise instanceof Environment
-      && ( !premise.declaration || premise.declaration == 'none' )
-      && premise.children().length == 2 )
-    {
-      let A = premise.children()[0]
-      let B = premise.children()[1]
-      let newGamma = Gamma.slice()
-      newGamma.splice( i, 1 )
-
-      // Handle rule GL:
-      // If the premise is { :A B } then we recur on both Gamma |- A and
-      // Gamma, B |- conclusion.
-      if ( A.isAGiven && B.isAClaim )
-        yield* iterateHowToDerive( newGamma, A.claim(),
-          generatorToArray( iterateHowToDerive(
-            newGamma.concat( [ B ] ), conclusion, matchingProblems ) ) )
-
-      // Handle rule CL:
-      // If the premise is { A B } then we recur on Gamma, A, B |- conclusion.
-      if ( A.isAClaim && B.isAClaim )
-        yield* iterateHowToDerive(
-          newGamma.concat( [ A, B ] ), conclusion, matchingProblems )
+// Convenience wrapper around findDerivationMatches()
+function* derivationMatches ( premises, conclusion ) {
+  // convert the premises to canonical form, provide a default empty matching
+  // solution, and return the result of the findDerivationMatches() iterator,
+  // but filtered for uniqueness
+  const solutionsFound = [ ]
+  for ( const result of findDerivationMatches( canonicalPremises( premises ),
+                                               conclusion,
+                                               new MatchingSolution() ) ) {
+    if ( !solutionsFound.some( s => s.equals( result.solution ) ) ) {
+      solutionsFound.push( result.solution )
+      yield result.solution
     }
   }
-
-  // There are no other rules to consider.
-
 }
 
-function derivesWithMatching ( premises, conclusion )
-{
-  return !iterateHowToDerive( premises, conclusion ).next().done
+// Convenience wrapper for computing all values of the iterator
+// and dropping the premises/conclusions attributes in each
+const allDerivationMatches = ( premises, conclusion ) => {
+  const iterator = derivationMatches( premises, conclusion )
+  const result = [ ]
+  for ( let next = iterator.next() ; !next.done ;
+        next = iterator.next() )
+    result.push( next.value.match )
+  return result
 }
 
-module.exports.derives = derives
-module.exports.iterateHowToDerive = iterateHowToDerive
-module.exports.generatorToArray = generatorToArray
-module.exports.derivesWithMatching = derivesWithMatching
+// To do:
+//  - Start testing and debugging findDerivationMatches().
+//  - Efficiency improvements for later:
+//     - When the conclusion is a statement, so our only two rules are S and GL,
+//       do not loop through the premises, trying S and GL on each.  Instead,
+//       loop through all premises trying S first, and only if they all fail,
+//       loop through all premises trying GL.
+//     - In the final subcase of findDerivationMatches(), where you are trying
+//       to prove many conclusions C1,...,Cn, after having successfully proven
+//       C1, take advantage of that to simplify further recursion, in two ways:
+//       1. Add C1 to the list of premises (LHS of turnstile) when you recur.
+//       2. Remove C1 from any other premise's list of givens-needing-proof, and
+//       adjust the order of those premises to preserve increasing order of
+//       number of givens.
+//     - When adding new premises in findDerivationMatches() recursion, don't
+//       re-sort the whole premises list; just insert the new ones in ways that
+//       preserve ordering.
+//     - Pre-compute which LCs contain metavariables and just
+//       looking it up in pairUp() rather than recomputing it.
+
+module.exports.containsMetavariables = containsMetavariables
+module.exports.pairUp = pairUp
+module.exports.canonicalPremises = canonicalPremises
+module.exports.derivationMatches = derivationMatches
+module.exports.allDerivationMatches = allDerivationMatches
