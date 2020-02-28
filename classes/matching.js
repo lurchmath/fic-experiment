@@ -29,15 +29,86 @@ const {
 const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
 
-// We need a way to get/set metavariable status on LCs
+// A MatchingSolution is a mapping from metavariables to expressions,
+// representing the solution to a MatchingProblem (which is defined below).
+class MatchingSolution {
+  // You build one by providing the mapping, as a JS object, or by providing a
+  // solution of the type returned by MatchingChallenge, and this constructor
+  // will convert it to LC format.
+  constructor ( mapping = { } ) {
+    this._mapping = { }
+    if ( mapping.hasOwnProperty( 'contents' ) ) {
+      // converting a MatchingChallenge solution into LC form
+      mapping.contents.map( constraint => this.add(
+        LC.fromOM( constraint.pattern ), LC.fromOM( constraint.expression ) ) )
+    } else {
+      // copying values from a regular JS object into our internal storage
+      for ( let key in mapping )
+        if ( mapping.hasOwnProperty( key ) )
+          this._mapping[key] = mapping[key]
+    }
+  }
+  // You can extend the solution with arbitrary metavariable/expression pairs
+  // after constructing it.  The metavariable can be a string or a Statement LC
+  // that is a metavariable.
+  add ( metavariable, expression ) {
+    const metavariableName = metavariable instanceof String ? metavariable :
+      metavariable.identifier
+    if ( !metavariableName )
+      throw Error( 'Invalid metavariable given to MatchingSolution.add()' )
+    if ( !( expression instanceof LC ) )
+      throw Error( 'Invalid expression given to MatchingSolution.add()' )
+    this._mapping[metavariableName] = expression
+  }
+  // Does the solution contain the given metavariable?
+  has ( metavariableName ) {
+    return this._mapping.hasOwnProperty( metavariableName )
+  }
+  // What metavariables does it contain?
+  keys () { return Object.keys( this._mapping ) }
+  // Look up the given metavariable in this mapping
+  lookup ( metavariableName ) {
+    return this.has( metavariableName ) ? this._mapping[metavariableName]
+                                        : undefined
+  }
+  // Apply this solution as a metavariable intantiation to the given LC
+  // (It assumes all instantiations are free to be done and does not do any
+  // variable capture checks in this function.)
+  // The instantiation is done in-place, modifying the given argument.
+  applyInPlace ( target ) {
+    if ( target.children().length > 0 ) {
+      target.children().map( child => this.applyInPlace( child ) )
+    } else if ( target.isAnIdentifier && target.isAMetavariable
+                                      && this.has( target.identifier ) ) {
+      target.replaceWith( this.lookup( target.identifier ) )
+    }
+  }
+  // Apply this solution as a metavariable instantiation to the given LC,
+  // returning a modified copy, rather than modifying the LC in place
+  // (Like applyInPlace(), does no variable capture checks.)
+  apply ( target ) {
+    const result = target.copy()
+    this.applyInPlace( result )
+    return result
+  }
+  // For debugging purposes
+  toString () {
+    return '{ ' + this.keys().map( metavariableName =>
+      `(${metavariableName},${this.lookup(metavariableName)})` ) + ' }'
+  }
+}
 
-// A matcher is a tool that can solve matching problems.  It is the equivalent
-// of the second-order matching package's MatchingChallenge class.
-class Matcher {
-  // When you build one, you can optionally provide constraints
+// A matching problem is an object that a client constructs to pose a matching
+// problem, and subsequently calls routines in that object to solve the problem.
+// It is the equivalent of the second-order matching package's MatchingChallenge
+// class.
+class MatchingProblem {
+  // When you build one, you can optionally provide constraints.  Do so like so:
+  // new MatchingProblem( [ pat1, expr1 ], [ pat2, expr2 ], ... )
+  // Or don't provide any, but call .addConstraint() after the fact; see below.
   constructor ( ...constraints ) {
     this._MC = new MatchingChallenge()
-    constraints.map( constraint => this.addConstraint( constraint ) )
+    constraints.map( constraint => this.addConstraint( ...constraint ) )
   }
   // A constraint is a pattern-expression pair, each of which is an LC
   // (This is half of the job of this class, to convert to OM right here.)
@@ -51,43 +122,43 @@ class Matcher {
         sub.children[1], sub.children.slice( 2 ) ) ) )
     this._MC.addConstraint( patternAsOM, expression.toOM() )
   }
-  // You can make a copy of a matcher
+  // You can make a copy of a matching problem
   copy () {
-    let result = new Matcher()
+    let result = new MatchingProblem()
     result._MC = this._MC.clone()
     return result
   }
   // You can query things about its solvability...that's the whole point.
   // (This is the other half of the job of this class, to convert from OM in
   // the getSolutions() function, below.)
+  // The following function should complete as quickly as possible, because it
+  // requires finding only one solution (if one exists), not all solutions.
   isSolvable () { return this._MC.isSolvable() }
+  // The following function should be similarly speedy, for the same reason.
+  // It returns either an instance of MatchingSolution (if the problem has at
+  // least one solution) or null (if it does not).
+  getOneSolution () {
+    const solution = this._MC.getOneSolution()
+    return solution ? new MatchingSolution( solution ) : null
+  }
+  // The following function may not complete quickly, because it requires
+  // finding all solutions that exist, which may require a lengthy search.
+  // However, once this function has been called, the inner _MC object caches
+  // the solution set, so future calls will be fast.
   numSolutions () { return this._MC.numSolutions() }
+  // Same warning as the previous function, including caching.
   getSolutions () {
-    return this._MC.getSolutions().map( solution =>
-      solution.contents.map( constraint => ( {
-        pattern : LC.fromOM( constraint.pattern ),
-        expression : LC.fromOM( constraint.expression )
-      } ) ) )
+    return this._MC.getSolutions().map(
+      solution => new MatchingSolution( solution ) )
   }
-  solutionsToString () { // useful for debugging
-    let pairToString = ( pair ) =>
-      '(' + pair.pattern + ',' + pair.expression + ')'
-    let solutionToString = ( solution ) =>
-      '{ ' + solution.map( pairToString ).join( ', ' ) + ' }'
-    return '{ '
-         + this.getSolutions().map( solutionToString ).join( ', ' )
-         + ' }'
-  }
+  // For debugging purposes
   toString () {
-    let result = '{ '
-    for ( let i = 0 ; i < this._MC.challengeList.contents.length ; i++ ) {
-      let pair = this._MC.challengeList.contents[i]
-      if ( i > 0 ) result += ','
-      result += '(' + pair.pattern.simpleEncode()
-              + ',' + pair.expression.simpleEncode() + ')'
-    }
-    return result + ' }'
+    return '{ ' +
+      this._MC.challengeList.contents.map( pair =>
+        `(${pair.pattern.simpleEncode()},${pair.expression.simpleEncode()})` )
+      .join( ',' ) + ' }'
   }
 }
 
-module.exports.Matcher = Matcher
+module.exports.MatchingSolution = MatchingSolution
+module.exports.MatchingProblem = MatchingProblem

@@ -5,7 +5,7 @@
 let expect = require( 'expect.js' )
 
 // import all classes defined in this repo
-const { Matcher } = require( '../classes/matching.js' )
+const { MatchingProblem } = require( '../classes/matching.js' )
 const { LC, Statement } = require( '../classes/all.js' )
 
 // utility function
@@ -35,8 +35,8 @@ let check = ( pattern, metavars, expression, expectations ) => {
   }
   markMetavars( pattern )
 
-  // create a matcher
-  let M = new Matcher()
+  // create a matching problem
+  let M = new MatchingProblem()
 
   // add the one main constraint we're supposed to test
   M.addConstraint( pattern, expression )
@@ -58,20 +58,21 @@ let check = ( pattern, metavars, expression, expectations ) => {
   for ( let i = 0 ; i < expectations.length ; i++ ) {
     let solution = solutions[i]
     let expectation = expectations[i]
-    expect( solution ).to.have.length( Object.keys( expectation ).length )
-    for ( let j = 0 ; j < solution.length ; j++ ) {
-      expect( solution[j].pattern ).to.be.a( Statement )
-      let p = solution[j].pattern.identifier
-      expect( p ).to.be.ok()
-      let e = solution[j].expression
-      expect( e ).to.be.an( LC )
-      expect( expectation.hasOwnProperty( p ) ).to.be( true )
-      expect( expectation[p].equals( e ) ).to.be( true )
+    expect( solution.keys() ).to.have.length(
+      Object.keys( expectation ).length )
+    for ( let key in expectation ) {
+      if ( expectation.hasOwnProperty( key ) ) {
+        expect( expectation[key] ).to.be.a( Statement )
+        expect( solution.has( key ) ).to.be( true )
+        let e = solution.lookup( key )
+        expect( e ).to.be.a( Statement )
+        expect( expectation[key].equals( e ) ).to.be( true )
+      }
     }
   }
 }
 
-suite( 'Matcher', () => {
+suite( 'MatchingProblem', () => {
 
   test( '1 solution to plus(A,B) matching plus(x,y)', () => {
     check( 'plus(A,B)', [ 'A', 'B' ], 'plus(x,y)', [ { A : 'x', B : 'y' } ] )
