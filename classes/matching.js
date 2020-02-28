@@ -97,6 +97,9 @@ class MatchingSolution {
     this.applyInPlace( result )
     return result
   }
+  // It is also possible to convert an old solution to a new problem, so that we
+  // might extend it with new constraints and see if it is still solvable.
+  asProblem () { return new MatchingProblem( this ) }
   // For debugging purposes
   toString () {
     return '{ ' + this.keys().map( metavariableName =>
@@ -112,9 +115,23 @@ class MatchingProblem {
   // When you build one, you can optionally provide constraints.  Do so like so:
   // new MatchingProblem( [ pat1, expr1 ], [ pat2, expr2 ], ... )
   // Or don't provide any, but call .addConstraint() after the fact; see below.
+  // Alternately, you can provide a single MatchingSolution as the first and
+  // only parameter, and all of its pairs will be lifted out and used to create
+  // a new matching problem (which can, of course, be extended as well).
   constructor ( ...constraints ) {
     this._MC = new MatchingChallenge()
-    constraints.map( constraint => this.addConstraint( ...constraint ) )
+    if ( constraints.length == 1
+      && constraints[0] instanceof MatchingSolution ) {
+      // the case where one MatchingSolution was given
+      constraints[0].keys().map( key => {
+        const metavariable = LC.fromString( key )
+        metavariable.isAMetavariable = true
+        this.addConstraint( metavariable, constraints[0].lookup( key ) )
+      } )
+    } else {
+      // the case where 0 or more pattern-expresson pairs were given
+      constraints.map( constraint => this.addConstraint( ...constraint ) )
+    }
   }
   // A constraint is a pattern-expression pair, each of which is an LC
   // (This is half of the job of this class, to convert to OM right here.)

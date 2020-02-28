@@ -109,4 +109,68 @@ suite( 'MatchingProblem', () => {
     ] )
   } )
 
+  test( 'matching solutions can be converted into new problems', () => {
+    // set a matching problem from an earlier test
+    const pattern1 = LC.fromString( 'A(B,c,D)' )
+    pattern1.isAMetavariable = true
+    pattern1.children()[0].isAMetavariable = true
+    pattern1.children()[2].isAMetavariable = true
+    const expression1 = LC.fromString( 'hi(x,c,D)' )
+    const problem1 = new MatchingProblem()
+    problem1.addConstraint( pattern1, expression1 )
+    // verify that it has the one solution we already tested earlier
+    // (just re-verifying for paranoia)
+    const solutionSet1 = problem1.getSolutions()
+    expect( solutionSet1 ).to.have.length( 1 )
+    const solution1 = solutionSet1[0]
+    expect( solution1.keys() ).to.have.length( 3 )
+    expect( solution1.keys().includes( 'A' ) ).to.be( true )
+    expect( solution1.keys().includes( 'B' ) ).to.be( true )
+    expect( solution1.keys().includes( 'D' ) ).to.be( true )
+    expect( solution1.lookup( 'A' ).equals( LC.fromString( 'hi' ) ) )
+      .to.be( true )
+    expect( solution1.lookup( 'B' ).equals( LC.fromString( 'x' ) ) )
+      .to.be( true )
+    expect( solution1.lookup( 'D' ).equals( LC.fromString( 'D' ) ) )
+      .to.be( true )
+    // now convert that into a new matching problem and extend it with a new
+    // challenge that includes some old metavariables and some new ones,
+    // creating still a solvable problem.
+    const problem2 = solution1.asProblem()
+    expect( problem2 ).to.be.a( MatchingProblem )
+    const pattern2 = LC.fromString( 'and(B,Q)' )
+    pattern2.children()[0].isAMetavariable = true
+    pattern2.children()[1].isAMetavariable = true
+    const expression2 = LC.fromString( 'and(x,y)' )
+    problem2.addConstraint( pattern2, expression2 )
+    // solve it and verify that only one solution exists, the correct one
+    const solutionSet2 = problem2.getSolutions()
+    expect( solutionSet2 ).to.have.length( 1 )
+    const solution2 = solutionSet2[0]
+    expect( solution2.keys() ).to.have.length( 4 )
+    expect( solution2.keys().includes( 'A' ) ).to.be( true )
+    expect( solution2.keys().includes( 'B' ) ).to.be( true )
+    expect( solution2.keys().includes( 'D' ) ).to.be( true )
+    expect( solution2.keys().includes( 'Q' ) ).to.be( true )
+    expect( solution2.lookup( 'A' ).equals( LC.fromString( 'hi' ) ) )
+      .to.be( true )
+    expect( solution2.lookup( 'B' ).equals( LC.fromString( 'x' ) ) )
+      .to.be( true )
+    expect( solution2.lookup( 'D' ).equals( LC.fromString( 'D' ) ) )
+      .to.be( true )
+    expect( solution2.lookup( 'Q' ).equals( LC.fromString( 'y' ) ) )
+      .to.be( true )
+    // now convert the same original solution into a new matching problem and
+    // extend it with a new challenge that includes some old metavariables and
+    // some new ones, but this time create an unsolvable problem.
+    const problem3 = solution1.asProblem()
+    expect( problem3 ).to.be.a( MatchingProblem )
+    const pattern3 = pattern2 // re-use and(B,Q)
+    const expression3 = LC.fromString( 'and(y,x)' ) // just change order of args
+    problem3.addConstraint( pattern3, expression3 )
+    // solve it and verify that no solutions exist
+    const solutionSet3 = problem3.getSolutions()
+    expect( solutionSet3 ).to.have.length( 0 )
+  } )
+
 } )
