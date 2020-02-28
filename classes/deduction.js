@@ -48,10 +48,8 @@ const canonicalPremises = ( premises ) => {
     for ( const conclusion of conclusions ) {
       const result = [ conclusion ]
       let walk = conclusion
-      console.log( result.map( x => `${x}` ) )
       while ( walk = prev( walk ) ) {
         if ( walk.isAGiven ) result.unshift( walk )
-        console.log( result.map( x => `${x}` ) )
       }
       results.push( new Environment( ...result.map( x => x.copy() ) ) )
     }
