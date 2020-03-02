@@ -252,7 +252,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
       })
     } else {
       const C1 = Cs.shift()
-      Cs = new Environment( ...Cs )
+      Cs = new Environment( ...Cs.map( child => child.copy() ) )
       if ( C1.isAGiven ) {
         // In order to justify { :C1 C2 ... Cn }, we must assume C1 by moving it
         // to the premise list, and then prove { C2 ... Cn } (which contains
@@ -330,6 +330,11 @@ const allDerivationMatches = ( premises, conclusion, options = { } ) => {
   return result
 }
 
+// Convenience wrapper for checking whether a derivation holds/not, without
+// getting any matches, and by being more efficient.
+const existsDerivation = ( premises, conclusion, options = { } ) =>
+  derivationMatches( premises, conclusion, options ).next().value !== undefined
+
 // Efficiency improvements for later:
 //  - When the conclusion is a statement, so our only two rules are S and GL,
 //    do not loop through the premises, trying S and GL on each.  Instead,
@@ -353,3 +358,4 @@ module.exports.pairUp = pairUp
 module.exports.canonicalPremises = canonicalPremises
 module.exports.derivationMatches = derivationMatches
 module.exports.allDerivationMatches = allDerivationMatches
+module.exports.existsDerivation = existsDerivation

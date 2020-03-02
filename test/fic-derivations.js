@@ -7,7 +7,8 @@ let expect = require( 'expect.js' )
 // import relevant classes and the deduction routine
 const {
   LC, Statement, Environment, containsMetavariables, pairUp,
-  applyInstantiation, canonicalPremises, derivationMatches, allDerivationMatches
+  applyInstantiation, canonicalPremises, derivationMatches,
+  allDerivationMatches, existsDerivation
 } = require( '../classes/all.js' )
 // we also need the matcher for various tests; matching and deduction are linked
 const { MatchingProblem } = require( '../classes/matching.js' )
@@ -241,7 +242,8 @@ suite( 'Derivation with matching', () => {
         LC.fromString( stringMapping[key] ) ) ).to.be( true )
   }
 
-  let checkSolutions = ( matchingSolutions, stringMappings ) => {
+  let checkSolutions = ( premises, conclusion, stringMappings,
+                         options = { } ) => {
     // //
     // console.log( 'Checking solution set:' )
     // allSolutions.map( sol => {
@@ -256,9 +258,13 @@ suite( 'Derivation with matching', () => {
     //       '('+key+','+strmap[key]+')' ).join( ',' ), '}' )
     // } )
     // //
+    let matchingSolutions =
+      allDerivationMatches( premises, conclusion, options )
     expect( matchingSolutions ).to.have.length( stringMappings.length )
     for ( let i = 0 ; i < matchingSolutions.length ; i++ )
       checkSolution( matchingSolutions[i], stringMappings[i] )
+    expect( stringMappings.length > 0 ).to.be(
+      existsDerivation( premises, conclusion, options ) )
   }
 
   test( 'Has all the functions needed for derivation with matching', () => {
@@ -271,31 +277,25 @@ suite( 'Derivation with matching', () => {
     // give a positive answer to |- { } without any instantiations needed
     // example 1:
     checkSolutions(
-      allDerivationMatches(
-        [ ],
-        makeExpression( '{ }' )
-      ),
+      [ ],
+      makeExpression( '{ }' ),
       [ { } ]
     )
     // example 2:
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ A B }' )
-        ],
-        makeExpression( '{ }' )
-      ),
+      [
+        makePattern( '{ A B }' )
+      ],
+      makeExpression( '{ }' ),
       [ { } ]
     )
     // example 3:
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_A_(_B_,_C_)' ),
-          makePattern( 'not(a,metavar)' )
-        ],
-        makeExpression( '{ }' )
-      ),
+      [
+        makePattern( '_A_(_B_,_C_)' ),
+        makePattern( 'not(a,metavar)' )
+      ],
+      makeExpression( '{ }' ),
       [ { } ]
     )
   } )
@@ -303,42 +303,34 @@ suite( 'Derivation with matching', () => {
   test( 'Correctly uses the S rule in matching', () => {
     // First consider A |- A, which should pass, no metavariables present
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'A' )
-        ],
-        makeExpression( 'A' )
-      ),
+      [
+        makePattern( 'A' )
+      ],
+      makeExpression( 'A' ),
       [ { } ]
     )
     // Next consider _A_ |- A, which should pass as well
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_A_' )
-        ],
-        makeExpression( 'A' )
-      ),
+      [
+        makePattern( '_A_' )
+      ],
+      makeExpression( 'A' ),
       [ { 'A' : 'A' } ]
     )
     // Next consider _X_ |- A, which should pass as well
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_' )
-        ],
-        makeExpression( 'A' )
-      ),
+      [
+        makePattern( '_X_' )
+      ],
+      makeExpression( 'A' ),
       [ { 'X' : 'A' } ]
     )
     // Next consider _X_, _Y_ |- A, which should pass in two different ways
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_' ), makePattern( '_Y_' )
-        ],
-        makeExpression( 'A' )
-      ),
+      [
+        makePattern( '_X_' ), makePattern( '_Y_' )
+      ],
+      makeExpression( 'A' ),
       [
         { 'X' : 'A' },
         { 'Y' : 'A' }
@@ -346,12 +338,10 @@ suite( 'Derivation with matching', () => {
     )
     // Next consider _X_(_Y_) |- A, which should fail
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_(_Y_)' )
-        ],
-        makeExpression( 'A' )
-      ),
+      [
+        makePattern( '_X_(_Y_)' )
+      ],
+      makeExpression( 'A' ),
       [ ]
     )
   } )
@@ -359,26 +349,20 @@ suite( 'Derivation with matching', () => {
   test( 'Correctly uses the GR rule in matching', () => {
     // First consider |- { :A A }, which should pass, no metavariables present
     checkSolutions(
-      allDerivationMatches(
-        [ ],
-        makeExpression( '{ :A A }' )
-      ),
+      [ ],
+      makeExpression( '{ :A A }' ),
       [ { } ]
     )
     // Next consider |- { :_X_ A }, which should pass also
     checkSolutions(
-      allDerivationMatches(
-        [ ],
-        makePattern( '{ :_X_ A }' )
-      ),
+      [ ],
+      makePattern( '{ :_X_ A }' ),
       [ { 'X' : 'A' } ]
     )
     // Next consider |- { :_X_ { :_Y_ A } }, which should pass in 2 ways
     checkSolutions(
-      allDerivationMatches(
-        [ ],
-        makePattern( '{ :_X_ { :_Y_ A } }' )
-      ),
+      [ ],
+      makePattern( '{ :_X_ { :_Y_ A } }' ),
       [
         { 'Y' : 'A' },
         { 'X' : 'A' }
@@ -389,44 +373,36 @@ suite( 'Derivation with matching', () => {
   test( 'Correctly uses the CR rule in matching', () => {
     // First consider A |- { A A }, which should pass, no metavariables present
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( 'A' )
-        ],
-        makeExpression( '{ A A }' ),
-      ),
+      [
+        makeExpression( 'A' )
+      ],
+      makeExpression( '{ A A }' ),
       [ { } ] )
     // Next consider _X_ |- { A A }, which should pass also
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_' )
-        ],
-        makeExpression( '{ A A }' ),
-      ),
+      [
+        makePattern( '_X_' )
+      ],
+      makeExpression( '{ A A }' ),
       [ { 'X' : 'A' } ] )
     // Next consider _X_, _Y_ |- { A B }, which should pass in 2 ways
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_' ),
-          makePattern( '_Y_' )
-        ],
-        makeExpression( '{ A B }' ),
-      ),
+      [
+        makePattern( '_X_' ),
+        makePattern( '_Y_' )
+      ],
+      makeExpression( '{ A B }' ),
       [
         { 'X' : 'A', 'Y' : 'B' },
         { 'X' : 'B', 'Y' : 'A' }
       ] )
     // Next consider _X_, _X_ |- { A B }, which should not pass
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_' ),
-          makePattern( '_X_' )
-        ],
-        makeExpression( '{ A B }' )
-      ),
+      [
+        makePattern( '_X_' ),
+        makePattern( '_X_' )
+      ],
+      makeExpression( '{ A B }' ),
       [ ]
     )
   } )
@@ -435,63 +411,51 @@ suite( 'Derivation with matching', () => {
     // First consider Let{ x P } |- Let{ x P }, which should pass, w/o metavars
     // (Then check the exact same thing for Declare{ ... })
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( 'Let{ x P }' )
-        ],
+      [
         makeExpression( 'Let{ x P }' )
-      ),
+      ],
+      makeExpression( 'Let{ x P }' ),
       [ { } ]
     )
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( 'Declare{ x P }' )
-        ],
+      [
         makeExpression( 'Declare{ x P }' )
-      ),
+      ],
+      makeExpression( 'Declare{ x P }' ),
       [ { } ]
     )
     // Next check to be sure it works with metavariables in a simple way:
     // Let{ _x_ _P_ } |- Let{ y Q } works with x=y, P=Q.
     // (Then check the exact same thing for Declare{ ... })
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Let{ _x_ _P_ }' )
-        ],
-        makeExpression( 'Let{ y Q }' )
-      ),
+      [
+        makePattern( 'Let{ _x_ _P_ }' )
+      ],
+      makeExpression( 'Let{ y Q }' ),
       [ { 'x' : 'y', 'P' : 'Q' } ]
     )
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Declare{ _x_ _P_ }' )
-        ],
-        makeExpression( 'Declare{ y Q }' )
-      ),
+      [
+        makePattern( 'Declare{ _x_ _P_ }' )
+      ],
+      makeExpression( 'Declare{ y Q }' ),
       [ { 'x' : 'y', 'P' : 'Q' } ]
     )
     // Next check to be sure it works with metavariables in a nontrivial way:
     // Let{ a _P_(a) } |- Let{ a Q(a) } works with P=Q.
     // (Then check the exact same thing for Declare{ ... })
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Let{ a _P_(a) }' )
-        ],
-        makeExpression( 'Let{ a Q(a) }' )
-      ),
+      [
+        makePattern( 'Let{ a _P_(a) }' )
+      ],
+      makeExpression( 'Let{ a Q(a) }' ),
       [ { 'P' : 'Q' } ]
     )
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Declare{ a _P_(a) }' )
-        ],
-        makeExpression( 'Declare{ a Q(a) }' )
-      ),
+      [
+        makePattern( 'Declare{ a _P_(a) }' )
+      ],
+      makeExpression( 'Declare{ a Q(a) }' ),
       [ { 'P' : 'Q' } ]
     )
     // Next check to be sure it works with metavariables when there are many
@@ -499,42 +463,34 @@ suite( 'Derivation with matching', () => {
     // Let{ _X_ _Y_ P(_X_,_Y_) } |- Let{ a b P(a,b) } works with X=a,Y=b.
     // (Then check the exact same thing for Declare{ ... })
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Let{ _X_ _Y_ P(_X_,_Y_) }' )
-        ],
-        makeExpression( 'Let{ a b P(a,b) }' )
-      ),
+      [
+        makePattern( 'Let{ _X_ _Y_ P(_X_,_Y_) }' )
+      ],
+      makeExpression( 'Let{ a b P(a,b) }' ),
       [ { 'X' : 'a', 'Y' : 'b' } ]
     )
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Declare{ _X_ _Y_ P(_X_,_Y_) }' )
-        ],
-        makeExpression( 'Declare{ a b P(a,b) }' )
-      ),
+      [
+        makePattern( 'Declare{ _X_ _Y_ P(_X_,_Y_) }' )
+      ],
+      makeExpression( 'Declare{ a b P(a,b) }' ),
       [ { 'X' : 'a', 'Y' : 'b' } ]
     )
     // Next check to be sure it knows when to fail because of metavariables:
     // Let{ a and(_P_,_P_) } |- Let{ a and(Q,R) } should fail.
     // (Then check the exact same thing for Declare{ ... })
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Let{ a and(_P_,_P_) }' )
-        ],
-        makeExpression( 'Let{ a and(Q,R) }' )
-      ),
+      [
+        makePattern( 'Let{ a and(_P_,_P_) }' )
+      ],
+      makeExpression( 'Let{ a and(Q,R) }' ),
       [ ]
     )
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( 'Declare{ a and(_P_,_P_) }' )
-        ],
-        makeExpression( 'Declare{ a and(Q,R) }' )
-      ),
+      [
+        makePattern( 'Declare{ a and(_P_,_P_) }' )
+      ],
+      makeExpression( 'Declare{ a and(Q,R) }' ),
       [ ]
     )
   } )
@@ -542,35 +498,29 @@ suite( 'Derivation with matching', () => {
   test( 'Correctly uses the GL rule in matching', () => {
     // First consider { :R Q }, R |- Q, which works without metavariables
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( '{ :R Q }' ),
-          makeExpression( 'R' )
-        ],
-        makeExpression( 'Q' )
-      ),
+      [
+        makeExpression( '{ :R Q }' ),
+        makeExpression( 'R' )
+      ],
+      makeExpression( 'Q' ),
       [ { } ]
     )
     // Next consider { :_P_ Q }, R |- Q, which works with P=R only
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ :_P_ Q }' ),
-          makeExpression( 'R' )
-        ],
-        makeExpression( 'Q' )
-      ),
+      [
+        makePattern( '{ :_P_ Q }' ),
+        makeExpression( 'R' )
+      ],
+      makeExpression( 'Q' ),
       [ { 'P' : 'R' } ]
     )
     // Next consider { :_P1_ _P2_ }, R |- Q, which works with P1=R,P2=Q only
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ :_P1_ _P2_ }' ),
-          makeExpression( 'R' )
-        ],
-        makeExpression( 'Q' )
-      ),
+      [
+        makePattern( '{ :_P1_ _P2_ }' ),
+        makeExpression( 'R' )
+      ],
+      makeExpression( 'Q' ),
       [ { 'P1' : 'R', 'P2' : 'Q' } ]
     )
   } )
@@ -579,41 +529,33 @@ suite( 'Derivation with matching', () => {
     // First consider { R Q } |- R and { R Q } |- Q,
     // both of which work without metavariables
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( '{ R Q }' )
-        ],
-        makeExpression( 'R' )
-      ),
+      [
+        makeExpression( '{ R Q }' )
+      ],
+      makeExpression( 'R' ),
       [ { } ]
     )
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( '{ R Q }' )
-        ],
-        makeExpression( 'Q' )
-      ),
+      [
+        makeExpression( '{ R Q }' )
+      ],
+      makeExpression( 'Q' ),
       [ { } ]
     )
     // Next consider { _A_ B } |- Q, which works with A=Q only
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ _A_ B }' )
-        ],
-        makeExpression( 'Q' )
-      ),
+      [
+        makePattern( '{ _A_ B }' )
+      ],
+      makeExpression( 'Q' ),
       [ { 'A' : 'Q' } ]
     )
     // Next consider { _A_ _B_(x) } |- Q(x), which works two ways: A=Q(x) or B=Q
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ _A_ _B_(x) }' )
-        ],
-        makeExpression( 'Q(x)' )
-      ),
+      [
+        makePattern( '{ _A_ _B_(x) }' )
+      ],
+      makeExpression( 'Q(x)' ),
       [
         { 'A' : 'Q(x)' },
         { 'B' : 'Q' }
@@ -624,12 +566,10 @@ suite( 'Derivation with matching', () => {
   test( 'Correctly uses rules in combination, with matching', () => {
     // First consider _X_ |- { :{ } A }, which should pass in exactly one way
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_X_' )
-        ],
-        makeExpression( '{ :{ } A }' )
-      ),
+      [
+        makePattern( '_X_' )
+      ],
+      makeExpression( '{ :{ } A }' ),
       [
         { 'X' : 'A' }
       ]
@@ -637,63 +577,53 @@ suite( 'Derivation with matching', () => {
     // Next consider _P_, Let{ _x_ _P_(_x_) } |- { Let{ z Q(z) } Q },
     // which should pass in the way you'd expect, with x=z and P=Q.
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_P_' ),
-          makePattern( 'Let{ _x_ _P_(_x_) }' )
-        ],
-        makeExpression( '{ Let{ z Q(z) } Q }' )
-      ),
+      [
+        makePattern( '_P_' ),
+        makePattern( 'Let{ _x_ _P_(_x_) }' )
+      ],
+      makeExpression( '{ Let{ z Q(z) } Q }' ),
       [ { 'x' : 'z', 'P' : 'Q' } ]
     )
     // Next consider
     // { :P(_X_) P(S(_X_)) }, Let{ _x_ P(_x_) } |- Let{ t P(S(t)) },
     // which should pass with x=t.
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '_P_' ),
-          makePattern( 'Let{ _x_ _P_(_x_) }' )
-        ],
-        makeExpression( '{ Let{ z Q(z) } Q }' )
-      ),
+      [
+        makePattern( '_P_' ),
+        makePattern( 'Let{ _x_ _P_(_x_) }' )
+      ],
+      makeExpression( '{ Let{ z Q(z) } Q }' ),
       [ { 'x' : 'z', 'P' : 'Q' } ]
     )
     // Next consider { _A_ _B_ } |- { }, which can work by the T rule only
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ _A_ _B_ }' )
-        ],
-        makeExpression( '{ }' )
-      ),
+      [
+        makePattern( '{ _A_ _B_ }' )
+      ],
+      makeExpression( '{ }' ),
       [ { } ]
     )
     // Next consider { :imp(_A_,_B_) :_A_ _B_ }, imp(P,Q), P |- Q
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ :imp(_A_,_B_) { :_A_ _B_ } }' ),
-          makeExpression( 'imp(P,Q)' ),
-          makeExpression( 'P' )
-        ],
-        makeExpression( 'Q' )
-      ),
+      [
+        makePattern( '{ :imp(_A_,_B_) { :_A_ _B_ } }' ),
+        makeExpression( 'imp(P,Q)' ),
+        makeExpression( 'P' )
+      ],
+      makeExpression( 'Q' ),
       [ { 'A' : 'P', 'B' : 'Q' } ]
     )
     // Also, consider:
     // { :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }, imp(yo,dude),
     // imp(hey,dude), or(hey,yo) |- dude
     checkSolutions(
-      allDerivationMatches(
-        [
-          makePattern( '{ :or(_A_,_B_) :imp(_A_,_C_) :imp(_B_,_C_) _C_ }' ),
-          makeExpression( 'imp(yo,dude)' ),
-          makeExpression( 'imp(hey,dude)' ),
-          makeExpression( 'or(hey,yo)' )
-        ],
-        makeExpression( 'dude' )
-      ),
+      [
+        makePattern( '{ :or(_A_,_B_) :imp(_A_,_C_) :imp(_B_,_C_) _C_ }' ),
+        makeExpression( 'imp(yo,dude)' ),
+        makeExpression( 'imp(hey,dude)' ),
+        makeExpression( 'or(hey,yo)' )
+      ],
+      makeExpression( 'dude' ),
       [ { 'A' : 'hey', 'B' : 'yo', 'C' : 'dude' } ]
     )
     // And for a large example, it fails if we do not ask it to "work both ways"
@@ -701,30 +631,26 @@ suite( 'Derivation with matching', () => {
     // or(a,and(b,c)), not(a),
     //   { :or(_X1_,_Y1_) :not(_X1_) _Y1_ }, { :and(_X2_,_Y2_) _X2_ } |- b
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( 'or(a,and(b,c))' ),
-          makeExpression( 'not(a)' ),
-          makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
-          makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
-        ],
-        makeExpression( 'b' )
-      ),
+      [
+        makeExpression( 'or(a,and(b,c))' ),
+        makeExpression( 'not(a)' ),
+        makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
+        makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
+      ],
+      makeExpression( 'b' ),
       [ ]
     )
     // But the same example succeeds if we do have it "work both ways":
     checkSolutions(
-      allDerivationMatches(
-        [
-          makeExpression( 'or(a,and(b,c))' ),
-          makeExpression( 'not(a)' ),
-          makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
-          makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
-        ],
-        makeExpression( 'b' ),
-        { workBothWays : true }
-      ),
-      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ]
+      [
+        makeExpression( 'or(a,and(b,c))' ),
+        makeExpression( 'not(a)' ),
+        makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
+        makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
+      ],
+      makeExpression( 'b' ),
+      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ],
+      { workBothWays : true }
     )
   } )
 
