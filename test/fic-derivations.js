@@ -620,7 +620,7 @@ suite( 'Derivation with matching', () => {
       ),
       [ { 'A' : 'P', 'B' : 'Q' } ]
     )
-    // Finally, consider:
+    // Also, consider:
     // { :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }, imp(yo,dude),
     // imp(hey,dude), or(hey,yo) |- dude
     checkSolutions(
@@ -634,6 +634,36 @@ suite( 'Derivation with matching', () => {
         makeExpression( 'dude' )
       ),
       [ { 'A' : 'hey', 'B' : 'yo', 'C' : 'dude' } ]
+    )
+    // And for a large example, it fails if we do not ask it to "work both ways"
+    // (meaning not just working backwards from the conclusion):
+    // or(a,and(b,c)), not(a),
+    //   { :or(_X1_,_Y1_) :not(_X1_) _Y1_ }, { :and(_X2_,_Y2_) _X2_ } |- b
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makeExpression( 'or(a,and(b,c))' ),
+          makeExpression( 'not(a)' ),
+          makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
+          makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
+        ],
+        makeExpression( 'b' )
+      ),
+      [ ]
+    )
+    // But the same example succeeds if we do have it "work both ways":
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makeExpression( 'or(a,and(b,c))' ),
+          makeExpression( 'not(a)' ),
+          makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
+          makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
+        ],
+        makeExpression( 'b' ),
+        { workBothWays : true }
+      ),
+      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ]
     )
   } )
 
