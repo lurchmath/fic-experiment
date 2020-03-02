@@ -431,66 +431,113 @@ suite( 'Derivation with matching', () => {
     )
   } )
 
-  // test( 'Correctly uses the LI and DI rules in matching', () => {
-  //   // First consider Let{ x P } |- Let{ x P }, which should pass, w/o metavars
-  //   // (Then check the exact same thing for Declare{ ... })
-  //   checkSolutions(
-  //     allDerivationMatches(
-  //       [
-  //         makeExpression( 'Let{ x P }' )
-  //       ],
-  //       makeExpression( 'Let{ x P }' )
-  //     ),
-  //     [ { } ]
-  //   )
-  //   checkDerivation(
-  //     [ makeExpression( 'Declare{ x P }' ) ],
-  //     makeExpression( 'Declare{ x P }' ),
-  //     [
-  //       { }
-  //     ] )
-  //   // Next check to be sure it works with metavariables in a simple way:
-  //   // Let{ _x_ _P_ } |- Let{ y Q } works with x=y, P=Q.
-  //   // (Then check the exact same thing for Declare{ ... })
-  //   checkDerivation(
-  //     [ makePattern( 'Let{ _x_ _P_ }' ) ],
-  //     makeExpression( 'Let{ y Q }' ),
-  //     [
-  //       { 'x' : 'y', 'P' : 'Q' }
-  //     ] )
-  //   checkDerivation(
-  //     [ makePattern( 'Declare{ _x_ _P_ }' ) ],
-  //     makeExpression( 'Declare{ y Q }' ),
-  //     [
-  //       { 'x' : 'y', 'P' : 'Q' }
-  //     ] )
-  //   // Next check to be sure it works with metavariables in a nontrivial way:
-  //   // Let{ a _P_(a) } |- Let{ a Q(a) } works with P=Q.
-  //   // (Then check the exact same thing for Declare{ ... })
-  //   checkDerivation(
-  //     [ makePattern( 'Let{ a _P_(a) }' ) ],
-  //     makeExpression( 'Let{ a Q(a) }' ),
-  //     [
-  //       { 'P' : 'Q' }
-  //     ] )
-  //   checkDerivation(
-  //     [ makePattern( 'Declare{ a _P_(a) }' ) ],
-  //     makeExpression( 'Declare{ a Q(a) }' ),
-  //     [
-  //       { 'P' : 'Q' }
-  //     ] )
-  //   // Next check to be sure it knows when to fail because of metavariables:
-  //   // Let{ a and(_P_,_P_) } |- Let{ a and(Q,R) } should fail.
-  //   // (Then check the exact same thing for Declare{ ... })
-  //   checkDerivation(
-  //     [ makePattern( 'Let{ a and(_P_,_P_) }' ) ],
-  //     makeExpression( 'Let{ a and(Q,R) }' ),
-  //     [ ] )
-  //   checkDerivation(
-  //     [ makePattern( 'Declare{ a and(_P_,_P_) }' ) ],
-  //     makeExpression( 'Declare{ a and(Q,R) }' ),
-  //     [ ] )
-  // } )
+  test( 'Correctly uses the LI and DI rules in matching', () => {
+    // First consider Let{ x P } |- Let{ x P }, which should pass, w/o metavars
+    // (Then check the exact same thing for Declare{ ... })
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makeExpression( 'Let{ x P }' )
+        ],
+        makeExpression( 'Let{ x P }' )
+      ),
+      [ { } ]
+    )
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makeExpression( 'Declare{ x P }' )
+        ],
+        makeExpression( 'Declare{ x P }' )
+      ),
+      [ { } ]
+    )
+    // Next check to be sure it works with metavariables in a simple way:
+    // Let{ _x_ _P_ } |- Let{ y Q } works with x=y, P=Q.
+    // (Then check the exact same thing for Declare{ ... })
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Let{ _x_ _P_ }' )
+        ],
+        makeExpression( 'Let{ y Q }' )
+      ),
+      [ { 'x' : 'y', 'P' : 'Q' } ]
+    )
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Declare{ _x_ _P_ }' )
+        ],
+        makeExpression( 'Declare{ y Q }' )
+      ),
+      [ { 'x' : 'y', 'P' : 'Q' } ]
+    )
+    // Next check to be sure it works with metavariables in a nontrivial way:
+    // Let{ a _P_(a) } |- Let{ a Q(a) } works with P=Q.
+    // (Then check the exact same thing for Declare{ ... })
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Let{ a _P_(a) }' )
+        ],
+        makeExpression( 'Let{ a Q(a) }' )
+      ),
+      [ { 'P' : 'Q' } ]
+    )
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Declare{ a _P_(a) }' )
+        ],
+        makeExpression( 'Declare{ a Q(a) }' )
+      ),
+      [ { 'P' : 'Q' } ]
+    )
+    // Next check to be sure it works with metavariables when there are many
+    // variables being declared at once and some other deduction is required:
+    // Let{ _X_ _Y_ P(_X_,_Y_) } |- Let{ a b P(a,b) } works with X=a,Y=b.
+    // (Then check the exact same thing for Declare{ ... })
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Let{ _X_ _Y_ P(_X_,_Y_) }' )
+        ],
+        makeExpression( 'Let{ a b P(a,b) }' )
+      ),
+      [ { 'X' : 'a', 'Y' : 'b' } ]
+    )
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Declare{ _X_ _Y_ P(_X_,_Y_) }' )
+        ],
+        makeExpression( 'Declare{ a b P(a,b) }' )
+      ),
+      [ { 'X' : 'a', 'Y' : 'b' } ]
+    )
+    // Next check to be sure it knows when to fail because of metavariables:
+    // Let{ a and(_P_,_P_) } |- Let{ a and(Q,R) } should fail.
+    // (Then check the exact same thing for Declare{ ... })
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Let{ a and(_P_,_P_) }' )
+        ],
+        makeExpression( 'Let{ a and(Q,R) }' )
+      ),
+      [ ]
+    )
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( 'Declare{ a and(_P_,_P_) }' )
+        ],
+        makeExpression( 'Declare{ a and(Q,R) }' )
+      ),
+      [ ]
+    )
+  } )
 
   test( 'Correctly uses the GL rule in matching', () => {
     // First consider { :R Q }, R |- Q, which works without metavariables
@@ -587,17 +634,31 @@ suite( 'Derivation with matching', () => {
         { 'X' : 'A' }
       ]
     )
-  //   // Next consider _P_, Let{ _x_ _P_(_x_) } |- { Let{ z Q(z) } Q },
-  //   // which should pass in precisely 2 ways:
-  //   // There's the way you'd expect, with x=z and P=Q,
-  //   // plus the sledgehammer way, with P=the whole conclusion.
-  //   checkDerivation(
-  //     [ makePattern( '_P_' ), makePattern( 'Let{ _x_ _P_(_x_) }' ) ],
-  //     makeExpression( '{ Let{ z Q(z) } Q }' ),
-  //     [
-  //       { 'P' : '{ Let{ z Q(z) } Q }' },
-  //       { 'x' : 'z', 'P' : 'Q' }
-  //     ] )
+    // Next consider _P_, Let{ _x_ _P_(_x_) } |- { Let{ z Q(z) } Q },
+    // which should pass in the way you'd expect, with x=z and P=Q.
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( '_P_' ),
+          makePattern( 'Let{ _x_ _P_(_x_) }' )
+        ],
+        makeExpression( '{ Let{ z Q(z) } Q }' )
+      ),
+      [ { 'x' : 'z', 'P' : 'Q' } ]
+    )
+    // Next consider
+    // { :P(_X_) P(S(_X_)) }, Let{ _x_ P(_x_) } |- Let{ t P(S(t)) },
+    // which should pass with x=t.
+    checkSolutions(
+      allDerivationMatches(
+        [
+          makePattern( '_P_' ),
+          makePattern( 'Let{ _x_ _P_(_x_) }' )
+        ],
+        makeExpression( '{ Let{ z Q(z) } Q }' )
+      ),
+      [ { 'x' : 'z', 'P' : 'Q' } ]
+    )
     // Next consider { _A_ _B_ } |- { }, which can work by the T rule only
     checkSolutions(
       allDerivationMatches(

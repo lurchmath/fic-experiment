@@ -44,11 +44,13 @@ const pairUp = ( LC1, LC2 ) => {
 // children (i.e., number of givens).
 const canonicalPremises = ( premises ) => {
   const results = [ ]
+  const likeAStatement = ( x ) => x instanceof Statement ||
+    x.declaration && x.declaration != 'none'
   for ( const premise of premises ) {
     const prev = ( lc ) =>
       lc.previousSibling() ? lc.previousSibling() :
       lc.parent() && lc.parent() != premise ? prev( lc.parent() ) : null
-    const conclusions = premise instanceof Statement ?
+    const conclusions = likeAStatement( premise ) ?
       ( premise.isAGiven ? [ ] : [ premise ] ) : premise.conclusions()
     for ( const conclusion of conclusions ) {
       const result = [ conclusion ]
@@ -59,7 +61,8 @@ const canonicalPremises = ( premises ) => {
       results.push( new Environment( ...result.map( x => x.copy() ) ) )
     }
   }
-  results.sort( ( a, b ) => a.children().length - b.children().length )
+  const complexity = ( x ) => likeAStatement( x ) ? 0 : x.children().length
+  results.sort( ( a, b ) => complexity( a ) - complexity( b ) )
   return results.map( premise =>
     premise.children().length == 1 ? premise.children()[0] : premise )
 }
@@ -86,14 +89,14 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
     `|- ${conclusion}     extending ${toExtend}` )
   // Consider the case where the conclusion is a Statement
   if ( conclusion instanceof Statement ) {
-    debug( '\tconclusion is a statement' )
+    debug( 'conclusion is a statement' )
     for ( let i = 0 ; i < premises.length ; i++ ) {
       const premise = premises[i]
       if ( premise instanceof Statement ) {
-        debug( `\tpremise is a statement: ${premise}` )
+        debug( `premise is a statement: ${premise}` )
         const P = pairUp( premise, conclusion )
         if ( P === true ) { // premise equals conclusion -- apply rule S
-          debug( '\trule S straight equality' )
+          debug( 'rule S straight equality' )
           yield ({
             solution : toExtend,
             premises : premises,
@@ -103,10 +106,10 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // premise may match conclusion or vice versa; let's check
           const problem = toExtend.asProblem()
           problem.addConstraint( P[0], P[1] )
-          debug( `\tadd S-match requirement: (${P[0]},${P[1]})` )
+          debug( `add S-match requirement: (${P[0]},${P[1]})` )
           // for each way that it matches, return that way as a solution
           for ( const solution of problem.enumerateSolutions() ) {
-            debug( `\trule S by match: ${solution}` )
+            debug( `rule S by match: ${solution}` )
             yield ({
               solution : solution,
               premises : premises.map( p => solution.apply( p ) ),
@@ -115,12 +118,12 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           }
         }
       } else { // premise is an environment, call it { :A1 ... :An B }
-        debug( `\tpremise is an environment: ${premise}` )
+        debug( `premise is an environment: ${premise}` )
         const As = premise.children().slice().map( A => A.claim() )
         const B = As.pop()
         const P = pairUp( B, conclusion )
         if ( P === true ) { // B equals conclusion -- apply rule GL
-          debug( `\tconclusion match; recur w/GL: ${new Environment(...As)}` )
+          debug( `conclusion match; recur w/GL: ${new Environment(...As)}` )
           yield* findDerivationMatches(
             [ ...premises.slice( 0, i ), ...premises.slice( i+1 ) ],
             new Environment( ...As ), toExtend, options )
@@ -128,12 +131,12 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // B may match conclusion or vice versa; let's check
           const problem = toExtend.asProblem()
           problem.addConstraint( P[0], P[1] )
-          debug( `\tadd GL-match requirement: (${P[0]},${P[1]})` )
+          debug( `add GL-match requirement: (${P[0]},${P[1]})` )
           // for each way that it matches, check to see if that match
           // can be extended to a proof of the required parts of rule GL,
           // and yield each way that it can
           for ( const solution of problem.enumerateSolutions() ) {
-            debug( `\trequirement satisfiable: ${solution}...applying rule GL` )
+            debug( `requirement satisfiable: ${solution}...applying rule GL` )
             const fewerPremises =
               [ ...premises.slice( 0, i ), ...premises.slice( i+1 ) ]
             yield* findDerivationMatches(
@@ -151,22 +154,22 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
     // To do so, we seek any formula premise F and any non-formula premise P
     // such that the first given inside F matches P.
     if ( options.workBothWays ) {
-      debug( `\ttrying working forwards from premises...` )
+      debug( `trying working forwards from premises...` )
       for ( let i = 0 ; i < premises.length ; i++ ) {
         let F = premises[i]
         if ( !containsMetavariables( F ) || !( F instanceof Environment ) )
           continue
         let G = F.children()[0]
         if ( !G.isAGiven ) continue
-        debug( `\tcan we satisfy premise ${G} in ${F}?` )
+        debug( `can we satisfy premise ${G} in ${F}?` )
         for ( let P of premises.filter( p => !p.isAFormula ) ) {
           const problem = toExtend.asProblem()
           problem.addConstraint( G.claim(), P )
-          debug( `\ttrying out this new matching constraint: (${G},${P})` )
+          debug( `trying out this new matching constraint: (${G},${P})` )
           // for each way that it matches, check to see if that match can be the
           // start of a proof using the now one-step-smaller premise F
           for ( const solution of problem.enumerateSolutions() ) {
-            debug( `\tsatisfied: ${solution}...so removing ${G} from ${F}` )
+            debug( `satisfied: ${solution}...so removing ${G} from ${F}` )
             const newPremises = premises.map( p => solution.apply( p ) )
             newPremises[i].removeChild( 0 )
             yield* findDerivationMatches(
@@ -175,12 +178,72 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         }
       }
     }
+  } else if ( conclusion.declaration && conclusion.declaration != 'none' ) {
+    // conclusion is a declaration; consider all same-type premises
+    debug( `conclusion is a ${conclusion.declaration} declaration` )
+    const cmv = containsMetavariables( conclusion )
+    let childrenCopy = conclusion.children().slice()
+    const cBody = childrenCopy.pop()
+    const cVariables =
+      new Environment( ...childrenCopy.map( child => child.copy() ) )
+    debug( `cVariables ${cVariables} cBody ${cBody}` )
+    for ( let premise of premises ) {
+      debug( `considering premise w/decl=${premise.declaration}`,
+             `and ${premise.children().length} children` )
+      if ( premise.declaration != conclusion.declaration ) continue
+      if ( premise.children().length != conclusion.children().length ) continue
+      childrenCopy = premise.children().slice()
+      const pBody = childrenCopy.pop()
+      const pVariables =
+        new Environment( ...childrenCopy.map( child => child.copy() ) )
+      debug( `pVariables ${pVariables} pBody ${pBody}` )
+      const pmv = containsMetavariables( premise )
+      if ( cmv == pmv ) {
+        // either both contain metavariables or both do not,
+        // so the only way for them to match is strict equality of variables
+        debug( `comparing conclusion to this premise: ${premise}` )
+        if ( pVariables.equals( cVariables ) ) {
+          for ( let deriveSol of findDerivationMatches( [ pBody ], cBody,
+                                                        toExtend, options ) ) {
+            yield ({
+              solution : deriveSol.solution,
+              premises : premises.map( p => deriveSol.solution.apply( p ) ),
+              conclusion : deriveSol.solution.apply( conclusion )
+            })
+          }
+        }
+      } else {
+        // one contains metavariables and the other does not, so we must extend
+        // our matching problem to take these potential variable matches into
+        // account
+        const lefts = cmv ? cVariables : pVariables
+        const rights = pmv ? cVariables : pVariables
+        debug( `adding constraints from ${premise}...${lefts} ~ ${rights}` )
+        const problem = toExtend.asProblem()
+        for ( let i = 0 ; i < lefts.children().length ; i++ )
+          problem.addConstraint( lefts.children()[i], rights.children()[i] )
+        debug( `obtained this problem: ${problem}` )
+        for ( const matchSol of problem.enumerateSolutions() ) {
+          debug( `requirement satisfiable: ${matchSol}...applying decl-I` )
+          for ( let deriveSol of findDerivationMatches(
+                                 [ matchSol.apply( pBody ) ],
+                                 matchSol.apply( cBody ),
+                                 matchSol, options ) ) {
+            yield ({
+              solution : deriveSol.solution,
+              premises : premises.map( p => deriveSol.solution.apply( p ) ),
+              conclusion : deriveSol.solution.apply( conclusion )
+            })
+          }
+        }
+      }
+    }
   } else { // conclusion is an Environment, call it { C1 ... Cn }
-    debug( '\tconclusion is an environment' )
+    debug( 'conclusion is an environment' )
     // (Some of the C1,...Cn may be givens and some may be claims.)
     let Cs = conclusion.children().slice()
     if ( Cs.length == 0 ) {
-      debug( '\trule T' )
+      debug( 'rule T' )
       // We've been asked to prove the constant True, so just apply rule T.
       yield ({
         solution : toExtend,
@@ -199,14 +262,14 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         // form, then re-sort premises to preserve order.
         const combined = canonicalPremises( [ C1.claim() ] ).concat( premises )
         combined.sort( ( a, b ) => a.children().length - b.children().length )
-        debug( '\trule GR, new premises:',
+        debug( 'rule GR, new premises:',
                combined.map( p => `${p}` ).join( ', ') )
         yield* findDerivationMatches( combined, Cs, toExtend, options )
       } else { // C1 is a claim
         // In order to justify the full set of Cs, we must first prove C1, then
         // see if any matching solution that let us do so is extendable to prove
         // the remaining Cs in the list.
-        debug( `\tcan we prove ${C1}?  rule-CR recur...` )
+        debug( `can we prove ${C1}?  rule-CR recur...` )
         for ( const result1 of
               findDerivationMatches( premises, C1, toExtend, options ) ) {
           // result1 thus contains a solution that can be used to prove C1.
@@ -215,7 +278,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // far applied to them, to instantiate any now-determined
           // metavariables:
           Cs = result1.solution.apply( Cs )
-          debug( `\tapplied ${result1.solution} to conclusions: ${Cs}` )
+          debug( `applied ${result1.solution} to conclusions: ${Cs}` )
           // Recur to try to prove the remaining environment { C2 ... Cn }
           // (which, again, may contain a combination of givens and claims).
           for ( const result2 of findDerivationMatches(
@@ -225,7 +288,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             // Its premises are the premises we return.
             // Its conclusion is almost the conclusion we return; we just have
             // to re-add onto it the fully-instantiated copy of C1 we proved.
-            debug( `\trule-CR recursion complete: ${result2.solution}` )
+            debug( `rule-CR recursion complete: ${result2.solution}` )
             yield ({
               solution : result2.solution,
               premises : result2.premises,
@@ -267,26 +330,23 @@ const allDerivationMatches = ( premises, conclusion, options = { } ) => {
   return result
 }
 
-// To do:
-//  - Document limitations of this routine re: matching vs. unification.
-//  - Add support for Let/Declare rules and corresponding tests.
-//  - Efficiency improvements for later:
-//     - When the conclusion is a statement, so our only two rules are S and GL,
-//       do not loop through the premises, trying S and GL on each.  Instead,
-//       loop through all premises trying S first, and only if they all fail,
-//       loop through all premises trying GL.
-//     - In the final subcase of findDerivationMatches(), where you are trying
-//       to prove many conclusions C1,...,Cn, after having successfully proven
-//       C1, take advantage of that to simplify further recursion, in two ways:
-//       1. Add C1 to the list of premises (LHS of turnstile) when you recur.
-//       2. Remove C1 from any other premise's list of givens-needing-proof, and
-//       adjust the order of those premises to preserve increasing order of
-//       number of givens.
-//     - When adding new premises in findDerivationMatches() recursion, don't
-//       re-sort the whole premises list; just insert the new ones in ways that
-//       preserve ordering.
-//     - Pre-compute which LCs contain metavariables and just
-//       looking it up in pairUp() rather than recomputing it.
+// Efficiency improvements for later:
+//  - When the conclusion is a statement, so our only two rules are S and GL,
+//    do not loop through the premises, trying S and GL on each.  Instead,
+//    loop through all premises trying S first, and only if they all fail,
+//    loop through all premises trying GL.
+//  - In the final subcase of findDerivationMatches(), where you are trying
+//    to prove many conclusions C1,...,Cn, after having successfully proven
+//    C1, take advantage of that to simplify further recursion, in two ways:
+//    1. Add C1 to the list of premises (LHS of turnstile) when you recur.
+//    2. Remove C1 from any other premise's list of givens-needing-proof, and
+//    adjust the order of those premises to preserve increasing order of
+//    number of givens.
+//  - When adding new premises in findDerivationMatches() recursion, don't
+//    re-sort the whole premises list; just insert the new ones in ways that
+//    preserve ordering.
+//  - Pre-compute which LCs contain metavariables and just
+//    looking it up in pairUp() rather than recomputing it.
 
 module.exports.containsMetavariables = containsMetavariables
 module.exports.pairUp = pairUp
