@@ -18,8 +18,6 @@
        representation of it, thus containing X and check marks.
      * Compare that string with `original`, after having replaced all sequences
        of whitespace with a single space in both strings, with `expect()`.
- 1. Clean up existing code
-     * Use the new `Let{...}` and `Declare{...}` parsing features in tests.
  1. The declaration attribute of the Environment class is a big enough deal
     that it ought to be its own separate first-class entity, just like
     Statement and Environment.  Separate it out (big project).

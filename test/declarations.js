@@ -191,11 +191,9 @@ suite( 'Marking declarations', () => {
   } )
 
   test( 'markDeclarations() handles the environment { x Let{ x y } }', () => {
-    let E = LC.fromString( '{ x { x y } }' )
+    let E = LC.fromString( '{ x Let{ x y } }' )
     let inner = E.children()[1]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( inner.canBeADeclaration() ).to.be( true )
-    inner.declaration = 'variable'
     expect( inner.declaration ).to.be( 'variable' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
     expect( E.declarationFailed() ).to.be( false )
@@ -215,14 +213,10 @@ suite( 'Marking declarations', () => {
   } )
 
   test( 'markDeclarations() handles { a Let{ x y } Let{ x z } }', () => {
-    let E = LC.fromString( '{ a { x y } { x z } }' )
+    let E = LC.fromString( '{ a Let{ x y } Let{ x z } }' )
     let in1 = E.children()[1]
     let in2 = E.children()[2]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( in1.canBeADeclaration() ).to.be( true )
-    expect( in2.canBeADeclaration() ).to.be( true )
-    in1.declaration = 'variable'
-    in2.declaration = 'variable'
     expect( in1.declaration ).to.be( 'variable' )
     expect( in2.declaration ).to.be( 'variable' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
@@ -248,12 +242,10 @@ suite( 'Marking declarations', () => {
   } )
 
   test( 'markDeclarations() handles { Declare{ x{} } ~forall(x,P(x)) }', () => {
-    let E = LC.fromString( '{ { x{} } ~forall(x,P(x)) }' )
+    let E = LC.fromString( '{ Declare{ x{} } ~forall(x,P(x)) }' )
     let in1 = E.children()[0]
     let in2 = E.children()[1]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( in1.canBeADeclaration() ).to.be( true )
-    in1.declaration = 'constant'
     expect( in1.declaration ).to.be( 'constant' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
     expect( E.declarationFailed() ).to.be( false )
@@ -277,12 +269,10 @@ suite( 'Marking declarations', () => {
   } )
 
   test( 'markDeclarations() handles { Declare{ x{} } ~forall(y,P(y)) }', () => {
-    let E = LC.fromString( '{ { x{} } ~forall(y,P(y)) }' )
+    let E = LC.fromString( '{ Declare{ x{} } ~forall(y,P(y)) }' )
     let in1 = E.children()[0]
     let in2 = E.children()[1]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( in1.canBeADeclaration() ).to.be( true )
-    in1.declaration = 'constant'
     expect( in1.declaration ).to.be( 'constant' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
     expect( E.declarationFailed() ).to.be( false )
@@ -306,14 +296,10 @@ suite( 'Marking declarations', () => {
   } )
 
   test( 'markDeclarations() handles { Decl{ x{} } Let{ x{} } }', () => {
-    let E = LC.fromString( '{ { x{} } { x{} } }' )
+    let E = LC.fromString( '{ Declare{ x{} } Let{ x{} } }' )
     let in1 = E.children()[0]
     let in2 = E.children()[1]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( in1.canBeADeclaration() ).to.be( true )
-    expect( in2.canBeADeclaration() ).to.be( true )
-    in1.declaration = 'constant'
-    in2.declaration = 'variable'
     expect( in1.declaration ).to.be( 'constant' )
     expect( in2.declaration ).to.be( 'variable' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
@@ -343,7 +329,7 @@ suite( 'Marking declarations', () => {
   test( 'markDeclarations() handles a late implicit declaration', () => {
     let E = LC.fromString( '{'
                          + '  {'
-                         + '    { P {} }' // declare P a constant
+                         + '    Declare{ P {} }' // declare P a constant
                          + '  }'
                          + '  P' // uh-oh, now it's implicitly declared
                          // (which ought to invalidate the above declaration)
@@ -351,8 +337,6 @@ suite( 'Marking declarations', () => {
     let inner = E.children()[0]
     let wayInner = inner.children()[0]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( wayInner.canBeADeclaration() ).to.be( true )
-    wayInner.declaration = 'constant'
     expect( wayInner.declaration ).to.be( 'constant' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
     expect( E.declarationFailed() ).to.be( false )
@@ -378,18 +362,14 @@ suite( 'Marking declarations', () => {
   test( 'markDeclarations() handles a late implicit declaration', () => {
     let E = LC.fromString( '{'
                          + '  {'
-                         + '    { P {} }' // declare P a constant
+                         + '    Declare{ P {} }' // declare P a constant
                          + '  }' // end that declaration's scope, so that...
-                         + '  { P {} }' // declaring P a variable here is OK!
+                         + '  Let{ P {} }' // declaring P a variable here is OK!
                          + '}' )
     let inner = E.children()[0]
     let dec1 = inner.children()[0]
     let dec2 = E.children()[1]
     // check to make sure nothing has been marked with scope feedback yet:
-    expect( dec1.canBeADeclaration() ).to.be( true )
-    expect( dec2.canBeADeclaration() ).to.be( true )
-    dec1.declaration = 'constant'
-    dec2.declaration = 'variable'
     expect( dec1.declaration ).to.be( 'constant' )
     expect( dec2.declaration ).to.be( 'variable' )
     expect( E.implicitDeclarations ).to.eql( [ ] )
@@ -465,10 +445,8 @@ suite( 'Formulas', () => {
   } )
 
   test( 'Variable declarations don\'t impact formula metavariables', () => {
-    let E = LC.fromString( '{ { P {} } [ ~forall(x,P(x,y)) Q ] }' )
+    let E = LC.fromString( '{ Let{ P {} } [ ~forall(x,P(x,y)) Q ] }' )
     let dec = E.children()[0]
-    expect( dec.canBeADeclaration() ).to.be( true )
-    dec.declaration = 'variable'
     let F = E.children()[1]
     E.markDeclarations()
     expect( dec.successfullyDeclares( 'P' ) )
@@ -477,10 +455,8 @@ suite( 'Formulas', () => {
   } )
 
   test( 'Constant declarations do impact formula metavariables', () => {
-    let E = LC.fromString( '{ { P {} } [ ~forall(x,P(x,y)) Q ] }' )
+    let E = LC.fromString( '{ Declare{ P {} } [ ~forall(x,P(x,y)) Q ] }' )
     let dec = E.children()[0]
-    expect( dec.canBeADeclaration() ).to.be( true )
-    dec.declaration = 'constant'
     let F = E.children()[1]
     E.markDeclarations()
     expect( dec.successfullyDeclares( 'P' ) )
@@ -526,9 +502,8 @@ suite( 'Identifier scopes', () => {
   } )
 
   test( 'The scope of an explicitly declared variable is its decl', () => {
-    let E = LC.fromString( '{ { P Q } ~forall(x,P(x)) }' )
+    let E = LC.fromString( '{ Let{ P Q } ~forall(x,P(x)) }' )
     let dec = E.children()[0]
-    dec.declaration = 'variable'
     let Q = E.children()[1]
     let P = Q.children()[1]
     // be sure we've selected the right Structures inside the above env:
@@ -545,20 +520,18 @@ suite( 'Identifier scopes', () => {
     let E = LC.fromString( '{'
                          + '  foo(bar)'
                          + '  {'
-                         + '    { x P(x) }' // Let x be such that P(x)
+                         + '    Let{ x P(x) }' // Let x be such that P(x)
                          + '    Q(x)'
                          + '  }'
                          + '  {'
-                         + '    { y { } }' // Declare y
+                         + '    Declare{ y { } }' // Declare y
                          + '    gt(x,y)'
                          + '  }'
                          + '  foo(baz)'
                          + '}' )
     let dec1 = E.children()[1].children()[0]
-    dec1.declaration = 'variable'
     expect( dec1.declaration ).to.be( 'variable' )
     let dec2 = E.children()[2].children()[0]
-    dec2.declaration = 'constant'
     expect( dec2.declaration ).to.be( 'constant' )
     E.markDeclarations()
     // first child of E: foo(bar), both identifiers implicitly declared in E
