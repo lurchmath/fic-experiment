@@ -352,6 +352,16 @@ const existsDerivation = ( premises, conclusion, options = { } ) =>
 //    preserve ordering.
 //  - Pre-compute which LCs contain metavariables and just
 //    looking it up in pairUp() rather than recomputing it.
+//  - Is there any efficiency in creating a routine that can quickly detect when
+//    a match is not possible?  For example, if both are compound with different
+//    head symbols or different numbers of children, it can't match.  Or if one
+//    is a metavariable and the other is not, it can.  Could this be used to
+//    prune some explorations early?
+//  - Consider the redundancy inherent in exploring all possibilities from
+//    Gamma, { :A B }, { :C D } |- P.  If we apply GL to the first environment
+//    premise and then the second, we get four subcases we must prove, but the
+//    first of them implies the third, so we should consider only three:
+//    Gamma |- C;  Gamma, D |- A;  Gamma, B |- C;  Gamma, B, D |- P.
 
 module.exports.containsMetavariables = containsMetavariables
 module.exports.pairUp = pairUp

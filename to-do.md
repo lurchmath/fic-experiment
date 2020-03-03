@@ -30,3 +30,6 @@
     plus var list getters for quantifiers and declarations, etc.).
  1. Change it so that you can't have nested bound variables with the same name,
     like `@x,#x,x<x`.  Can't think of a situation where that can be useful.
+ 1. Document the power and limitations of `findDerivationMatches()`.  This
+    should include the working forwards/backwards option as well as the
+    question of how many copies of a formula to add.
