@@ -51,7 +51,7 @@ class Environment extends LC {
   // "constant" or "none".  Otherwise, this does nothing.
   set declaration ( value ) {
     return this.canBeADeclaration()
-        && [ 'variable', 'constant', 'none' ].indexOf( value ) > -1 ?
+        && [ 'variable', 'constant', 'none' ].includes( value ) ?
       this.setAttribute( 'declaration', value ) : 'none'
   }
   // When querying if an Environment is a constant or variable declaration,
@@ -72,7 +72,7 @@ class Environment extends LC {
       return this.clearAttributes( 'declaration failures' )
     let triedToDeclare = this.allButLast.map( declared => declared.identifier )
     this.setAttribute( 'declaration failures',
-      identifierNames.filter( name => triedToDeclare.indexOf( name ) > -1 ) )
+      identifierNames.filter( name => triedToDeclare.includes( name ) ) )
   }
   // A declaration failed if it failed to declare any one of its identifiers.
   declarationFailed () {
@@ -195,8 +195,8 @@ class Environment extends LC {
   markDeclarations ( declaredConstNames = [ ], declaredVarNames = [ ],
                      enclosingEnvironment ) {
     // utility functions:
-    let isDeclared = ( x ) => declaredConstNames.indexOf( x ) > -1
-                           || declaredVarNames.indexOf( x ) > -1
+    let isDeclared = ( x ) => declaredConstNames.includes( x )
+                           || declaredVarNames.includes( x )
     let union = ( list1, list2 ) => {
       let result = list1.slice()
       list2.map( entry => {

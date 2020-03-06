@@ -127,7 +127,7 @@ class Statement extends LC {
       return this.clearAttributes( 'binding failures' )
     let triedToBind = this.allButLast.map( bound => bound.identifier )
     this.setAttribute( 'binding failures',
-      identifierNames.filter( name => triedToBind.indexOf( name ) > -1 ) )
+      identifierNames.filter( name => triedToBind.includes( name ) ) )
   }
   // A quantifier failed if it failed to bind any one of its identifiers.
   quantifierFailed () {
@@ -151,7 +151,7 @@ class Statement extends LC {
     if ( this.isAQuantifier ) {
       let boundVarNames = this.allButLast.map( bound => bound.identifier )
       this.markFailures( boundVarNames.filter( name =>
-        constantNames.indexOf( name ) > -1 ) )
+        constantNames.includes( name ) ) )
     }
     this.children().map( child => child.validateQuantifiers( constantNames ) )
   }
@@ -192,7 +192,7 @@ class Statement extends LC {
       // No more siblings, so does my parent implicitly declare me?
       let par = walk.parent()
       // console.log( 'Maybe implicit/explicit in this parent: ' + par )
-      if ( par && ( par.implicitDeclarations.indexOf( me ) > -1
+      if ( par && ( par.implicitDeclarations.includes( me )
                  || par.successfullyDeclares( me ) ) )
         return par
       // console.log( 'No, not implicit in parent.' )

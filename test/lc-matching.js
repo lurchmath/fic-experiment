@@ -111,7 +111,7 @@ let check = ( pattern, metavars, expression, expectations ) => {
 
   // make sure all the metavariables in the pattern are marked as metavariables
   let markMetavars = ( lc ) => {
-    if ( lc instanceof Statement && metavars.indexOf( lc.identifier ) > -1 )
+    if ( lc instanceof Statement && metavars.includes( lc.identifier ) )
       lc.isAMetavariable = true
     lc.children().map( markMetavars )
   }
