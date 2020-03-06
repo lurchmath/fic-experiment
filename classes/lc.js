@@ -16,6 +16,67 @@ class LC extends Structure {
       Structure.prototype.insertChild.call( this, child, beforeIndex )
   }
 
+  // LCs are often viewed as arrays of their LCChildren, so it is
+  // convenient to have common array functions available
+  //
+  // we often want the last child of an environment
+  get last () { return this.children()[this.children().length-1] }
+  // we often want all but the last child of an environment, as an array
+  get allButLast () {
+    return this.children().slice( 0, this.children().length - 1 )
+  }
+  // we often want the first child too
+  get first () { return this.children()[0] }
+  // remove the last child from an environment.
+  pop () {
+    let L = this.last
+    L.removeFromParent()
+    return L
+  }
+  // push a new last child into an environment.
+  push ( L ) { return this.insertChild( L, this.children().length ) }
+  // remove and return the first child from an environment.
+  shift () {
+    let L = this.first
+    L.removeFromParent()
+    return L
+  }
+  // push a new first child into an environment.
+  unshift ( L ) {
+    return this.insertChild( L, 0 )
+  }
+  // just syntactic sugar
+  child ( n ) {
+    return this.children()[n < 0 ? this.children().length + n : n]
+  }
+  // LCmapArrays applies a function f which returns an array of LCs to all
+  // of the LCchildren of this environment, then replaces each child c with
+  // ...f(c).
+  //
+  // Note: if the same LC appears more than once among the arrays f(c) it must
+  // be distinct copies of the same LC since the same LC cannot exist at more
+  // than one index in an enviroment.
+  //
+  LCmapArrays ( f ) {
+     let i = 0
+     // console.log('evaluating '+this)
+     while ( i < this.children().length ) {
+       // console.log('i is '+i)
+       let newkids = f( this.child( i ) )
+       // console.log('newkids is '+newkids)
+       // console.log(`(is it an array? ${newkids instanceof Array }`)
+       let n = newkids.length
+       // console.log(`newkids length is ${n}`)
+       this.removeChild( i )
+       // console.log('removed a child to get '+this)
+       for ( let j = 0 ; j < n ; j++ ) {
+         this.insertChild( newkids[j], i )
+         // console.log(`inserting child ${newkids[j]} at ${i} to make ${this}`)
+         i++
+       }
+     }
+  }
+
   // LCs have the isAGiven boolean, which defaults to false.
   // We also define the isAClaim boolean, which is !isAGiven.
   get isAGiven () { return this.getAttribute( 'given' ) === true }
