@@ -15,6 +15,73 @@ class Environment extends LC {
     this.setAttribute( 'declaration', 'none' )
     this.setAttribute( 'formula', false )
   }
+  // Environments are effectively arrays of their LCChildren, so it is
+  // convenient to have common array functions available
+  //
+  // we often want the last child of an environment
+  get last () {
+    let L = this.LCchildren();
+    return L[L.length-1]
+  }
+  // we often want the first child too
+  get first () {
+    let L = this.LCchildren();
+    return L[0]
+  }
+  // remove the last child from an environment.
+  pop () {
+    let L = this.last
+    L.removeFromParent()
+    return L
+  }
+  // push a new last child into an environment.
+  push ( L ) {
+    return this.insertChild( L , this.children().length )
+  }
+  // remove and return the first child from an environment.
+  shift () {
+    let L = this.first
+    L.removeFromParent()
+    return L
+  }
+  // push a new first child into an environment.
+  unshift ( L ) {
+    return this.insertChild( L , 0 )
+  }
+  // just syntactic sugar
+  child ( n ) {
+    return this.children()[n]
+  }
+  // LCmapArrays applies a function f which returns an array of LCs to all
+  // of the LCchildren of this environment, then replaces each child c with
+  // ...f(c).
+  //
+  // Note: if the same LC appears more than once among the arrays f(c) it must
+  // be distinct copies of the same LC since the same LC cannot exist at more
+  // than one index in an enviroment.
+  //
+  LCmapArrays ( f ) {
+     let i = 0
+     // console.log('evaluating '+this)
+     while ( i<this.children().length ) {
+       // console.log('i is '+i)
+       let newkids = f( this.child(i) )
+       // console.log('newkids is '+newkids)
+       // console.log(`(is it an array? ${newkids instanceof Array }`)
+       let n = newkids.length
+       // console.log(`newkids length is ${n}`)
+       this.removeChild(i)
+       // console.log('removed a child to get '+this)
+       for ( let j=0; j<n; j++ ) {
+         this.insertChild( newkids[j] , i )
+         // console.log(`inserting child ${newkids[j]} at ${i} to make ${this}`)
+         i++
+       }
+     }
+  }
+  // it is convenient to be able to get a particular child easily
+  child ( n ) { return this.children()[n] }
+
   // The conclusions of an LC X are all the claim Statements inside X, plus
   // all the claim Statements inside claims inside X, plus all the
   // claim Statements inside claims inside claims inside X, and so on,
