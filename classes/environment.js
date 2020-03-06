@@ -39,15 +39,12 @@ class Environment extends LC {
   // (d) the last one is a claim, and
   // (e) that claim contains neither formulas nor other declarations.
   canBeADeclaration () {
-    if ( this.isAFormula ) return false
-    let vars = this.children().slice()
-    if ( vars.length == 0 ) return false
-    let body = vars.pop()
-    let noFormulasNorDeclarations = ( lc ) =>
+    const noFormulasNorDeclarations = ( lc ) =>
       !lc.isAFormula && ( !lc.isAnActualDeclaration() ) &&
       lc.children().every( noFormulasNorDeclarations )
-    return vars.every( v => v.isAnIdentifier )
-        && body.isAClaim && noFormulasNorDeclarations( body )
+    return !this.isAFormula && this.children().length > 0
+        && this.last.isAClaim && this.allButLast.every( v => v.isAnIdentifier )
+        && noFormulasNorDeclarations( this.last )
   }
   // If something's allowed to be a declaration as above, then we'll let you set
   // it as one, providing you're trying to set it as type "variable" or
