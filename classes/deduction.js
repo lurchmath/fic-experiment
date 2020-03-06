@@ -7,6 +7,7 @@ const { MatchingProblem, MatchingSolution } =
 
 let verbose = false
 let indent = ''
+let debugrestart = () => indent = ''
 let debugin = () => indent += '    '
 let debugout = () => indent = indent.substring( 4 )
 let debug = ( ...msgs ) => {
@@ -31,7 +32,7 @@ const containsMetavariables = lc =>
 const pairUp = ( LC1, LC2 ) => {
   const mv1 = containsMetavariables( LC1 )
   const mv2 = containsMetavariables( LC2 )
-  return mv1 == mv2 ? LC1.equals( LC2 ) :
+  return mv1 == mv2 ? LC1.hasSameMeaningAs( LC2 ) :
          mv1 ? [ LC1, LC2 ] : [ LC2, LC1 ]
 }
 
@@ -50,8 +51,15 @@ const canonicalPremises = ( premises ) => {
     const prev = ( lc ) =>
       lc.previousSibling() ? lc.previousSibling() :
       lc.parent() && lc.parent() != premise ? prev( lc.parent() ) : null
-    const conclusions = likeAStatement( premise ) ?
-      ( premise.isAGiven ? [ ] : [ premise ] ) : premise.conclusions()
+    let body = ( premise.declaration && premise.declaration != 'none' ) ?
+      premise.children()[premise.children().length - 1] : null
+    const conclusions =
+      premise instanceof Statement ?
+        ( premise.isAGiven ? [ ] : [ premise ] ) :
+      ( premise.declaration && premise.declaration != 'none' ) ?
+        ( body instanceof Statement ? [ premise, body ] :
+                                      [ premise, ...body.conclusions() ] ) :
+        premise.conclusions()
     for ( const conclusion of conclusions ) {
       const result = [ conclusion ]
       let walk = conclusion
@@ -91,8 +99,13 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
   if ( conclusion instanceof Statement ) {
     debug( 'conclusion is a statement' )
     for ( let i = 0 ; i < premises.length ; i++ ) {
-      const premise = premises[i]
-      if ( premise instanceof Statement ) {
+      let premise = premises[i]
+      // Declaration premises can justify statements only if their bodies do,
+      // but canonicalPremises() has already broken the bodies of declarations
+      // out for us, so we can skip that case:
+      if ( premise.declaration && premise.declaration != 'none' ) {
+        continue
+      } else if ( premise instanceof Statement ) { // premise is a Statement
         debug( `premise is a statement: ${premise}` )
         const P = pairUp( premise, conclusion )
         if ( P === true ) { // premise equals conclusion -- apply rule S
@@ -119,7 +132,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         }
       } else { // premise is an environment, call it { :A1 ... :An B }
         debug( `premise is an environment: ${premise}` )
-        const As = premise.children().slice().map( A => A.claim() )
+        const As = premise.children().map( A => A.claim() )
         const B = As.pop()
         const P = pairUp( B, conclusion )
         if ( P === true ) { // B equals conclusion -- apply rule GL
@@ -202,9 +215,9 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         // either both contain metavariables or both do not,
         // so the only way for them to match is strict equality of variables
         debug( `comparing conclusion to this premise: ${premise}` )
-        if ( pVariables.equals( cVariables ) ) {
-          for ( let deriveSol of findDerivationMatches( [ pBody ], cBody,
-                                                        toExtend, options ) ) {
+        if ( pVariables.hasSameMeaningAs( cVariables ) ) {
+          for ( let deriveSol of findDerivationMatches(
+                canonicalPremises( [ pBody ] ), cBody, toExtend, options ) ) {
             yield ({
               solution : deriveSol.solution,
               premises : premises.map( p => deriveSol.solution.apply( p ) ),
@@ -226,9 +239,8 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         for ( const matchSol of problem.enumerateSolutions() ) {
           debug( `requirement satisfiable: ${matchSol}...applying decl-I` )
           for ( let deriveSol of findDerivationMatches(
-                                 [ matchSol.apply( pBody ) ],
-                                 matchSol.apply( cBody ),
-                                 matchSol, options ) ) {
+                  canonicalPremises( [ matchSol.apply( pBody ) ] ),
+                  matchSol.apply( cBody ), matchSol, options ) ) {
             yield ({
               solution : deriveSol.solution,
               premises : premises.map( p => deriveSol.solution.apply( p ) ),
@@ -309,6 +321,7 @@ function* derivationMatches ( premises, conclusion, options = { } ) {
   // solution, and return the result of the findDerivationMatches() iterator,
   // but filtered for uniqueness
   debug( '\nSTART:\n------' )
+  debugrestart()
   const solutionsFound = [ ]
   for ( const result of findDerivationMatches( canonicalPremises( premises ),
                                                conclusion,
