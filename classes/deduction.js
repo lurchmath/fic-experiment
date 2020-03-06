@@ -1,10 +1,5 @@
 
 // To-Dos to fix this file:
-//  * In findDerivationMatches(), create a buildResult(solution,premises,
-//    conclusion) function that does the following:
-//    { solution:solution, premises:solution.apply(premises),
-//      conclusion:solution.apply(conclusion) }
-//    Then use that to simplify many of the yield calls.
 //  * Move the options.workBothWays clause to the end of the whole function, not
 //    restricted to conclusions of statement type only.
 //  * The clause for Statement-type conclusions with Environment-type premises
@@ -101,6 +96,15 @@ const canonicalPremises = ( premises ) => {
     premise.children().length == 1 ? premise.first : premise )
 }
 
+// utility function used by findDerivationMatches(), below
+const buildResult = ( solution, premises, conclusion, mustApply = true ) => {
+  return ( {
+    solution : solution,
+    premises : mustApply ? solution.apply( premises ) : premises,
+    conclusion : mustApply ? solution.apply( conclusion ) : conclusion
+  } )
+}
+
 // This function is not intended for client use; call derivationMatches()
 // instead, and it will call this one after preparing the parameters
 // appropriately.
@@ -136,11 +140,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         const comparison = compareLCs( premise, conclusion )
         if ( comparison.same ) { // premise equals conclusion -- apply rule S
           debug( 'rule S straight equality' )
-          yield ({
-            solution : toExtend,
-            premises : premises,
-            conclusion : conclusion
-          })
+          yield buildResult( toExtend, premises, conclusion, false )
         } else if ( comparison.pattern ) {
           // premise may match conclusion or vice versa; let's check
           const problem = toExtend.asProblem().plusConstraint(
@@ -150,11 +150,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // for each way that it matches, return that way as a solution
           for ( const solution of problem.enumerateSolutions() ) {
             debug( `rule S by match: ${solution}` )
-            yield ({
-              solution : solution,
-              premises : solution.apply( premises ),
-              conclusion : solution.apply( conclusion )
-            })
+            yield buildResult( solution, premises, conclusion )
           }
         }
       } else { // premise is an environment, call it { :A1 ... :An B }
@@ -240,11 +236,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         if ( pVariables.hasSameMeaningAs( cVariables ) ) {
           for ( let deriveSol of findDerivationMatches(
                 canonicalPremises( [ pBody ] ), cBody, toExtend, options ) ) {
-            yield ({
-              solution : deriveSol.solution,
-              premises : deriveSol.solution.apply( premises ),
-              conclusion : deriveSol.solution.apply( conclusion )
-            })
+            yield buildResult( deriveSol.solution, premises, conclusion )
           }
         }
       } else {
@@ -263,11 +255,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           for ( let deriveSol of findDerivationMatches(
                   canonicalPremises( [ matchSol.apply( pBody ) ] ),
                   matchSol.apply( cBody ), matchSol, options ) ) {
-            yield ({
-              solution : deriveSol.solution,
-              premises : deriveSol.solution.apply( premises ),
-              conclusion : deriveSol.solution.apply( conclusion )
-            })
+            yield buildResult( deriveSol.solution, premises, conclusion )
           }
         }
       }
@@ -279,11 +267,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
     if ( Cs.length == 0 ) {
       debug( 'rule T' )
       // We've been asked to prove the constant True, so just apply rule T.
-      yield ({
-        solution : toExtend,
-        premises : premises,
-        conclusion : conclusion
-      })
+      yield buildResult( toExtend, premises, conclusion, false )
     } else {
       const C1 = Cs.shift()
       Cs = new Environment( ...Cs.map( child => child.copy() ) )
@@ -323,12 +307,10 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             // Its conclusion is almost the conclusion we return; we just have
             // to re-add onto it the fully-instantiated copy of C1 we proved.
             debug( `rule-CR recursion complete: ${result2.solution}` )
-            yield ({
-              solution : result2.solution,
-              premises : result2.premises,
-              conclusion : new Environment(
-                result1.conclusion, ...result2.conclusion.children() )
-            })
+            yield buildResult( result2.solution, result2.premises,
+              new Environment( result1.conclusion,
+                               ...result2.conclusion.children() ),
+              false )
           }
         }
       }
