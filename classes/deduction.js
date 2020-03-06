@@ -351,10 +351,6 @@ const existsDerivation = ( premises, conclusion, options = { } ) =>
   derivationMatches( premises, conclusion, options ).next().value !== undefined
 
 // Efficiency improvements for later:
-//  - When the conclusion is a statement, so our only two rules are S and GL,
-//    do not loop through the premises, trying S and GL on each.  Instead,
-//    loop through all premises trying S first, and only if they all fail,
-//    loop through all premises trying GL.
 //  - In the final subcase of findDerivationMatches(), where you are trying
 //    to prove many conclusions C1,...,Cn, after having successfully proven
 //    C1, take advantage of that to simplify further recursion, in two ways:
@@ -365,8 +361,8 @@ const existsDerivation = ( premises, conclusion, options = { } ) =>
 //  - When adding new premises in findDerivationMatches() recursion, don't
 //    re-sort the whole premises list; just insert the new ones in ways that
 //    preserve ordering.
-//  - Pre-compute which LCs contain metavariables and just
-//    looking it up in compareLCs() rather than recomputing it.
+//  - Pre-compute which LCs contain metavariables and just look the result up
+//    in compareLCs() rather than recomputing it.
 //  - Is there any efficiency in creating a routine that can quickly detect when
 //    a match is not possible?  For example, if both are compound with different
 //    head symbols or different numbers of children, it can't match.  Or if one
@@ -377,6 +373,16 @@ const existsDerivation = ( premises, conclusion, options = { } ) =>
 //    premise and then the second, we get four subcases we must prove, but the
 //    first of them implies the third, so we should consider only three:
 //    Gamma |- C;  Gamma, D |- A;  Gamma, B |- C;  Gamma, B, D |- P.
+//  - There is another redundancy in the recursion.  For example, consider the
+//    rule that converts the goal Gamma, { :A B } |- C to the two subgoals
+//    Gamma, B |- C and Gamma |- A.  In the first subgoal, we somehow want to
+//    say "and you must use B," because any derivation Gamma, B |- C that
+//    doesn't use B is a derivation Gamma |- C, which will be found without
+//    our exploring { :A B } in the first place.  There's no need to find such a
+//    derivation twice.  It would be nice to be able to mark some premise as
+//    "must be used" so that if we ever get to a point where we would want to
+//    drop that premise and explore a subgoal, we would simply give up and not
+//    explore it, knowing that any such proof will be found elsewhere instead.
 
 module.exports.containsMetavariables = containsMetavariables
 module.exports.compareLCs = compareLCs
