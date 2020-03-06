@@ -1,7 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Add array.last() utility and use it to simplify code herein and elsewhere.
-//  * Add array.without(i) utility and use it to simplify code herein.
 //  * Add Problem.plusConstraint(A,B) and use it to simplify code herein.
 //  * Change pairUp() to compare(), giving an object with of the form
 //    { equal, pattern?, expression? }.  Change all calls to it.
@@ -162,8 +160,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         const P = pairUp( B, conclusion )
         if ( P === true ) { // B equals conclusion -- apply rule GL
           debug( `conclusion match; recur w/GL: ${new Environment(...As)}` )
-          yield* findDerivationMatches(
-            [ ...premises.slice( 0, i ), ...premises.slice( i+1 ) ],
+          yield* findDerivationMatches( premises.without( i ),
             new Environment( ...As ), toExtend, options )
         } else if ( P instanceof Array ) {
           // B may match conclusion or vice versa; let's check
@@ -175,10 +172,8 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // and yield each way that it can
           for ( const solution of problem.enumerateSolutions() ) {
             debug( `requirement satisfiable: ${solution}...applying rule GL` )
-            const fewerPremises =
-              [ ...premises.slice( 0, i ), ...premises.slice( i+1 ) ]
             yield* findDerivationMatches(
-              solution.apply( fewerPremises ),
+              solution.apply( premises.without( i ) ),
               solution.apply( new Environment( ...As ) ),
               solution, options )
           }
@@ -220,20 +215,18 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
     // conclusion is a declaration; consider all same-type premises
     debug( `conclusion is a ${conclusion.declaration} declaration` )
     const cmv = containsMetavariables( conclusion )
-    let childrenCopy = conclusion.children().slice()
-    const cBody = childrenCopy.pop()
-    const cVariables =
-      new Environment( ...childrenCopy.map( child => child.copy() ) )
+    const cBody = conclusion.last.copy()
+    const cVariables = new Environment(
+      ...conclusion.allButLast.map( child => child.copy() ) )
     debug( `cVariables ${cVariables} cBody ${cBody}` )
     for ( let premise of premises ) {
       debug( `considering premise w/decl=${premise.declaration}`,
              `and ${premise.children().length} children` )
       if ( premise.declaration != conclusion.declaration ) continue
       if ( premise.children().length != conclusion.children().length ) continue
-      childrenCopy = premise.children().slice()
-      const pBody = childrenCopy.pop()
-      const pVariables =
-        new Environment( ...childrenCopy.map( child => child.copy() ) )
+      const pBody = premise.last.copy()
+      const pVariables = new Environment(
+        ...premise.allButLast.map( child => child.copy() ) )
       debug( `pVariables ${pVariables} pBody ${pBody}` )
       const pmv = containsMetavariables( premise )
       if ( cmv == pmv ) {

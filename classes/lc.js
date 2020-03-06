@@ -20,7 +20,7 @@ class LC extends Structure {
   // convenient to have common array functions available
   //
   // we often want the last child of an environment
-  get last () { return this.children()[this.children().length-1] }
+  get last () { return this.children().last() }
   // we often want all but the last child of an environment, as an array
   get allButLast () {
     return this.children().slice( 0, this.children().length - 1 )
@@ -468,9 +468,9 @@ class LC extends Structure {
         munge( match[0].length )
         last = 'identifier'
       } else if ( string[0] == '(' ) {
-        if ( stack.length == 0 || stack[stack.length-1] instanceof Environment )
+        if ( stack.length == 0 || stack.last() instanceof Environment )
           stop( 'Found an open paren not following an identifier' )
-        stack[stack.length-1]._lastStatementHead = true
+        stack.last()._lastStatementHead = true
         munge( 1 )
       } else if ( string[0] == ')' ) {
         if ( !stack.some( entry => entry._lastStatementHead ) )
@@ -592,6 +592,12 @@ class LC extends Structure {
     } )
   }
 
+}
+
+// While we're here, let's add some global utilities...
+Array.prototype.last = function () { return this[this.length-1] }
+Array.prototype.without = function ( i ) {
+  return [ ...this.slice( 0, i ), ...this.slice( i+1 ) ]
 }
 
 module.exports.LC = LC

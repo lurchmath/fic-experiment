@@ -18,6 +18,17 @@ suite( 'Basics', () => {
     expect( Environment ).to.be.ok()
   } )
 
+  test( 'Array utility functions are installed and working', () => {
+    expect( [1,2,3,4].last() ).to.be( 4 )
+    expect( [].last() ).to.be( undefined )
+    expect( [1,2,3].without( 1 ) ).to.eql( [1,3] )
+    const A = { }
+    const B = { }
+    expect( [A,A,A,B,B,B].without( 0 ) ).to.eql( [A,A,B,B,B] )
+    expect( ['hi','there'].without( 0 ).without( 0 ) ).to.eql( [ ] )
+    expect( ['hi','there'].without( 1 ).without( 0 ) ).to.eql( [ ] )
+  } )
+
   test( 'We can construct instances of LC, Statement, Environment', () => {
     expect( new LC() ).to.be.ok()
     expect( new Statement() ).to.be.ok()
