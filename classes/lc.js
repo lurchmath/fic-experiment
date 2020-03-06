@@ -526,13 +526,13 @@ class LC extends Structure {
     concs.forEach( ( X ) => {
       let LHS = X.allAccessibles()
       LHS = LHS.map( x => x.claim() )
-      let result = derives( ...LHS , X)
+      let result = existsDerivation( LHS, X )
 
       if (result) {
         X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
       } else {
         X.setAttribute( 'validation' , { status: result,
-                     feedback:'This doesn\'t follow.' } )
+                                         feedback: 'This doesn\'t follow.' } )
       }
     } )
   }
@@ -543,4 +543,4 @@ module.exports.LC = LC
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
-const { derives } = require( '../classes/deduction.js' )
+const { existsDerivation } = require( '../classes/deduction.js' )
