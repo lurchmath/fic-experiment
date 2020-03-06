@@ -1,4 +1,32 @@
 
+// To-Dos to fix this file:
+//  * Bug fix: One sort is by complexity, another by length; standardize this.
+//  * Extend solution.apply() to accept lists and map across them.  Then use
+//    that convenience to simplify code herein.
+//  * Extend LC with a .child(i) function that also accepts negative indices,
+//    then use that convenience to simplify code herein and even elsewhere.
+//  * Add array.last() utility and use it to simplify code herein and elsewhere.
+//  * Add array.without(i) utility and use it to simplify code herein.
+//  * Add Problem.plusConstraint(A,B) and use it to simplify code herein.
+//  * Add .variables() and .body() for declarations and quantifiers, then use it
+//    to simplify code herein and elsewhere.
+//  * Add LC.isADeclaration that encompasses the test for .declaration to exist
+//    and not equal 'none'.  Use it to simplify code here and elsewhere.
+//  * Change pairUp() to compare(), giving an object with of the form
+//    { equal, pattern?, expression? }.  Change all calls to it.
+//  * Create iteratorMap(it,f) that returns a new iterator, then use that to
+//    simplify several pieces of code herein.
+//  * In findDerivationMatches(), create a buildResult(solution,premises,
+//    conclusion) function that does the following:
+//    { solution:solution, premises:solution.apply(premises),
+//      conclusion:solution.apply(conclusion) }
+//    Then use that to simplify many of the yield calls.
+//  * Move the options.workBothWays clause to the end of the whole function, not
+//    restricted to conclusions of statement type only.
+//  * The clause for Statement-type conclusions with Environment-type premises
+//    needs to be duplicated for declaration-type conclusions with Environment-
+//    type premises, rather than dropping that from consideration entirely.
+
 const { LC } = require( './lc.js' )
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
