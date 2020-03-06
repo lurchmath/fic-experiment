@@ -43,7 +43,7 @@ class Environment extends LC {
     if ( vars.length == 0 ) return false
     let body = vars.pop()
     let noFormulasNorDeclarations = ( lc ) =>
-      !lc.isAFormula && ( !lc.declaration || lc.declaration == 'none' ) &&
+      !lc.isAFormula && ( !lc.isAnActualDeclaration() ) &&
       lc.children().every( noFormulasNorDeclarations )
     return vars.every( v => v.isAnIdentifier )
         && body.isAClaim && noFormulasNorDeclarations( body )
@@ -70,7 +70,7 @@ class Environment extends LC {
   // identifiers it tried to declare, but failed.  An empty list counts as a
   // valid declaration.
   markFailures ( identifierNames ) {
-    if ( !this.declaration || this.declaration == 'none' )
+    if ( !this.isAnActualDeclaration() )
       return this.clearAttributes( 'declaration failures' )
     let triedToDeclare = this.children().slice( 0, this.children().length - 1 )
       .map( declared => declared.identifier )
@@ -85,7 +85,7 @@ class Environment extends LC {
   // on its list of declared identifiers but not on its list of failures (as in
   // the definition of markFailures(), above.)
   successfullyDeclares ( identifierName ) {
-    return this.declaration && this.declaration != 'none' &&
+    return this.isAnActualDeclaration() &&
       ( this.getAttribute( 'declaration failures' ) || [ ] )
         .indexOf( identifierName ) == -1 &&
       this.children().slice( 0, this.children().length - 1 )
@@ -164,7 +164,7 @@ class Environment extends LC {
   // Extending helper functions to support the declaration attribute:
   copyFlagsTo ( om ) {
     LC.prototype.copyFlagsTo.call( this, om )
-    if ( this.declaration && this.declaration != 'none' )
+    if ( this.isAnActualDeclaration() )
       om.setAttribute( OM.sym( 'Decl', 'Lurch' ), OM.str( this.declaration ) )
     else
       om.removeAttribute( OM.sym( 'Decl', 'Lurch' ) )
@@ -221,7 +221,7 @@ class Environment extends LC {
       // Do this by writing to the "declaration failures" attribute an array of
       // names of things you tried to declare but failed.  If the declaration
       // was 100% OK, this will be an empty list, but it will always be present.
-      if ( child.declaration && child.declaration != 'none' ) {
+      if ( child.isAnActualDeclaration() ) {
         let names = child.children().slice( 0, child.children().length - 1 )
                          .map( declareThis => declareThis.identifier )
         let failures = [ ]
@@ -312,7 +312,7 @@ class Environment extends LC {
     } )
     let recur = ( env ) => {
       add( env.implicitDeclarations )
-      if ( env.declaration && env.declaration != 'none' )
+      if ( env.isAnActualDeclaration() )
         env.children().slice( 0, env.children().length - 1 ).map( declared => {
           if ( env.successfullyDeclares( declared.identifier ) )
             add( declared.identifier )

@@ -10,8 +10,6 @@
 //  * Add Problem.plusConstraint(A,B) and use it to simplify code herein.
 //  * Add .variables() and .body() for declarations and quantifiers, then use it
 //    to simplify code herein and elsewhere.
-//  * Add LC.isADeclaration that encompasses the test for .declaration to exist
-//    and not equal 'none'.  Use it to simplify code here and elsewhere.
 //  * Change pairUp() to compare(), giving an object with of the form
 //    { equal, pattern?, expression? }.  Change all calls to it.
 //  * Create iteratorMap(it,f) that returns a new iterator, then use that to
@@ -73,18 +71,18 @@ const pairUp = ( LC1, LC2 ) => {
 // children (i.e., number of givens).
 const canonicalPremises = ( premises ) => {
   const results = [ ]
-  const likeAStatement = ( x ) => x instanceof Statement ||
-    x.declaration && x.declaration != 'none'
+  const likeAStatement = ( x ) =>
+    x instanceof Statement || x.isAnActualDeclaration()
   for ( const premise of premises ) {
     const prev = ( lc ) =>
       lc.previousSibling() ? lc.previousSibling() :
       lc.parent() && lc.parent() != premise ? prev( lc.parent() ) : null
-    let body = ( premise.declaration && premise.declaration != 'none' ) ?
+    let body = premise.isAnActualDeclaration() ?
       premise.children()[premise.children().length - 1] : null
     const conclusions =
       premise instanceof Statement ?
         ( premise.isAGiven ? [ ] : [ premise ] ) :
-      ( premise.declaration && premise.declaration != 'none' ) ?
+      premise.isAnActualDeclaration() ?
         ( body instanceof Statement ? [ premise, body ] :
                                       [ premise, ...body.conclusions() ] ) :
         premise.conclusions()
@@ -131,7 +129,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
       // Declaration premises can justify statements only if their bodies do,
       // but canonicalPremises() has already broken the bodies of declarations
       // out for us, so we can skip that case:
-      if ( premise.declaration && premise.declaration != 'none' ) {
+      if ( premise.isAnActualDeclaration() ) {
         continue
       } else if ( premise instanceof Statement ) { // premise is a Statement
         debug( `premise is a statement: ${premise}` )
@@ -219,7 +217,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         }
       }
     }
-  } else if ( conclusion.declaration && conclusion.declaration != 'none' ) {
+  } else if ( conclusion.isAnActualDeclaration() ) {
     // conclusion is a declaration; consider all same-type premises
     debug( `conclusion is a ${conclusion.declaration} declaration` )
     const cmv = containsMetavariables( conclusion )
