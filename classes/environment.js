@@ -79,8 +79,6 @@ class Environment extends LC {
        }
      }
   }
-  // it is convenient to be able to get a particular child easily
-  child ( n ) { return this.children()[n] }
 
   // The conclusions of an LC X are all the claim Statements inside X, plus
   // all the claim Statements inside claims inside X, plus all the
