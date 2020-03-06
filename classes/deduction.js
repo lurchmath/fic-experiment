@@ -1,7 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Extend solution.apply() to accept lists and map across them.  Then use
-//    that convenience to simplify code herein.
 //  * Add array.last() utility and use it to simplify code herein and elsewhere.
 //  * Add array.without(i) utility and use it to simplify code herein.
 //  * Add Problem.plusConstraint(A,B) and use it to simplify code herein.
@@ -152,7 +150,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             debug( `rule S by match: ${solution}` )
             yield ({
               solution : solution,
-              premises : premises.map( p => solution.apply( p ) ),
+              premises : solution.apply( premises ),
               conclusion : solution.apply( conclusion )
             })
           }
@@ -180,7 +178,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             const fewerPremises =
               [ ...premises.slice( 0, i ), ...premises.slice( i+1 ) ]
             yield* findDerivationMatches(
-              fewerPremises.map( p => solution.apply( p ) ),
+              solution.apply( fewerPremises ),
               solution.apply( new Environment( ...As ) ),
               solution, options )
           }
@@ -210,7 +208,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // start of a proof using the now one-step-smaller premise F
           for ( const solution of problem.enumerateSolutions() ) {
             debug( `satisfied: ${solution}...so removing ${G} from ${F}` )
-            const newPremises = premises.map( p => solution.apply( p ) )
+            const newPremises = solution.apply( premises )
             newPremises[i].removeChild( 0 )
             yield* findDerivationMatches(
               newPremises, solution.apply( conclusion ), solution, options )
@@ -247,7 +245,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
                 canonicalPremises( [ pBody ] ), cBody, toExtend, options ) ) {
             yield ({
               solution : deriveSol.solution,
-              premises : premises.map( p => deriveSol.solution.apply( p ) ),
+              premises : deriveSol.solution.apply( premises ),
               conclusion : deriveSol.solution.apply( conclusion )
             })
           }
@@ -270,7 +268,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
                   matchSol.apply( cBody ), matchSol, options ) ) {
             yield ({
               solution : deriveSol.solution,
-              premises : premises.map( p => deriveSol.solution.apply( p ) ),
+              premises : deriveSol.solution.apply( premises ),
               conclusion : deriveSol.solution.apply( conclusion )
             })
           }

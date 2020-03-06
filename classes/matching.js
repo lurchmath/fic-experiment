@@ -92,10 +92,13 @@ class MatchingSolution {
       target.replaceWith( replacement )
     }
   }
-  // Apply this solution as a metavariable instantiation to the given LC,
-  // returning a modified copy, rather than modifying the LC in place
-  // (Like applyInPlace(), does no variable capture checks.)
+  // Apply this solution as a metavariable instantiation to the given target.
+  // If the target is an LC, apply it and return a modified copy, rather than
+  // modifying the LC in place.  (Like applyInPlace(), this does no variable
+  // capture checks.)
+  // If the target is an array, just map this function across it.
   apply ( target ) {
+    if ( target instanceof Array ) return target.map( x => this.apply( x ) )
     const result = target.copy()
     this.applyInPlace( result )
     return result
