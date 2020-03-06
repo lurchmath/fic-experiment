@@ -1,7 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Change pairUp() to compare(), giving an object with of the form
-//    { equal, pattern?, expression? }.  Change all calls to it.
 //  * Create iteratorMap(it,f) that returns a new iterator, then use that to
 //    simplify several pieces of code herein.
 //  * In findDerivationMatches(), create a buildResult(solution,premises,
@@ -34,22 +32,30 @@ let debug = ( ...msgs ) => {
 const containsMetavariables = lc =>
   lc.isAMetavariable || lc.children().some( containsMetavariables )
 
-// Pair up two LCs in a way that is useful for the derivation checker, below.
-// Specifically, it follows these rules:
-//  - If LC1 and LC2 both contain metavariables, then the only way that they can
-//    match is if they are identical, so we return the answer to the question of
-//    whether they can match--that is, are they exactly equal?  True or false.
-//  - If LC1 and LC2 both do not contain metavariables, the exact same story is
-//    true, and thus we do the exact same thing.  Equal?  True or false.
-//  - If precisely one of them contains a metavariable, we return a pair (that
-//    is, a length-2 JS array) with the pattern first and the expression second,
-//    that is, either [ LC1, LC2 ] or [ LC2, LC1 ], depending on which of the
-//    two contains metavariables.  (The one with metavariables goes first.)
-const pairUp = ( LC1, LC2 ) => {
-  const mv1 = containsMetavariables( LC1 )
-  const mv2 = containsMetavariables( LC2 )
-  return mv1 == mv2 ? LC1.hasSameMeaningAs( LC2 ) :
-         mv1 ? [ LC1, LC2 ] : [ LC2, LC1 ]
+// Compare two LCs in a way that is useful for the derivation checker, below.
+// Specifically, it returns an object with the following attributes:
+//  - First, one attribute that is always present:
+//     - same: always a boolean, whether the two LCs had the same meaning and
+//       should thus be considered equal for deduction
+//  - Second, two attributes that are present only if !same and precisely one of
+//    the two inputs contains metavariables:
+//     - pattern: the one input that contains metavariables
+//     - expression: the one input that does not
+// Thus we will get one of three types of results:
+// { same: true } means the LCs have the same meaning
+// { same: false } means the LCs have different meanings, but either both or
+//   neither had metavariables, so we cannot use matching to make progress on
+//   trying to reconcile their differing meanings
+// { same: false, pattern: P, expression: E } means the CLs have different
+//   meanings, and we can use matching with the given (P,E) pair to try to make
+//   progress on reconciling those different meanings
+const compareLCs = ( lc1, lc2 ) => {
+  if ( lc1.hasSameMeaningAs( lc2 ) ) return { same : true }
+  const mv1 = containsMetavariables( lc1 )
+  const mv2 = containsMetavariables( lc2 )
+  return mv1 == mv2 ? { same : false } :
+         mv1 ? { same : false, pattern : lc1, expression : lc2 }
+             : { same : false, pattern : lc2, expression : lc1 }
 }
 
 // We can measure the complexity of a premise by the number of givens you would
@@ -129,18 +135,20 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         continue
       } else if ( premise instanceof Statement ) { // premise is a Statement
         debug( `premise is a statement: ${premise}` )
-        const P = pairUp( premise, conclusion )
-        if ( P === true ) { // premise equals conclusion -- apply rule S
+        const comparison = compareLCs( premise, conclusion )
+        if ( comparison.same ) { // premise equals conclusion -- apply rule S
           debug( 'rule S straight equality' )
           yield ({
             solution : toExtend,
             premises : premises,
             conclusion : conclusion
           })
-        } else if ( P instanceof Array ) {
+        } else if ( comparison.pattern ) {
           // premise may match conclusion or vice versa; let's check
-          const problem = toExtend.asProblem().plusConstraint( P[0], P[1] )
-          debug( `add S-match requirement: (${P[0]},${P[1]})` )
+          const problem = toExtend.asProblem().plusConstraint(
+            comparison.pattern, comparison.expression )
+          debug( 'add S-match requirement: '
+               + `(${comparison.pattern}, ${comparison.expression})` )
           // for each way that it matches, return that way as a solution
           for ( const solution of problem.enumerateSolutions() ) {
             debug( `rule S by match: ${solution}` )
@@ -155,15 +163,17 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         debug( `premise is an environment: ${premise}` )
         const As = premise.children().map( A => A.claim() )
         const B = As.pop()
-        const P = pairUp( B, conclusion )
-        if ( P === true ) { // B equals conclusion -- apply rule GL
+        const comparison = compareLCs( B, conclusion )
+        if ( comparison.same ) { // B equals conclusion -- apply rule GL
           debug( `conclusion match; recur w/GL: ${new Environment(...As)}` )
           yield* findDerivationMatches( premises.without( i ),
             new Environment( ...As ), toExtend, options )
-        } else if ( P instanceof Array ) {
+        } else if ( comparison.pattern ) {
           // B may match conclusion or vice versa; let's check
-          const problem = toExtend.asProblem().plusConstraint( P[0], P[1] )
-          debug( `add GL-match requirement: (${P[0]},${P[1]})` )
+          const problem = toExtend.asProblem().plusConstraint(
+            comparison.pattern, comparison.expression )
+          debug( 'add GL-match requirement: '
+               + `(${comparison.pattern},${comparison.expression})` )
           // for each way that it matches, check to see if that match
           // can be extended to a proof of the required parts of rule GL,
           // and yield each way that it can
@@ -378,7 +388,7 @@ const existsDerivation = ( premises, conclusion, options = { } ) =>
 //    re-sort the whole premises list; just insert the new ones in ways that
 //    preserve ordering.
 //  - Pre-compute which LCs contain metavariables and just
-//    looking it up in pairUp() rather than recomputing it.
+//    looking it up in compareLCs() rather than recomputing it.
 //  - Is there any efficiency in creating a routine that can quickly detect when
 //    a match is not possible?  For example, if both are compound with different
 //    head symbols or different numbers of children, it can't match.  Or if one
@@ -391,7 +401,7 @@ const existsDerivation = ( premises, conclusion, options = { } ) =>
 //    Gamma |- C;  Gamma, D |- A;  Gamma, B |- C;  Gamma, B, D |- P.
 
 module.exports.containsMetavariables = containsMetavariables
-module.exports.pairUp = pairUp
+module.exports.compareLCs = compareLCs
 module.exports.canonicalPremises = canonicalPremises
 module.exports.derivationMatches = derivationMatches
 module.exports.allDerivationMatches = allDerivationMatches
