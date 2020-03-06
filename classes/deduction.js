@@ -1,6 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Bug fix: One sort is by complexity, another by length; standardize this.
 //  * Extend solution.apply() to accept lists and map across them.  Then use
 //    that convenience to simplify code herein.
 //  * Extend LC with a .child(i) function that also accepts negative indices,
@@ -62,6 +61,16 @@ const pairUp = ( LC1, LC2 ) => {
          mv1 ? [ LC1, LC2 ] : [ LC2, LC1 ]
 }
 
+// We can measure the complexity of a premise by the number of givens you would
+// need to first prove to unlock the conclusion buried inside.  For instance, if
+// we have a premise { :A :B C } then it has complexity 2, because there are 2
+// givens (A and B) one must prove before one can use the conclusion C.  A
+// statement has complexity 0 and a declaration has the complexity of it body.
+const complexity = ( x ) =>
+  x instanceof Statement ? 0 :
+  x.isAnActualDeclaration() ? complexity( x.children()[x.children().length-1] ) :
+  x.children().length - 1
+
 // The canonical form of a premise list is this:
 // Let C1, ..., Cn be the list of conslusions in the premise list.
 // Then the set of entries in the canonical form is E1, ..., En, where each
@@ -71,8 +80,6 @@ const pairUp = ( LC1, LC2 ) => {
 // children (i.e., number of givens).
 const canonicalPremises = ( premises ) => {
   const results = [ ]
-  const likeAStatement = ( x ) =>
-    x instanceof Statement || x.isAnActualDeclaration()
   for ( const premise of premises ) {
     const prev = ( lc ) =>
       lc.previousSibling() ? lc.previousSibling() :
@@ -95,7 +102,6 @@ const canonicalPremises = ( premises ) => {
       results.push( new Environment( ...result.map( x => x.copy() ) ) )
     }
   }
-  const complexity = ( x ) => likeAStatement( x ) ? 0 : x.children().length
   results.sort( ( a, b ) => complexity( a ) - complexity( b ) )
   return results.map( premise =>
     premise.children().length == 1 ? premise.children()[0] : premise )
@@ -299,7 +305,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         // canonicalization scheme that gets it into the appropriate premise
         // form, then re-sort premises to preserve order.
         const combined = canonicalPremises( [ C1.claim() ] ).concat( premises )
-        combined.sort( ( a, b ) => a.children().length - b.children().length )
+        combined.sort( ( a, b ) => complexity( a ) - complexity( b ) )
         debug( 'rule GR, new premises:',
                combined.map( p => `${p}` ).join( ', ') )
         yield* findDerivationMatches( combined, Cs, toExtend, options )
