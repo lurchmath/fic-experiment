@@ -151,6 +151,11 @@ class MatchingProblem {
         sub.children[1], sub.children.slice( 2 ) ) ) )
     this._MC.addConstraint( patternAsOM, expression.toOM() )
   }
+  // Convenience version of the previous, for method chaining
+  plusConstraint ( pattern, expression ) {
+    this.addConstraint( pattern, expression )
+    return this
+  }
   // You can make a copy of a matching problem
   copy () {
     let result = new MatchingProblem()

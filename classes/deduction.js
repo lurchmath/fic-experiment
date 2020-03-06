@@ -1,6 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Add Problem.plusConstraint(A,B) and use it to simplify code herein.
 //  * Change pairUp() to compare(), giving an object with of the form
 //    { equal, pattern?, expression? }.  Change all calls to it.
 //  * Create iteratorMap(it,f) that returns a new iterator, then use that to
@@ -140,8 +139,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           })
         } else if ( P instanceof Array ) {
           // premise may match conclusion or vice versa; let's check
-          const problem = toExtend.asProblem()
-          problem.addConstraint( P[0], P[1] )
+          const problem = toExtend.asProblem().plusConstraint( P[0], P[1] )
           debug( `add S-match requirement: (${P[0]},${P[1]})` )
           // for each way that it matches, return that way as a solution
           for ( const solution of problem.enumerateSolutions() ) {
@@ -164,8 +162,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             new Environment( ...As ), toExtend, options )
         } else if ( P instanceof Array ) {
           // B may match conclusion or vice versa; let's check
-          const problem = toExtend.asProblem()
-          problem.addConstraint( P[0], P[1] )
+          const problem = toExtend.asProblem().plusConstraint( P[0], P[1] )
           debug( `add GL-match requirement: (${P[0]},${P[1]})` )
           // for each way that it matches, check to see if that match
           // can be extended to a proof of the required parts of rule GL,
@@ -196,8 +193,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         if ( !G.isAGiven ) continue
         debug( `can we satisfy premise ${G} in ${F}?` )
         for ( let P of premises.filter( p => !p.isAFormula ) ) {
-          const problem = toExtend.asProblem()
-          problem.addConstraint( G.claim(), P )
+          const problem = toExtend.asProblem().plusConstraint( G.claim(), P )
           debug( `trying out this new matching constraint: (${G},${P})` )
           // for each way that it matches, check to see if that match can be the
           // start of a proof using the now one-step-smaller premise F
