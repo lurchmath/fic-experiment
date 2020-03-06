@@ -1,7 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Move the options.workBothWays clause to the end of the whole function, not
-//    restricted to conclusions of statement type only.
 //  * The clause for Statement-type conclusions with Environment-type premises
 //    needs to be duplicated for declaration-type conclusions with Environment-
 //    type premises, rather than dropping that from consideration entirely.
@@ -181,36 +179,6 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         }
       }
     }
-    // In the event that we found no solutions by working backwards from our
-    // goal, we may still find solutions by working forward from our premises,
-    // but this is typically more expensive.  So we do not do it by default.
-    // But if the user sets options.workBothWays to true, we will.
-    // To do so, we seek any formula premise F and any non-formula premise P
-    // such that the first given inside F matches P.
-    if ( options.workBothWays ) {
-      debug( `trying working forwards from premises...` )
-      for ( let i = 0 ; i < premises.length ; i++ ) {
-        let F = premises[i]
-        if ( !containsMetavariables( F ) || !( F instanceof Environment ) )
-          continue
-        let G = F.first
-        if ( !G.isAGiven ) continue
-        debug( `can we satisfy premise ${G} in ${F}?` )
-        for ( let P of premises.filter( p => !p.isAFormula ) ) {
-          const problem = toExtend.asProblem().plusConstraint( G.claim(), P )
-          debug( `trying out this new matching constraint: (${G},${P})` )
-          // for each way that it matches, check to see if that match can be the
-          // start of a proof using the now one-step-smaller premise F
-          for ( const solution of problem.enumerateSolutions() ) {
-            debug( `satisfied: ${solution}...so removing ${G} from ${F}` )
-            const newPremises = solution.apply( premises )
-            newPremises[i].removeChild( 0 )
-            yield* findDerivationMatches(
-              newPremises, solution.apply( conclusion ), solution, options )
-          }
-        }
-      }
-    }
   } else if ( conclusion.isAnActualDeclaration() ) {
     // conclusion is a declaration; consider all same-type premises
     debug( `conclusion is a ${conclusion.declaration} declaration` )
@@ -312,6 +280,36 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
                                ...result2.conclusion.children() ),
               false )
           }
+        }
+      }
+    }
+  }
+  // In the event that we found no solutions by working backwards from our
+  // goal, we may still find solutions by working forward from our premises,
+  // but this is typically more expensive.  So we do not do it by default.
+  // But if the user sets options.workBothWays to true, we will.
+  // To do so, we seek any formula premise F and any non-formula premise P
+  // such that the first given inside F matches P.
+  if ( options.workBothWays ) {
+    debug( `trying working forwards from premises...` )
+    for ( let i = 0 ; i < premises.length ; i++ ) {
+      let F = premises[i]
+      if ( !containsMetavariables( F ) || !( F instanceof Environment ) )
+        continue
+      let G = F.first
+      if ( !G.isAGiven ) continue
+      debug( `can we satisfy premise ${G} in ${F}?` )
+      for ( let P of premises.filter( p => !p.isAFormula ) ) {
+        const problem = toExtend.asProblem().plusConstraint( G.claim(), P )
+        debug( `trying out this new matching constraint: (${G},${P})` )
+        // for each way that it matches, check to see if that match can be the
+        // start of a proof using the now one-step-smaller premise F
+        for ( const solution of problem.enumerateSolutions() ) {
+          debug( `satisfied: ${solution}...so removing ${G} from ${F}` )
+          const newPremises = solution.apply( premises )
+          newPremises[i].removeChild( 0 )
+          yield* findDerivationMatches(
+            newPremises, solution.apply( conclusion ), solution, options )
         }
       }
     }
