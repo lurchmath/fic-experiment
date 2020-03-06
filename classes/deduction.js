@@ -1,7 +1,5 @@
 
 // To-Dos to fix this file:
-//  * Create iteratorMap(it,f) that returns a new iterator, then use that to
-//    simplify several pieces of code herein.
 //  * In findDerivationMatches(), create a buildResult(solution,premises,
 //    conclusion) function that does the following:
 //    { solution:solution, premises:solution.apply(premises),
