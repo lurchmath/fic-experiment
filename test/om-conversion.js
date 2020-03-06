@@ -108,10 +108,10 @@ suite( 'OM Conversions', () => {
     PofxLC.isAMetavariable = false
     clearMetavariable( PofxOM.children[0] )
     check( PofxLC, PofxOM )
-    PofxLC.children()[0].isAMetavariable = true
+    PofxLC.first.isAMetavariable = true
     setMetavariable( PofxOM.children[1] )
     check( PofxLC, PofxOM )
-    PofxLC.children()[0].isAMetavariable = false
+    PofxLC.first.isAMetavariable = false
     clearMetavariable( PofxOM.children[1] )
     check( PofxLC, PofxOM )
   } )

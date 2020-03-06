@@ -129,11 +129,7 @@ class LC extends Structure {
                                    this.isAQuantifier }
   // For FIC validation we only need the declaration's last argument LC.
   // We call this its 'value'. Everything else is its own value.
-  value () {
-    if (!this.isAnActualDeclaration()) { return this }
-    let n = this.children().length
-    return this.children()[n-1]
-  }
+  value () { return this.isAnActualDeclaration() ? this.last : this }
   get isValidated () { return !!this.getAttribute( 'validation' ) }
   get isValid () {
     return this.getAttribute( 'validation' ).status
@@ -142,9 +138,9 @@ class LC extends Structure {
   // traversing the LC tree.
   LCchildren () {
     if ( this.isAnActualStatement() || this.isAnActualDeclaration() ) {
-         return []
+      return []
     } else {
-       return this.children()
+      return this.children()
     }
   }
 
@@ -280,9 +276,7 @@ class LC extends Structure {
     // If this is a declaration, only normalize its value.
     if ( this.isAnActualDeclaration() ) {
       let D = this.copy()
-      let n = D.children().length
-      let value = D.children()[n-1]
-      value.replaceWith(value.normalForm())
+      D.last.replaceWith( D.last.normalForm() )
       return D
     }
     let say = ( x ) => {
@@ -309,15 +303,15 @@ class LC extends Structure {
     // have normal form N(A).
     if ( fpf.children().length == 1
       || fpf.children().length == 2 &&
-         isTrivial( fpf.children()[1] ) ) {
-      let NA = fpf.children()[0].normalForm()
+         isTrivial( fpf.child( 1 ) ) ) {
+      let NA = fpf.first.normalForm()
       NA.isAGiven = fpf.isAGiven
       return say( NA )
     }
     // Also A is nonTrivial and N(B) is Empty, { B A }
     // also has normal form N(A).
-    if ( isEmpty( fpf.children()[0].normalForm() ) ) {
-      let NA = fpf.children()[1].normalForm()
+    if ( isEmpty( fpf.first.normalForm() ) ) {
+      let NA = fpf.child( 1 ).normalForm()
       NA.isAGiven = fpf.isAGiven
       return say( NA )
     }
@@ -327,8 +321,8 @@ class LC extends Structure {
     // fits one of these cases:
     //  { A B } ->  { NA NB }     { :A B } ->  { :NA NB }
     // :{ A B } -> :{ NA NB }    :{ :A B } -> :{ :NA NB }
-    let NA = fpf.children()[0].normalForm()
-    let NB = fpf.children()[1].normalForm()
+    let NA = fpf.first.normalForm()
+    let NB = fpf.child( 1 ).normalForm()
     // debug( '** NA = '+NA )
     // debug( '** NB = '+NB )
     let result = new Environment( NA, NB )

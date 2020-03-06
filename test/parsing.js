@@ -145,13 +145,13 @@ suite( 'Parsing', () => {
     Q.isAQuantifier = true
     compare( '~W(x,y,z)', Q )
     Q = I( 'W', I( 'x' ), I( 'y' ), I( 'z' ) )
-    Q.children()[0].isAQuantifier = true
+    Q.first.isAQuantifier = true
     compare( 'W(~x,y,z)', Q )
     Q = I( 'W', I( 'x' ), I( 'y' ), I( 'z' ) )
-    Q.children()[1].isAQuantifier = true
+    Q.child( 1 ).isAQuantifier = true
     compare( 'W(x,~y,z)', Q )
     Q = I( 'W', I( 'x' ), I( 'y' ), I( 'z' ) )
-    Q.children()[2].isAQuantifier = true
+    Q.child( 2 ).isAQuantifier = true
     compare( 'W(x,y,~z)', Q )
     expect( parsing( '~{}' ) ).to.throwException( /environment.*quantifier/ )
     expect( parsing( '~[]' ) ).to.throwException( /formula.*quantifier/ )

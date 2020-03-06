@@ -125,8 +125,7 @@ class Statement extends LC {
   markFailures ( identifierNames ) {
     if ( !this.isAQuantifier )
       return this.clearAttributes( 'binding failures' )
-    let triedToBind = this.children().slice( 0, this.children().length - 1 )
-      .map( boundThing => boundThing.identifier )
+    let triedToBind = this.allButLast.map( bound => bound.identifier )
     this.setAttribute( 'binding failures',
       identifierNames.filter( name => triedToBind.indexOf( name ) > -1 ) )
   }
@@ -141,8 +140,7 @@ class Statement extends LC {
     return this.isAQuantifier &&
       ( this.getAttribute( 'binding failures' ) || [ ] )
         .indexOf( identifierName ) == -1 &&
-      this.children().slice( 0, this.children().length - 1 )
-        .some( bound => bound.identifier == identifierName )
+      this.allButLast.some( bound => bound.identifier == identifierName )
   }
   // For all quantifiers inside this Statement (including possibly the Statement
   // itself), add an attribute called "binding failures" which is a list of
@@ -151,8 +149,7 @@ class Statement extends LC {
   // of the names of all constants declared in the statement's context.
   validateQuantifiers ( constantNames ) {
     if ( this.isAQuantifier ) {
-      let boundVarNames = this.children().slice( 0, this.children().length - 1 )
-                              .map( boundVar => boundVar.identifier )
+      let boundVarNames = this.allButLast.map( bound => bound.identifier )
       this.markFailures( boundVarNames.filter( name =>
         constantNames.indexOf( name ) > -1 ) )
     }

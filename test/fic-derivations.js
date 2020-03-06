@@ -24,20 +24,20 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( containsMetavariables( L ) ).to.be( true )
     L = LC.fromString( 'f(x)' )
     expect( L.isAMetavariable ).to.be( false )
-    expect( L.children()[0].isAMetavariable ).to.be( false )
+    expect( L.first.isAMetavariable ).to.be( false )
     expect( containsMetavariables( L ) ).to.be( false )
     L.isAMetavariable = true
     expect( L.isAMetavariable ).to.be( true )
-    expect( L.children()[0].isAMetavariable ).to.be( false )
+    expect( L.first.isAMetavariable ).to.be( false )
     expect( containsMetavariables( L ) ).to.be( true )
     L.isAMetavariable = false
-    L.children()[0].isAMetavariable = true
+    L.first.isAMetavariable = true
     expect( L.isAMetavariable ).to.be( false )
-    expect( L.children()[0].isAMetavariable ).to.be( true )
+    expect( L.first.isAMetavariable ).to.be( true )
     expect( containsMetavariables( L ) ).to.be( true )
     L = LC.fromString( 'bury(this(deeply(haha)))' )
     expect( containsMetavariables( L ) ).to.be( false )
-    L.children()[0].children()[0].children()[0].isAMetavariable = true
+    L.first.first.first.isAMetavariable = true
     expect( containsMetavariables( L ) ).to.be( true )
   } )
 
@@ -81,8 +81,8 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( pairUp( M, M2 ) ).to.be( true )
     L = LC.fromString( 'example(1,2,3,f(4))' )
     M = LC.fromString( 'other(~thing,a(b),~c)' )
-    L.children()[3].isAMetavariable = true
-    M.children()[1].isAMetavariable = true
+    L.child( 3 ).isAMetavariable = true
+    M.child( 1 ).isAMetavariable = true
     expect( L.equals( M ) ).to.be( false )
     expect( pairUp( L, M ) ).to.be( false )
     L2 = L.copy()
@@ -109,7 +109,7 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( P[1] ).to.be( M )
     L = LC.fromString( 'example(1,2,3,f(4))' )
     M = LC.fromString( 'other(~thing,a(b),~c)' )
-    M.children()[1].isAMetavariable = true
+    M.child( 1 ).isAMetavariable = true
     expect( containsMetavariables( L ) ).to.be( false )
     expect( containsMetavariables( M ) ).to.be( true )
     P = pairUp( L, M )
@@ -127,8 +127,8 @@ suite( 'Auxiliary functions supporting derivation', () => {
     //
     // Match f(X,Y) against f(2,g(3))
     let pattern = LC.fromString( 'f(X,Y)' )
-    pattern.children()[0].isAMetavariable = true
-    pattern.children()[1].isAMetavariable = true
+    pattern.first.isAMetavariable = true
+    pattern.child( 1 ).isAMetavariable = true
     let expression = LC.fromString( 'f(a,g(b))' )
     let problem = new MatchingProblem()
     problem.addConstraint( pattern, expression )
@@ -142,9 +142,9 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( match.lookup( 'Y' ).equals( LC.fromString( 'g(b)' ) ) ).to.be( true )
     // Use that solution to instantiate plus(Y,X,Y)
     let newPattern = LC.fromString( 'plus(Y,X,Y)' )
-    newPattern.children()[0].isAMetavariable = true
-    newPattern.children()[1].isAMetavariable = true
-    newPattern.children()[2].isAMetavariable = true
+    newPattern.first.isAMetavariable = true
+    newPattern.child( 1 ).isAMetavariable = true
+    newPattern.child( 2 ).isAMetavariable = true
     let newExpression = match.apply( newPattern )
     // Verify that we get plus(g(b),a,g(b))
     expect( `${newExpression}` ).to.be( 'plus(g(b),a,g(b))' )
@@ -162,8 +162,8 @@ suite( 'Auxiliary functions supporting derivation', () => {
     // Apply the same solution to { :X Y }
     // and expect the result to be { :a g(b) }
     newPattern = LC.fromString( '{ :X Y }' )
-    newPattern.children()[0].isAMetavariable = true
-    newPattern.children()[1].isAMetavariable = true
+    newPattern.first.isAMetavariable = true
+    newPattern.child( 1 ).isAMetavariable = true
     newExpression = match.apply( newPattern )
     expect( `${newExpression}` ).to.be( '{ :a g(b) }' )
   } )
@@ -203,7 +203,7 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( computed[2].equals( expected[2] ) ).to.be( true )
     // [ { :_P_ Q }, R ] --canonical--> [ { :_P_ Q }, R ]
     premises = [ '{ :P Q }', 'R' ].map( LC.fromString )
-    premises[0].children()[0].isAMetavariable = true
+    premises[0].first.isAMetavariable = true
     expected = [ premises[1].copy(), premises[0].copy() ]
     computed = canonicalPremises( premises )
     expect( computed ).to.have.length( 2 )

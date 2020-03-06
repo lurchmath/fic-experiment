@@ -53,8 +53,8 @@ suite( 'MatchingSolution', () => {
   test( 'can be applied to instantiate metavariables', () => {
     const solution1 = new MatchingSolution()
     const original = LC.fromString( 'f(x,Y,z,YO)' )
-    original.children()[0].isAMetavariable = true
-    original.children()[3].isAMetavariable = true
+    original.first.isAMetavariable = true
+    original.child( 3 ).isAMetavariable = true
     // make a copy of the original into which we will substitute
     const pattern1 = original.copy()
     expect( original.equals( pattern1 ) ).to.be( true )
@@ -195,8 +195,8 @@ suite( 'MatchingProblem', () => {
     // set a matching problem from an earlier test
     const pattern1 = LC.fromString( 'A(B,c,D)' )
     pattern1.isAMetavariable = true
-    pattern1.children()[0].isAMetavariable = true
-    pattern1.children()[2].isAMetavariable = true
+    pattern1.first.isAMetavariable = true
+    pattern1.child( 2 ).isAMetavariable = true
     const expression1 = LC.fromString( 'hi(x,c,D)' )
     const problem1 = new MatchingProblem()
     problem1.addConstraint( pattern1, expression1 )
@@ -221,8 +221,8 @@ suite( 'MatchingProblem', () => {
     const problem2 = solution1.asProblem()
     expect( problem2 ).to.be.a( MatchingProblem )
     const pattern2 = LC.fromString( 'and(B,Q)' )
-    pattern2.children()[0].isAMetavariable = true
-    pattern2.children()[1].isAMetavariable = true
+    pattern2.first.isAMetavariable = true
+    pattern2.child( 1 ).isAMetavariable = true
     const expression2 = LC.fromString( 'and(x,y)' )
     problem2.addConstraint( pattern2, expression2 )
     // solve it and verify that only one solution exists, the correct one

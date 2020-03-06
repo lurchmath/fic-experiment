@@ -2,13 +2,9 @@
 // To-Dos to fix this file:
 //  * Extend solution.apply() to accept lists and map across them.  Then use
 //    that convenience to simplify code herein.
-//  * Extend LC with a .child(i) function that also accepts negative indices,
-//    then use that convenience to simplify code herein and even elsewhere.
 //  * Add array.last() utility and use it to simplify code herein and elsewhere.
 //  * Add array.without(i) utility and use it to simplify code herein.
 //  * Add Problem.plusConstraint(A,B) and use it to simplify code herein.
-//  * Add .variables() and .body() for declarations and quantifiers, then use it
-//    to simplify code herein and elsewhere.
 //  * Change pairUp() to compare(), giving an object with of the form
 //    { equal, pattern?, expression? }.  Change all calls to it.
 //  * Create iteratorMap(it,f) that returns a new iterator, then use that to
@@ -68,7 +64,7 @@ const pairUp = ( LC1, LC2 ) => {
 // statement has complexity 0 and a declaration has the complexity of it body.
 const complexity = ( x ) =>
   x instanceof Statement ? 0 :
-  x.isAnActualDeclaration() ? complexity( x.children()[x.children().length-1] ) :
+  x.isAnActualDeclaration() ? complexity( x.last ) :
   x.children().length - 1
 
 // The canonical form of a premise list is this:
@@ -84,8 +80,7 @@ const canonicalPremises = ( premises ) => {
     const prev = ( lc ) =>
       lc.previousSibling() ? lc.previousSibling() :
       lc.parent() && lc.parent() != premise ? prev( lc.parent() ) : null
-    let body = premise.isAnActualDeclaration() ?
-      premise.children()[premise.children().length - 1] : null
+    let body = premise.isAnActualDeclaration() ? premise.last : null
     const conclusions =
       premise instanceof Statement ?
         ( premise.isAGiven ? [ ] : [ premise ] ) :
@@ -104,7 +99,7 @@ const canonicalPremises = ( premises ) => {
   }
   results.sort( ( a, b ) => complexity( a ) - complexity( b ) )
   return results.map( premise =>
-    premise.children().length == 1 ? premise.children()[0] : premise )
+    premise.children().length == 1 ? premise.first : premise )
 }
 
 // This function is not intended for client use; call derivationMatches()
@@ -204,7 +199,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         let F = premises[i]
         if ( !containsMetavariables( F ) || !( F instanceof Environment ) )
           continue
-        let G = F.children()[0]
+        let G = F.first
         if ( !G.isAGiven ) continue
         debug( `can we satisfy premise ${G} in ${F}?` )
         for ( let P of premises.filter( p => !p.isAFormula ) ) {
@@ -266,7 +261,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         debug( `adding constraints from ${premise}...${lefts} ~ ${rights}` )
         const problem = toExtend.asProblem()
         for ( let i = 0 ; i < lefts.children().length ; i++ )
-          problem.addConstraint( lefts.children()[i], rights.children()[i] )
+          problem.addConstraint( lefts.child( i ), rights.child( i ) )
         debug( `obtained this problem: ${problem}` )
         for ( const matchSol of problem.enumerateSolutions() ) {
           debug( `requirement satisfiable: ${matchSol}...applying decl-I` )

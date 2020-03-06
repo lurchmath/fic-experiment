@@ -73,8 +73,7 @@ class Environment extends LC {
   markFailures ( identifierNames ) {
     if ( !this.isAnActualDeclaration() )
       return this.clearAttributes( 'declaration failures' )
-    let triedToDeclare = this.children().slice( 0, this.children().length - 1 )
-      .map( declared => declared.identifier )
+    let triedToDeclare = this.allButLast.map( declared => declared.identifier )
     this.setAttribute( 'declaration failures',
       identifierNames.filter( name => triedToDeclare.indexOf( name ) > -1 ) )
   }
@@ -89,8 +88,7 @@ class Environment extends LC {
     return this.isAnActualDeclaration() &&
       ( this.getAttribute( 'declaration failures' ) || [ ] )
         .indexOf( identifierName ) == -1 &&
-      this.children().slice( 0, this.children().length - 1 )
-        .some( declared => declared.identifier == identifierName )
+      this.allButLast.some( declared => declared.identifier == identifierName )
   }
   // The getter and setter for formula status enforce the requirement that you
   // can't nest formulas.
@@ -223,8 +221,7 @@ class Environment extends LC {
       // names of things you tried to declare but failed.  If the declaration
       // was 100% OK, this will be an empty list, but it will always be present.
       if ( child.isAnActualDeclaration() ) {
-        let names = child.children().slice( 0, child.children().length - 1 )
-                         .map( declareThis => declareThis.identifier )
+        let names = child.allButLast.map( declared => declared.identifier )
         let failures = [ ]
         names.map( name => {
           if ( isDeclared( name ) )
@@ -314,7 +311,7 @@ class Environment extends LC {
     let recur = ( env ) => {
       add( env.implicitDeclarations )
       if ( env.isAnActualDeclaration() )
-        env.children().slice( 0, env.children().length - 1 ).map( declared => {
+        env.allButLast.map( declared => {
           if ( env.successfullyDeclares( declared.identifier ) )
             add( declared.identifier )
         } )
