@@ -264,12 +264,12 @@ suite( 'Derivation with matching', () => {
 
   let checkSolutions = ( premises, conclusion, stringMappings,
                          options = { } ) => {
-    // //
+    let matchingSolutions =
+      allDerivationMatches( premises, conclusion, options )
+
     // console.log( 'Checking solution set:' )
-    // allSolutions.map( sol => {
-    //   console.log( '\t{',
-    //     sol.map( pair => '('+pair.pattern
-    //                     +','+pair.expression+')' ).join( ',' ), '}' )
+    // matchingSolutions.map( sol => {
+    //   console.log( `\t${sol}` )
     // } )
     // console.log( 'Against mapping set:' )
     // stringMappings.map( strmap => {
@@ -277,9 +277,7 @@ suite( 'Derivation with matching', () => {
     //     Object.keys( strmap ).map( key =>
     //       '('+key+','+strmap[key]+')' ).join( ',' ), '}' )
     // } )
-    // //
-    let matchingSolutions =
-      allDerivationMatches( premises, conclusion, options )
+
     expect( matchingSolutions ).to.have.length( stringMappings.length )
     for ( let i = 0 ; i < matchingSolutions.length ; i++ )
       checkSolution( matchingSolutions[i], stringMappings[i] )
@@ -646,8 +644,7 @@ suite( 'Derivation with matching', () => {
       makeExpression( 'dude' ),
       [ { 'A' : 'hey', 'B' : 'yo', 'C' : 'dude' } ]
     )
-    // And for a large example, it fails if we do not ask it to "work both ways"
-    // (meaning not just working backwards from the conclusion):
+    // Now how about a large example?
     // or(a,and(b,c)), not(a),
     //   { :or(_X1_,_Y1_) :not(_X1_) _Y1_ }, { :and(_X2_,_Y2_) _X2_ } |- b
     checkSolutions(
@@ -658,19 +655,7 @@ suite( 'Derivation with matching', () => {
         makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
       ],
       makeExpression( 'b' ),
-      [ ]
-    )
-    // But the same example succeeds if we do have it "work both ways":
-    checkSolutions(
-      [
-        makeExpression( 'or(a,and(b,c))' ),
-        makeExpression( 'not(a)' ),
-        makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
-        makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
-      ],
-      makeExpression( 'b' ),
-      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ],
-      { workBothWays : true }
+      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ]
     )
   } )
 

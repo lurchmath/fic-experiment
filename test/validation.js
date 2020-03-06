@@ -5,7 +5,8 @@
 let expect = require( 'expect.js' )
 
 // import relevant classes and the deduction routine
-const { LC, Statement, Environment, derives } = require( '../classes/all.js' )
+const { LC, Statement, Environment, existsDerivation } =
+  require( '../classes/all.js' )
 
 let lc = ( s ) => LC.fromString( s )
 
@@ -66,7 +67,9 @@ suite( 'Validation', () => {
      expect(validate('{ :C { :A B } B }')).to.be('{ :C { :A B✗ } B✗ }')
   } )
 
-  test( 'And a few mimicking rules of inference for kicks.', () => {
+  test( 'And a few mimicking rules of inference for kicks.', function () {
+    this.timeout( 0 ) // so mocha will let this test run as long as needed
+    // (Note that you must use function above, not () =>, so "this" works.)
     let proof = '{ :{ :{ A B } and(A,B) }'
               + '   :{ :and(A,B) A B }   '
               + '   :B                   '
@@ -134,19 +137,19 @@ suite( 'Validation', () => {
               + '  }                     '
               + '}                       '
       let DA = LC.fromString(divalg)
-      expect(derives(D,D)).to.be(true)
-      expect(derives(D,L,D)).to.be(true)
-      expect(derives(D,L,L)).to.be(true)
-      expect(derives(D,L)).to.be(false)
-      expect(derives(L,D)).to.be(false)
-      expect(derives(D,Pst)).to.be(true)
-      expect(derives(Pst,D)).to.be(false)
-      expect(derives(L,Pst)).to.be(true)
-      expect(derives(Pst,L)).to.be(false)
-      expect(derives(Pst)).to.be(false)
-      expect(derives(L)).to.be(false)
-      expect(derives(X)).to.be(false)
-      expect(derives(DA)).to.be(true)
+      expect(existsDerivation([D],D)).to.be(true)
+      expect(existsDerivation([D,L],D)).to.be(true)
+      expect(existsDerivation([D,L],L)).to.be(true)
+      expect(existsDerivation([D],L)).to.be(false)
+      expect(existsDerivation([L],D)).to.be(false)
+      expect(existsDerivation([D],Pst)).to.be(true)
+      expect(existsDerivation([Pst],D)).to.be(false)
+      expect(existsDerivation([L],Pst)).to.be(true)
+      expect(existsDerivation([Pst],L)).to.be(false)
+      expect(existsDerivation([],Pst)).to.be(false)
+      expect(existsDerivation([],L)).to.be(false)
+      expect(existsDerivation([],X)).to.be(false)
+      expect(existsDerivation([],DA)).to.be(true)
   } )
 
   test( 'Testing valdation involving declarations.', () => {

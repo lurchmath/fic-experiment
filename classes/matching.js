@@ -156,6 +156,17 @@ class MatchingProblem {
     this.addConstraint( pattern, expression )
     return this
   }
+  // Convenience function for adding several constraints at once.
+  // addConstraint(ps,es) is like addConstraint(ps[i],es[i]) for each i.
+  addConstraints ( patterns, expressions ) {
+    for ( let i = 0 ; i < patterns.length && i < expressions.length ; i++ )
+      this.addConstraint( patterns[i], expressions[i] )
+  }
+  // Convenience version of the previous, for method chaining
+  plusConstraints ( patterns, expressions ) {
+    this.addConstraints( patterns, expressions )
+    return this
+  }
   // You can make a copy of a matching problem
   copy () {
     let result = new MatchingProblem()
