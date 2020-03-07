@@ -461,14 +461,18 @@ const allDerivationMatches = ( premises, conclusion, options = { } ) => {
   return result
 }
 
+// Convenience wrapper for getting the first way in which a derivation holds,
+// if any, without computing any beyond the first
+const firstDerivation = ( premises, conclusion, options = { } ) =>
+  derivationMatches( premises, conclusion, options ).next().value
+
 // Convenience wrapper for checking whether a derivation holds/not, without
 // getting any matches, and by being more efficient.
 const existsDerivation = ( premises, conclusion, options = { } ) => {
   // console.log( `Does ${premises.map(p=>`${p}`).join(', ')} |- ${conclusion} ?` )
   // console.log( 'Efficient:',
   //              canonicalPremises( premises ).map( x=>`${x}` ).join( ', ' ) )
-  const result = derivationMatches( premises, conclusion, options ).next().value
-             !== undefined
+  const result = firstDerivation( premises, conclusion, options ) !== undefined
   // console.log( `\t${result ? 'YES' : 'NO'}` )
   return result
 }
