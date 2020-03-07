@@ -22,6 +22,69 @@ const debug = ( ...msgs ) => {
   }
 }
 
+// A proof contains a rule name R, a list of zero or more premises P, a
+// conclusion C, and a list of zero or more subproofs S.  These are guaranteed
+// to relate in the following ways, respecting the meaning of the rule names.
+//  - If R = "S" then P = [ C ] and S = [ ].
+//  - If R = "T" then C = { }.
+//  - If R = "GL" then there is a p in P of the form { :A1 ... :An B } and S
+//    contains two subproofs, call them S1 and S2, and we will use dot notation
+//    to speak of their components, which satisfy:
+//    S1.P = P - p and S1.C = { A1 ... An }
+//    S2.P = P - p + B and S2.C = { A1 ... An }
+//  - If R = "GR" then C is of the form { :A1 ...others } and S contains one
+//    subproof whose premises are P + A1 and whose conclusion is { ...others }.
+//  - There will not be a case in which R = "CL" because we will use a
+//    canonicalPremises() function to eliminate all such cases, but if there
+//    were, then the meaning of the CL rule would dictate that there would be a
+//    p in P of the form { A1 ... An } and S would consist of precisely one
+//    subproof with the same conclusion but with premises P - p + A1 + ... + An.
+//  - If R = "CR" then C is of the form { A1 ... An } and S contains two
+//    subproofs, both of which have the same premises as this one, but one of
+//    which has conclusion A1, and the other conclusion { A2 ... An }.  This is
+//    true even if n=1, in which case { A2 ... An } = { }.
+//  - If R = "DI/LI" then C is of the form Let{ v1 ... vn B } or the form
+//    Declare{ v1 ... vn B } and and there is some premise p with the same
+//    declaration type (Let/Declare), same variables list, and body B', and
+//    there is a single subproof whose premise list is [ B' ] and whose
+//    conclusion is B.
+//  - If R = "DE/LE" then some p in P is of the form Let{ v1 ... vn B } or
+//    Declare{ v1 ... vn B } and S contains a single subproof with the same
+//    conclusion as this one, but whose premise list is equivalent to P - p + B
+//    (but with B potentially simplified or reformulated for efficiency).
+// These guarantees are not enforced by the Proof constructor; they are enforced
+// by the routines below which use the Proof constructor.
+class Proof {
+  // Build one; feel free to write to these variables at any time
+  constructor ( rule, premises, conclusion, subproofs ) {
+    this.rule = rule
+    this.premises = premises
+    this.conclusion = conclusion
+    this.subproofs = subproofs
+  }
+  // Apply a metavariable instantiation across all parts of this proof
+  instantiateWith ( I ) {
+    this.premises = I.apply( this.premises )
+    this.conclusion = I.apply( this.conclusion )
+    this.subproofs.map( S => S.instantiateWith( I ) )
+  }
+  // Private utility function for use when computing string representation:
+  _toString ( depth ) {
+    let result = ''
+    for ( let i = 0 ; i < depth ; i++ ) result += '. '
+    result += `${this.premises.map( x=>`${x}` ).join( ', ' )}`
+    result += ` |- ${this.conclusion} by ${this.rule}`
+    if ( this.subproofs.length > 0 ) {
+      result += ` and ${this.subproofs.length} subproof(s):`
+    }
+    result += '\n'
+    this.subproofs.map( S => result += S._toString( depth + 1 ) )
+    return result
+  }
+  // Get a string representation using that auxiliary routine
+  toString () { return this._toString( 0 ) }
+}
+
 // Does the given LC contain a metavariable anywhere in its hierarchy?
 const containsMetavariables = lc =>
   lc.isAMetavariable || lc.children().some( containsMetavariables )
@@ -147,6 +210,9 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
     if ( Cs.length == 0 ) {
       // apply rule T:
       debug( 'rule T' )
+      if ( options.withProofs ) {
+        toExtend.proof = new Proof( 'T', premises, conclusion, [ ] )
+      }
       yield toExtend
     } else { // n > 0, there are conclusions to prove
       // Pop the first thing off the conclusions Environment
@@ -162,8 +228,16 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         // form, then re-sort premises to preserve order.
         const combined = efficientPremiseList(
           canonicalPremises( [ C1.claim() ] ).concat( premises ) )
-        debug( 'rule GR, new premises:', combined.map( p => `${p}` ).join( ', ' ) )
-        yield* findDerivationMatches( combined, Cs, toExtend, options )
+        debug( 'rule GR, new premises:',
+               combined.map( p => `${p}` ).join( ', ' ) )
+        for ( const solution of findDerivationMatches(
+              combined, Cs, toExtend, options ) ) {
+          if ( options.withProofs ) {
+            solution.proof = new Proof( 'GR', premises, conclusion,
+                                        [ solution.proof ] )
+          }
+          yield solution
+        }
       } else { // C1 is a claim
         // In order to justify the full set of Cs, we must first prove C1, then
         // see if any matching solution that let us do so is extendable to prove
@@ -176,11 +250,18 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // new goal is to prove those, with the solution we've found so far
           // applied to them, to instantiate any now-determined metavariables:
           Cs = result1.apply( Cs )
+          const subproof = result1.proof
           // Recur to try to prove the remaining environment { C2 ... Cn }
           // (which, again, may contain a combination of givens and claims).
           debug( `applied ${result1} to conclusions: ${Cs}; continuing rule CR` )
-          yield* findDerivationMatches(
-            result1.apply( premises ), Cs, result1, options )
+          for ( let solution of findDerivationMatches(
+                result1.apply( premises ), Cs, result1, options ) ) {
+            if ( options.withProofs ) {
+              solution.proof = new Proof( 'CR', premises, conclusion,
+                                          [ subproof, solution.proof ] )
+            }
+            yield solution
+          }
         }
       }
     }
@@ -201,6 +282,9 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         // If there's a direct match, then apply rule S:
         if ( comparison.same ) {
           debug( 'straight premise-conclusion equality, so apply rule S' )
+          if ( options.withProofs ) {
+            toExtend.proof = new Proof( 'S', premises, conclusion, [ ] )
+          }
           yield toExtend
         // Otherwise, try to simplify the question through matching
         // (unless compareLCs() already said this was impossible):
@@ -212,6 +296,9 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // For each way that it matches, that's a new solution via rule S:
           for ( const solution of problem.enumerateSolutions() ) {
             debug( `match ${solution} lets us apply rule S` )
+            if ( options.withProofs ) {
+              solution.proof = new Proof( 'S', premises, conclusion, [ ] )
+            }
             yield solution
           }
         }
@@ -237,13 +324,21 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // new goal is to prove those, with the solution we've found so far
           // applied to them, to instantiate any now-determined metavariables:
           let AEnv = result1.apply( new Environment( ...As ) )
+          const subproof = result1.proof
           debug( `applying rule GL means next attacking the givens ${AEnv}` )
           // Recur to try to prove the remaining environment { A1 ... An }
           // (which, again, may contain a combination of givens and claims).
           // This inner loop finds all the ways to solve subgoal 2, while
           // remaining consistent with the current solution of subgoal 1:
-          yield* findDerivationMatches(
-            result1.apply( premises.without( i ) ), AEnv, result1, options )
+          for ( let solution of findDerivationMatches(
+                result1.apply( premises.without( i ) ),
+                AEnv, result1, options ) ) {
+            if ( options.withProofs ) {
+              solution.proof = new Proof( 'GL', premises, conclusion,
+                                          [ subproof, solution.proof ] )
+            }
+            yield solution
+          }
         }
       } else { // the premise is a declaration
         // The only way a declaration can prove the conclusion is if its body
@@ -254,8 +349,14 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         const newPremises = [ ...premises.without( i ),
                               ...canonicalPremises( [ premise.last ] ) ]
         newPremises.sort( ( a, b ) => complexity( a ) - complexity( b ) )
-        yield* findDerivationMatches(
-          newPremises, conclusion, toExtend, options )
+        for ( let solution of findDerivationMatches(
+              newPremises, conclusion, toExtend, options ) ) {
+          if ( options.withProofs ) {
+            solution.proof = new Proof( 'DE/LE', premises, conclusion,
+                                        [ solution.proof ] )
+          }
+          yield solution
+        }
       }
     }
   // Finally, consider the case where the conclusion is a Declaration:
@@ -298,8 +399,14 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           debug( 'straight match of variables; recurring with rule LI/DI' )
           // Now that it has been established, try recursion to see if the premise
           // body proves the conclusion body:
-          yield* findDerivationMatches( canonicalPremises( [ pBody ] ), cBody,
-                                        toExtend, options )
+          for ( let solution of findDerivationMatches(
+                canonicalPremises( [ pBody ] ), cBody, toExtend, options ) ) {
+            if ( options.withProofs ) {
+              solution.proof = new Proof( 'LI/DI', premises, conclusion,
+                                          [ solution.proof ] )
+            }
+            yield solution
+          }
         } else {
           // In this case, either the premise has metavariables and the conclusion
           // does not, or vice versa.  We split their variables as follows.
@@ -313,9 +420,15 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           debug( `must check for matches among ${patterns} and ${expressions}` )
           for ( const matchSol of problem.enumerateSolutions() ) {
             debug( `instantiation ${matchSol} lets us recur with rule LI/DI` )
-            yield* findDerivationMatches(
-              canonicalPremises( [ matchSol.apply( pBody ) ] ),
-              matchSol.apply( cBody ), matchSol, options )
+            for ( let solution of findDerivationMatches(
+                  canonicalPremises( [ matchSol.apply( pBody ) ] ),
+                  matchSol.apply( cBody ), matchSol, options ) ) {
+              if ( options.withProofs ) {
+                solution.proof = new Proof( 'LI/DI', premises, conclusion,
+                                            [ solution.proof ] )
+              }
+              yield solution
+            }
           }
         }
       // Or if the premise is an environment { :A1 ... :An B }, then its
@@ -358,13 +471,21 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             // applied to them, to instantiate any now-determined metavariables:
             let AEnv = result1.apply( new Environment(
               ...premise.allButLast.map( A => A.claim() ) ) )
+            const subproof = result1.proof
             debug( `applying rule GL means next attacking the givens ${AEnv}` )
             // Recur to try to prove the remaining environment { A1 ... An }
             // (which, again, may contain a combination of givens and claims).
             // This inner loop finds all the ways to solve subgoal 2, while
             // remaining consistent with the current solution of subgoal 1:
-            yield* findDerivationMatches(
-              result1.apply( premises.without( i ) ), AEnv, result1, options )
+            for ( let solution of findDerivationMatches(
+                  result1.apply( premises.without( i ) ),
+                  AEnv, result1, options ) ) {
+              if ( options.withProofs ) {
+                solution.proof = new Proof( 'GL', premises, conclusion,
+                                            [ subproof, solution.proof ] )
+              }
+              yield solution
+            }
           }
         } else {
           // In this case, either the body has metavariables and the conclusion
@@ -386,10 +507,18 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
               // very similar to above; not repeating comments again
               let AEnv = result1.apply( new Environment(
                 ...premise.allButLast.map( A => A.claim() ) ) )
+              const subproof = result1.proof
               debug( `applying rule GL means next attacking the givens ${AEnv}` )
               // very similar to above; not repeating comments again
-              yield* findDerivationMatches(
-                result1.apply( premises.without( i ) ), AEnv, result1, options )
+              for ( let solution of findDerivationMatches(
+                    result1.apply( premises.without( i ) ),
+                    AEnv, result1, options ) ) {
+                if ( options.withProofs ) {
+                  solution.proof = new Proof( 'GL', premises, conclusion,
+                                              [ subproof, solution.proof ] )
+                }
+                yield solution
+              }
             }
           }
         }
@@ -444,6 +573,9 @@ function* derivationMatches ( premises, conclusion, options = { } ) {
                                                new MatchingSolution(),
                                                options ) ) {
     if ( !solutionsFound.some( s => s.equals( result ) ) ) {
+      if ( options.withProofs ) {
+        result.proof.instantiateWith( result )
+      }
       solutionsFound.push( result )
       yield result
     }
@@ -514,3 +646,4 @@ module.exports.canonicalPremises = canonicalPremises
 module.exports.derivationMatches = derivationMatches
 module.exports.allDerivationMatches = allDerivationMatches
 module.exports.existsDerivation = existsDerivation
+module.exports.firstDerivation = firstDerivation

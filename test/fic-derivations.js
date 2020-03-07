@@ -279,8 +279,16 @@ suite( 'Derivation with matching', () => {
     // } )
 
     expect( matchingSolutions ).to.have.length( stringMappings.length )
-    for ( let i = 0 ; i < matchingSolutions.length ; i++ )
-      checkSolution( matchingSolutions[i], stringMappings[i] )
+    for ( let i = 0 ; i < matchingSolutions.length ; i++ ) {
+      const solution = matchingSolutions[i]
+      if ( solution.proof ) {
+        console.log( 'Original problem:', premises.map( p=>`${p}` ).join( ', ' ),
+                     `|- ${conclusion}` )
+        console.log( 'Proof of instantiated version:' )
+        console.log( `${solution.proof}` )
+      }
+      checkSolution( solution, stringMappings[i] )
+    }
     expect( stringMappings.length > 0 ).to.be(
       existsDerivation( premises, conclusion, options ) )
   }
@@ -655,7 +663,8 @@ suite( 'Derivation with matching', () => {
         makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
       ],
       makeExpression( 'b' ),
-      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ]
+      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ],
+      // { withProofs : true }
     )
   } )
 
