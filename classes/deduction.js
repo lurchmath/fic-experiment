@@ -194,6 +194,13 @@ const canonicalPremises = ( premises ) => {
 // them.
 function* findDerivationMatches ( premises, conclusion, toExtend,
                                   options = { } ) {
+  // first a utility function for returning solutions with embedded proofs
+  const ruleWorked = ( ruleName, solution, subproofs = [ ] ) => {
+    if ( options.withProofs ) {
+      solution.proof = new Proof( ruleName, premises, conclusion, subproofs )
+    }
+    return solution
+  }
   // now the actual routine begins
   debugin()
   debug( premises.map( p => `${p}` ).join( ', ' ),
@@ -210,10 +217,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
     if ( Cs.length == 0 ) {
       // apply rule T:
       debug( 'rule T' )
-      if ( options.withProofs ) {
-        toExtend.proof = new Proof( 'T', premises, conclusion, [ ] )
-      }
-      yield toExtend
+      yield ruleWorked( 'T', toExtend )
     } else { // n > 0, there are conclusions to prove
       // Pop the first thing off the conclusions Environment
       // and process it as either a given or a claim, depending on its status:
@@ -232,11 +236,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
                combined.map( p => `${p}` ).join( ', ' ) )
         for ( const solution of findDerivationMatches(
               combined, Cs, toExtend, options ) ) {
-          if ( options.withProofs ) {
-            solution.proof = new Proof( 'GR', premises, conclusion,
-                                        [ solution.proof ] )
-          }
-          yield solution
+          yield ruleWorked( 'GR', solution, [ solution.proof ] )
         }
       } else { // C1 is a claim
         // In order to justify the full set of Cs, we must first prove C1, then
@@ -250,17 +250,13 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // new goal is to prove those, with the solution we've found so far
           // applied to them, to instantiate any now-determined metavariables:
           Cs = result1.apply( Cs )
-          const subproof = result1.proof
+          const subproof = result1.proof // store here, before result1 changes
           // Recur to try to prove the remaining environment { C2 ... Cn }
           // (which, again, may contain a combination of givens and claims).
           debug( `applied ${result1} to conclusions: ${Cs}; continuing rule CR` )
           for ( let solution of findDerivationMatches(
                 result1.apply( premises ), Cs, result1, options ) ) {
-            if ( options.withProofs ) {
-              solution.proof = new Proof( 'CR', premises, conclusion,
-                                          [ subproof, solution.proof ] )
-            }
-            yield solution
+            yield ruleWorked( 'CR', solution, [ subproof, solution.proof ] )
           }
         }
       }
@@ -282,10 +278,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         // If there's a direct match, then apply rule S:
         if ( comparison.same ) {
           debug( 'straight premise-conclusion equality, so apply rule S' )
-          if ( options.withProofs ) {
-            toExtend.proof = new Proof( 'S', premises, conclusion, [ ] )
-          }
-          yield toExtend
+          yield ruleWorked( 'S', toExtend )
         // Otherwise, try to simplify the question through matching
         // (unless compareLCs() already said this was impossible):
         } else if ( comparison.pattern ) {
@@ -296,10 +289,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // For each way that it matches, that's a new solution via rule S:
           for ( const solution of problem.enumerateSolutions() ) {
             debug( `match ${solution} lets us apply rule S` )
-            if ( options.withProofs ) {
-              solution.proof = new Proof( 'S', premises, conclusion, [ ] )
-            }
-            yield solution
+            yield ruleWorked( 'S', solution )
           }
         }
       // If the premise is an environment, then canonicalPremises() guarantees
@@ -324,7 +314,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // new goal is to prove those, with the solution we've found so far
           // applied to them, to instantiate any now-determined metavariables:
           let AEnv = result1.apply( new Environment( ...As ) )
-          const subproof = result1.proof
+          const subproof = result1.proof // store here, before result1 changes
           debug( `applying rule GL means next attacking the givens ${AEnv}` )
           // Recur to try to prove the remaining environment { A1 ... An }
           // (which, again, may contain a combination of givens and claims).
@@ -333,11 +323,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           for ( let solution of findDerivationMatches(
                 result1.apply( premises.without( i ) ),
                 AEnv, result1, options ) ) {
-            if ( options.withProofs ) {
-              solution.proof = new Proof( 'GL', premises, conclusion,
-                                          [ subproof, solution.proof ] )
-            }
-            yield solution
+            yield ruleWorked( 'GL', solution, [ subproof, solution.proof ] )
           }
         }
       } else { // the premise is a declaration
@@ -351,11 +337,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
         newPremises.sort( ( a, b ) => complexity( a ) - complexity( b ) )
         for ( let solution of findDerivationMatches(
               newPremises, conclusion, toExtend, options ) ) {
-          if ( options.withProofs ) {
-            solution.proof = new Proof( 'DE/LE', premises, conclusion,
-                                        [ solution.proof ] )
-          }
-          yield solution
+          yield ruleWorked( 'DE/LE', solution, [ solution.proof ] )
         }
       }
     }
@@ -401,11 +383,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
           // body proves the conclusion body:
           for ( let solution of findDerivationMatches(
                 canonicalPremises( [ pBody ] ), cBody, toExtend, options ) ) {
-            if ( options.withProofs ) {
-              solution.proof = new Proof( 'LI/DI', premises, conclusion,
-                                          [ solution.proof ] )
-            }
-            yield solution
+            yield ruleWorked( 'LI/DI', solution, [ solution.proof ] )
           }
         } else {
           // In this case, either the premise has metavariables and the conclusion
@@ -423,11 +401,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             for ( let solution of findDerivationMatches(
                   canonicalPremises( [ matchSol.apply( pBody ) ] ),
                   matchSol.apply( cBody ), matchSol, options ) ) {
-              if ( options.withProofs ) {
-                solution.proof = new Proof( 'LI/DI', premises, conclusion,
-                                            [ solution.proof ] )
-              }
-              yield solution
+              yield ruleWorked( 'LI/DI', solution, [ solution.proof ] )
             }
           }
         }
@@ -471,7 +445,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             // applied to them, to instantiate any now-determined metavariables:
             let AEnv = result1.apply( new Environment(
               ...premise.allButLast.map( A => A.claim() ) ) )
-            const subproof = result1.proof
+            const subproof = result1.proof // store here, before result1 changes
             debug( `applying rule GL means next attacking the givens ${AEnv}` )
             // Recur to try to prove the remaining environment { A1 ... An }
             // (which, again, may contain a combination of givens and claims).
@@ -480,11 +454,7 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
             for ( let solution of findDerivationMatches(
                   result1.apply( premises.without( i ) ),
                   AEnv, result1, options ) ) {
-              if ( options.withProofs ) {
-                solution.proof = new Proof( 'GL', premises, conclusion,
-                                            [ subproof, solution.proof ] )
-              }
-              yield solution
+              yield ruleWorked( 'GL', solution, [ subproof, solution.proof ] )
             }
           }
         } else {
@@ -507,17 +477,13 @@ function* findDerivationMatches ( premises, conclusion, toExtend,
               // very similar to above; not repeating comments again
               let AEnv = result1.apply( new Environment(
                 ...premise.allButLast.map( A => A.claim() ) ) )
-              const subproof = result1.proof
+              const subproof = result1.proof // store here, before result1 changes
               debug( `applying rule GL means next attacking the givens ${AEnv}` )
               // very similar to above; not repeating comments again
               for ( let solution of findDerivationMatches(
                     result1.apply( premises.without( i ) ),
                     AEnv, result1, options ) ) {
-                if ( options.withProofs ) {
-                  solution.proof = new Proof( 'GL', premises, conclusion,
-                                              [ subproof, solution.proof ] )
-                }
-                yield solution
+                yield ruleWorked( 'GL', solution, [ subproof, solution.proof ] )
               }
             }
           }
