@@ -639,6 +639,10 @@ const existsDerivation = ( premises, conclusion, options = { } ) => {
 //    "must be used" so that if we ever get to a point where we would want to
 //    drop that premise and explore a subgoal, we would simply give up and not
 //    explore it, knowing that any such proof will be found elsewhere instead.
+//  - Right now with conclusions of the form { X }, we treat them with the CR
+//    rule, proving first X and then { }.  To save some recursion, we could just
+//    replace the { X } with X immediately.  This will make proof objects a bit
+//    smaller.
 
 module.exports.containsMetavariables = containsMetavariables
 module.exports.compareLCs = compareLCs
