@@ -99,8 +99,11 @@ class MatchingSolution {
   // If the target is an array, just map this function across it.
   apply ( target ) {
     if ( target instanceof Array ) return target.map( x => this.apply( x ) )
-    const result = target.copy()
+    let result = new LC()
+    result.insertChild( target.copy() )
     this.applyInPlace( result )
+    result = result.first
+    result.removeFromParent()
     return result
   }
   // It is also possible to convert an old solution to a new problem, so that we
