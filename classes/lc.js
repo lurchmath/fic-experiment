@@ -331,8 +331,11 @@ class LC extends Structure {
   }
 
   // Reverse operation of the toString() functions defined below.
+  // One exception: You can include //...\n one-line JS-style comments,
+  // which will, of course, be ignored when parsing.
   static fromString ( string ) {
     const ident = /^[a-zA-Z_0-9]+/
+    const comment = /^\/\/[^\n]*\n|^\/\/[^\n]*$/
     var match
     let stack = [ ]
     let quantifier = false
@@ -362,7 +365,11 @@ class LC extends Structure {
     while ( string.length > 0 ) {
       // console.log( `@${position} reading "${string}"` )
       // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
-      if ( string[0] == ':' ) {
+      if ( match = comment.exec( string ) ) {
+        if ( follows( '~', ':' ) )
+          stop( `Found a ${last} marker immediately before a comment` )
+        munge( match[0].length )
+      } else if ( string[0] == ':' ) {
         if ( !follows( null, 'space', '~', '{', '}', '[', ']' ) || given )
           stop( 'Found a given marker (:) in the wrong place' )
         given = true

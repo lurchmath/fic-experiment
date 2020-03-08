@@ -208,5 +208,15 @@ suite( 'Parsing', () => {
     expect( parsing( 'Declare{ Let{ x } }' ) ).to.throwException( /non-declaration/ )
   } )
 
+  test( 'Supports one-line JavaScript-style comments', () => {
+    // repeating some tests from earlier, now with one-line comments in them
+    compare( 'Snufflupagus // then some comments', I( 'Snufflupagus' ) )
+    compare( 'f( x//stuff//\n  \t//more stuff\n   )', I( 'f', I( 'x' ) ) )
+    compare( ':{{///\n}}', _E( E( ) ) )
+    Q = I( 'W', I( 'x' ), I( 'y' ), I( 'z' ) )
+    Q.child( 2 ).isAQuantifier = true
+    compare( 'W( // open paren \n x,y,~z \n ) // close paren ', Q )
+    compare( 'Let{ A // declared variable \n true }', L( I('A'), I('true') ) )
+  } )
 
 } )
