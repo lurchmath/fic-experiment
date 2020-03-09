@@ -575,7 +575,7 @@ class LC extends Structure {
   }
 
   // Validate!!  Here we go.
-  validate () {
+  validate ( withProof ) {
     // mark all declarations first.  We don't need to do anything else
     // with that here, because the only difference it will make is when
     // toString({ Scopes: true }) is called it will decorate bad variable
@@ -588,13 +588,26 @@ class LC extends Structure {
     concs.forEach( ( X ) => {
       let LHS = X.allAccessibles()
       LHS = LHS.map( x => x.claim() )
-      let result = existsDerivation( LHS, X )
+      if ( withProof ) {
+        let result = firstDerivation( LHS, X , { withProofs: true } )
 
-      if (result) {
-        X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
-      } else {
-        X.setAttribute( 'validation' , { status: result,
+        if (result) {
+          X.setAttribute( 'validation' ,
+          { status: true, feedback:'Good job!', proof: result.proof } )
+        } else {
+          X.setAttribute( 'validation' , { status: false,
                                          feedback: 'This doesn\'t follow.' } )
+        }
+
+      } else {
+        let result = existsDerivation( LHS, X )
+
+        if (result) {
+          X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
+        } else {
+          X.setAttribute( 'validation' , { status: false,
+                                         feedback: 'This doesn\'t follow.' } )
+        }
       }
     } )
   }
@@ -611,4 +624,4 @@ module.exports.LC = LC
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
-const { existsDerivation } = require( '../classes/deduction.js' )
+const { existsDerivation, firstDerivation } = require( '../classes/deduction.js' )
