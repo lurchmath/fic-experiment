@@ -229,6 +229,12 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( computed ).to.have.length( 2 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
+    // [ { :{ A B } C } ] --canonical--> [ { :{ A B } C } ]
+    premises = [ '{ :{ A B } C }' ].map( LC.fromString )
+    expected = [ premises[0].copy() ]
+    computed = canonicalPremises( premises )
+    expect( computed ).to.have.length( 1 )
+    expect( computed[0].equals( expected[0] ) ).to.be( true )
   } )
 
 } )
@@ -284,8 +290,11 @@ suite( 'Derivation with matching', () => {
       if ( solution.proof ) {
         console.log( 'Original problem:', premises.map( p=>`${p}` ).join( ', ' ),
                      `|- ${conclusion}` )
-        console.log( 'Proof of instantiated version:' )
-        console.log( `${solution.proof}` )
+        console.log( 'Instantiated to: ',
+                     solution.apply( premises ).map( p=>`${p}` ).join( ', ' ),
+                     `|- ${solution.apply( conclusion )}` )
+        console.log( `Proof:\n${solution.proof}` )
+        console.log( `Compact proof:\n${solution.proof.toString(true)}` )
       }
       checkSolution( solution, stringMappings[i] )
     }
