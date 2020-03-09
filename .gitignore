@@ -4,3 +4,4 @@ debug.js
 .DS_Store
 *.txt
 *.xlur
+.ipynb_checkpoints/
