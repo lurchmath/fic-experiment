@@ -609,6 +609,11 @@ const existsDerivation = ( premises, conclusion, options = { } ) => {
 //    rule, proving first X and then { }.  To save some recursion, we could just
 //    replace the { X } with X immediately.  This will make proof objects a bit
 //    smaller.
+//  - Ken is in the process of defining a better flattened form than what is
+//    currently implemented in canonicalPremises() in this file.  For instance,
+//    the premise { :{ A B } C } could be made more efficient to process as
+//    { :A :B C }, but canonicalPremises() doesn't currently do that.  We will
+//    update the code in this routine once that design is complete.
 
 module.exports.containsMetavariables = containsMetavariables
 module.exports.compareLCs = compareLCs

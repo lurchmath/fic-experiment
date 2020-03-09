@@ -229,6 +229,12 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( computed ).to.have.length( 2 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
+    // [ { :{ A B } C } ] --canonical--> [ { :{ A B } C } ]
+    premises = [ '{ :{ A B } C }' ].map( LC.fromString )
+    expected = [ premises[0].copy() ]
+    computed = canonicalPremises( premises )
+    expect( computed ).to.have.length( 1 )
+    expect( computed[0].equals( expected[0] ) ).to.be( true )
   } )
 
 } )
