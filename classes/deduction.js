@@ -68,21 +68,25 @@ class Proof {
     this.conclusion = I.apply( this.conclusion )
     this.subproofs.map( S => S.instantiateWith( I ) )
   }
-  // Private utility function for use when computing string representation:
-  _toString ( depth ) {
+  // Get a string representation.  If compact is false, all steps are printed.
+  // If compact is true, steps involving CR, GR, and T are omitted for
+  // compactness.  The depth parameter should not be used by clients; it is for
+  // use in recursion only.
+  toString ( compact = false, depth = 0 ) {
+    if ( compact ) {
+      if ( this.rule == 'T' && depth > 0 ) return ''
+      if ( this.rule == 'CR' || this.rule == 'GR' )
+        return this.subproofs.map( S => S.toString( compact, depth ) ).join( '' )
+    }
     let result = ''
     for ( let i = 0 ; i < depth ; i++ ) result += '. '
     result += `${this.premises.map( x=>`${x}` ).join( ', ' )}`
     result += ` |- ${this.conclusion} by ${this.rule}`
-    if ( this.subproofs.length > 0 ) {
-      result += ` and ${this.subproofs.length} subproof(s):`
-    }
+    if ( this.subproofs.length > 0 ) result += ' using these subproof(s):'
     result += '\n'
-    this.subproofs.map( S => result += S._toString( depth + 1 ) )
+    this.subproofs.map( S => result += S.toString( compact, depth + 1 ) )
     return result
   }
-  // Get a string representation using that auxiliary routine
-  toString () { return this._toString( 0 ) }
 }
 
 // Does the given LC contain a metavariable anywhere in its hierarchy?
@@ -541,6 +545,7 @@ function* derivationMatches ( premises, conclusion, options = { } ) {
     if ( !solutionsFound.some( s => s.equals( result ) ) ) {
       if ( options.withProofs ) {
         result.proof.instantiateWith( result )
+        // console.log( result.proof.toString() )
       }
       solutionsFound.push( result )
       yield result

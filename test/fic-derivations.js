@@ -290,8 +290,11 @@ suite( 'Derivation with matching', () => {
       if ( solution.proof ) {
         console.log( 'Original problem:', premises.map( p=>`${p}` ).join( ', ' ),
                      `|- ${conclusion}` )
-        console.log( 'Proof of instantiated version:' )
-        console.log( `${solution.proof}` )
+        console.log( 'Instantiated to: ',
+                     solution.apply( premises ).map( p=>`${p}` ).join( ', ' ),
+                     `|- ${solution.apply( conclusion )}` )
+        console.log( `Proof:\n${solution.proof}` )
+        console.log( `Compact proof:\n${solution.proof.toString(true)}` )
       }
       checkSolution( solution, stringMappings[i] )
     }
