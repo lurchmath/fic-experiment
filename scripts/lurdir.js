@@ -2,10 +2,12 @@
 //
 //  lurdir.js - Node script for running tests
 //
-//  Syntax: node lurdir.js
+//  Syntax: node lurdir.js [true]
 //
-//    It loops through all .lur files in the subfolder
-//    ./lur/ of the current directory and validates all of the .lur
+//   It loops through all .lur files in the subfolder
+//   ../test/lur/ validates all of the .lur
+//   If the optional third argument is true it prints proofs as well.
+//   Should be run from the scripts folder.
 //   files and prints the result to the console. This is easier
 //   for editing large libraries of rules and theorems by placing
 //   them in .lur files, which should only contain an LC in our
@@ -21,10 +23,10 @@ const {
 } = require( '../classes/all.js' )
 const { MatchingProblem } = require( '../classes/matching.js' )
 
-const root = './lur/'
+const root = '../test/lur/'
 
 const withProof = ( process.argv[2] ) ? true : false
-
+console.log(firstDerivation+'')
 function validateFile ( filename ) {
     let file = String( fs.readFileSync( root+filename ) )
     let lc = LC.fromString( file )
