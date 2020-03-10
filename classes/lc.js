@@ -151,6 +151,14 @@ class LC extends Structure {
          + this.children().map( child => child.toString() ).join( ',' )
          + ')'
   }
+  // Add support for Jupyter notebooks
+  _toHtml () {
+    const escapeXML = ( text ) =>
+      text.replace( /&/g, "&amp;" ).replace( /</g, "&lt;" )
+          .replace( />/g, "&gt;" ).replace( /"/g, "&quot;" )
+          .replace( /'/g, "&#039;" )
+    return `<pre>${escapeXML(this.toString())}</pre>`
+  }
 
   // Abstract-like method that subclasses will fix:
   toOM () {

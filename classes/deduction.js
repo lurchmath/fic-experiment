@@ -87,6 +87,28 @@ class Proof {
     this.subproofs.map( S => result += S.toString( compact, depth + 1 ) )
     return result
   }
+  // For use in Jupyter notebooks
+  _toHtml () {
+    const lines = this.toString().split( '\n' ).map( line => {
+      if ( line.substring( line.length - 25 ) == ' using these subproof(s):' )
+        line = line.substring( 0, line.length - 25 )
+      const rule = line.split( ' ' ).pop()
+      line = line.substring( 0, line.length - rule.length - 4 )
+      let result = ''
+      while ( line.substring( 0, 2 ) == '. ' ) {
+        line = line.substring( 2 )
+        result += '&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; '
+      }
+      result += '<tt>' + line.replace( /&/g, "&amp;" )
+                             .replace( /</g, "&lt;" )
+                             .replace( />/g, "&gt;" )
+                             .replace( /"/g, "&quot;" )
+                             .replace( /'/g, "&#039;" ) + '</tt>'
+      return `<tr><td style="text-align: left;">${result}</td>`
+           + `<td style="text-align: left;">${rule}</td></tr>`
+    } )
+    return `<table style="border: 1px solid black;">${lines.join( '' )}</table>`
+  }
 }
 
 // Does the given LC contain a metavariable anywhere in its hierarchy?
