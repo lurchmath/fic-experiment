@@ -144,6 +144,13 @@ class LC extends Structure {
     }
   }
 
+  // Statement LCs can contain metavariables, so here we provide a generic
+  // routine for checking whether this LC or any statement inside it contains
+  // a metavariable
+  containsAMetavariable = () =>
+    this instanceof Statement && this.isAMetavariable ||
+    this.children().some( x => x.containsAMetavariable() )
+
   // Abstract-like method that subclasses will fix:
   toString () {
     return ( this.isAGiven ? ':' : '' )
@@ -591,32 +598,16 @@ class LC extends Structure {
     this.markDeclarations()
 
     // fetch the conclusions - they are the only things we validte with FIC
-    let concs = this.conclusions()
-
-    concs.forEach( ( X ) => {
-      let LHS = X.allAccessibles()
-      LHS = LHS.map( x => x.claim() )
-      if ( withProof ) {
-        let result = firstDerivation( LHS, X , { withProofs: true } )
-
-        if (result) {
-          X.setAttribute( 'validation' ,
-          { status: true, feedback:'Good job!', proof: result.proof } )
-        } else {
-          X.setAttribute( 'validation' , { status: false,
-                                         feedback: 'This doesn\'t follow.' } )
-        }
-
-      } else {
-        let result = existsDerivation( LHS, X )
-
-        if (result) {
-          X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
-        } else {
-          X.setAttribute( 'validation' , { status: false,
-                                         feedback: 'This doesn\'t follow.' } )
-        }
-      }
+    this.conclusions().forEach( C => {
+      const T = new Turnstile( C.allAccessibles().map( A => A.claim() ), C )
+      const right = { status: true, feedback: 'Good job!' }
+      const wrong = { status: false, feedback: 'This doesn\'t follow.' }
+      const result = T.firstDerivation( { withProofs: withProof } )
+      if ( result && withProof )
+        right.proof = result.proof
+      else
+        delete right.proof
+      C.setAttribute( 'validation', result ? right : wrong )
     } )
   }
 
@@ -632,4 +623,4 @@ module.exports.LC = LC
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
-const { existsDerivation, firstDerivation } = require( '../classes/deduction.js' )
+const { Turnstile } = require( '../classes/deduction.js' )

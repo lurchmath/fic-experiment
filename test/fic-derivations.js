@@ -5,11 +5,8 @@
 let expect = require( 'expect.js' )
 
 // import relevant classes and the deduction routine
-const {
-  LC, Statement, Environment, containsMetavariables, compareLCs,
-  applyInstantiation, canonicalPremises, derivationMatches,
-  allDerivationMatches, existsDerivation
-} = require( '../classes/all.js' )
+const { LC, Statement, Environment, Turnstile, Proof } =
+  require( '../classes/all.js' )
 // we also need the matcher for various tests; matching and deduction are linked
 const { MatchingProblem } = require( '../classes/matching.js' )
 
@@ -18,128 +15,128 @@ suite( 'Auxiliary functions supporting derivation', () => {
   test( 'containsMetavariables performs correctly on examples', () => {
     let L = LC.fromString( 'foo' )
     expect( L.isAMetavariable ).to.be( false )
-    expect( containsMetavariables( L ) ).to.be( false )
+    expect( L.containsAMetavariable() ).to.be( false )
     L.isAMetavariable = true
     expect( L.isAMetavariable ).to.be( true )
-    expect( containsMetavariables( L ) ).to.be( true )
+    expect( L.containsAMetavariable() ).to.be( true )
     L = LC.fromString( 'f(x)' )
     expect( L.isAMetavariable ).to.be( false )
     expect( L.first.isAMetavariable ).to.be( false )
-    expect( containsMetavariables( L ) ).to.be( false )
+    expect( L.containsAMetavariable() ).to.be( false )
     L.isAMetavariable = true
     expect( L.isAMetavariable ).to.be( true )
     expect( L.first.isAMetavariable ).to.be( false )
-    expect( containsMetavariables( L ) ).to.be( true )
+    expect( L.containsAMetavariable() ).to.be( true )
     L.isAMetavariable = false
     L.first.isAMetavariable = true
     expect( L.isAMetavariable ).to.be( false )
     expect( L.first.isAMetavariable ).to.be( true )
-    expect( containsMetavariables( L ) ).to.be( true )
+    expect( L.containsAMetavariable() ).to.be( true )
     L = LC.fromString( 'bury(this(deeply(haha)))' )
-    expect( containsMetavariables( L ) ).to.be( false )
+    expect( L.containsAMetavariable() ).to.be( false )
     L.first.first.first.isAMetavariable = true
-    expect( containsMetavariables( L ) ).to.be( true )
+    expect( L.containsAMetavariable() ).to.be( true )
   } )
 
   test( 'compareLCs without metavariables compares equality', () => {
     let L = LC.fromString( 'foo' )
     let M = LC.fromString( 'bar' )
     expect( L.equals( M ) ).to.be( false )
-    expect( compareLCs( L, M ).same ).to.be( false )
-    expect( compareLCs( L, M ).pattern ).to.be( undefined )
-    expect( compareLCs( L, M ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( undefined )
     let L2 = L.copy()
     let M2 = M.copy()
     expect( L.equals( L2 ) ).to.be( true )
-    expect( compareLCs( L, L2 ).same ).to.be( true )
-    expect( compareLCs( L, L2 ).pattern ).to.be( undefined )
-    expect( compareLCs( L, L2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( L, L2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).expression ).to.be( undefined )
     expect( M.equals( M2 ) ).to.be( true )
-    expect( compareLCs( M, M2 ).same ).to.be( true )
-    expect( compareLCs( M, M2 ).pattern ).to.be( undefined )
-    expect( compareLCs( M, M2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( M, M2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).expression ).to.be( undefined )
     L = LC.fromString( 'example(1,2,3,f(4))' )
     M = LC.fromString( 'other(~thing,a(b),~c)' )
     expect( L.equals( M ) ).to.be( false )
-    expect( compareLCs( L, M ).same ).to.be( false )
-    expect( compareLCs( L, M ).pattern ).to.be( undefined )
-    expect( compareLCs( L, M ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( undefined )
     L2 = L.copy()
     M2 = M.copy()
     expect( L.equals( L2 ) ).to.be( true )
-    expect( compareLCs( L, L2 ).same ).to.be( true )
-    expect( compareLCs( L, L2 ).pattern ).to.be( undefined )
-    expect( compareLCs( L, L2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( L, L2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).expression ).to.be( undefined )
     expect( M.equals( M2 ) ).to.be( true )
-    expect( compareLCs( M, M2 ).same ).to.be( true )
-    expect( compareLCs( M, M2 ).pattern ).to.be( undefined )
-    expect( compareLCs( M, M2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( M, M2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).expression ).to.be( undefined )
   } )
 
-  test( 'pairUp of two LCs both with metavariables compares equality', () => {
+  test( 'compareLCs of 2 LCs both with metavariables compares equality', () => {
     let L = LC.fromString( 'foo' )
     let M = LC.fromString( 'bar' )
     L.isAMetavariable = true
     M.isAMetavariable = true
     expect( L.equals( M ) ).to.be( false )
-    expect( compareLCs( L, M ).same ).to.be( false )
-    expect( compareLCs( L, M ).pattern ).to.be( undefined )
-    expect( compareLCs( L, M ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( undefined )
     let L2 = L.copy()
     let M2 = M.copy()
     expect( L2.isAMetavariable ).to.be( true )
     expect( M2.isAMetavariable ).to.be( true )
     expect( L.equals( L2 ) ).to.be( true )
-    expect( compareLCs( L, L2 ).same ).to.be( true )
-    expect( compareLCs( L, L2 ).pattern ).to.be( undefined )
-    expect( compareLCs( L, L2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( L, L2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).expression ).to.be( undefined )
     expect( M.equals( M2 ) ).to.be( true )
-    expect( compareLCs( M, M2 ).same ).to.be( true )
-    expect( compareLCs( M, M2 ).pattern ).to.be( undefined )
-    expect( compareLCs( M, M2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( M, M2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).expression ).to.be( undefined )
     L = LC.fromString( 'example(1,2,3,f(4))' )
     M = LC.fromString( 'other(~thing,a(b),~c)' )
     L.child( 3 ).isAMetavariable = true
     M.child( 1 ).isAMetavariable = true
     expect( L.equals( M ) ).to.be( false )
-    expect( compareLCs( L, M ).same ).to.be( false )
-    expect( compareLCs( L, M ).pattern ).to.be( undefined )
-    expect( compareLCs( L, M ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( undefined )
     L2 = L.copy()
     M2 = M.copy()
     expect( L.equals( L2 ) ).to.be( true )
-    expect( compareLCs( L, L2 ).same ).to.be( true )
-    expect( compareLCs( L, L2 ).pattern ).to.be( undefined )
-    expect( compareLCs( L, L2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( L, L2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, L2 ).expression ).to.be( undefined )
     expect( M.equals( M2 ) ).to.be( true )
-    expect( compareLCs( M, M2 ).same ).to.be( true )
-    expect( compareLCs( M, M2 ).pattern ).to.be( undefined )
-    expect( compareLCs( M, M2 ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).same ).to.be( true )
+    expect( Turnstile.compareLCs( M, M2 ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, M2 ).expression ).to.be( undefined )
   } )
 
-  test( 'pairUp of one LC with metavariables and one w/o sorts them', () => {
+  test( 'compareLCs of 1 LC with metavariables and 1 w/o sorts them', () => {
     let L = LC.fromString( 'foo' )
     let M = LC.fromString( 'bar' )
     L.isAMetavariable = true
-    expect( containsMetavariables( L ) ).to.be( true )
-    expect( containsMetavariables( M ) ).to.be( false )
-    expect( compareLCs( L, M ).same ).to.be( false )
-    expect( compareLCs( L, M ).pattern ).to.be( L )
-    expect( compareLCs( L, M ).expression ).to.be( M )
-    expect( compareLCs( M, L ).same ).to.be( false )
-    expect( compareLCs( M, L ).pattern ).to.be( L )
-    expect( compareLCs( M, L ).expression ).to.be( M )
+    expect( L.containsAMetavariable() ).to.be( true )
+    expect( M.containsAMetavariable() ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( L )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( M )
+    expect( Turnstile.compareLCs( M, L ).same ).to.be( false )
+    expect( Turnstile.compareLCs( M, L ).pattern ).to.be( L )
+    expect( Turnstile.compareLCs( M, L ).expression ).to.be( M )
     L = LC.fromString( 'example(1,2,3,f(4))' )
     M = LC.fromString( 'other(~thing,a(b),~c)' )
     M.child( 1 ).isAMetavariable = true
-    expect( containsMetavariables( L ) ).to.be( false )
-    expect( containsMetavariables( M ) ).to.be( true )
-    expect( compareLCs( L, M ).same ).to.be( false )
-    expect( compareLCs( L, M ).pattern ).to.be( M )
-    expect( compareLCs( L, M ).expression ).to.be( L )
-    expect( compareLCs( M, L ).same ).to.be( false )
-    expect( compareLCs( M, L ).pattern ).to.be( M )
-    expect( compareLCs( M, L ).expression ).to.be( L )
+    expect( L.containsAMetavariable() ).to.be( false )
+    expect( M.containsAMetavariable() ).to.be( true )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( M )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( L )
+    expect( Turnstile.compareLCs( M, L ).same ).to.be( false )
+    expect( Turnstile.compareLCs( M, L ).pattern ).to.be( M )
+    expect( Turnstile.compareLCs( M, L ).expression ).to.be( L )
   } )
 
   test( 'MatchingSolution.apply() works on various examples', () => {
@@ -192,21 +189,27 @@ suite( 'Auxiliary functions supporting derivation', () => {
     // [ :A, B, { :C D } ]  --canonical-->  [ B, { :C D } ]
     let premises = [ ':A', 'B', '{ :C D }' ].map( LC.fromString )
     let expected = [ 'B', '{ :C D }' ].map( LC.fromString )
-    let computed = canonicalPremises( premises )
+    let T = new Turnstile( premises, null )
+    T.simplifyPremises()
+    let computed = T.premises
     expect( computed ).to.have.length( 2 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
     // [ { :C { :D E } }, F ]  --canonical-->  [ F, { :C :D E } ]
     premises = [ '{ :C { :D E } }', 'F' ].map( LC.fromString )
     expected = [ 'F', '{ :C :D E }' ].map( LC.fromString )
-    computed = canonicalPremises( premises )
+    T = new Turnstile( premises, null )
+    T.simplifyPremises()
+    computed = T.premises
     expect( computed ).to.have.length( 2 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
     // [ G, { :H I }, { J K } ]  --canonical-->  [ G, J, K, { :H I } ]
     premises = [ 'G', '{ :H I }', '{ J K }' ].map( LC.fromString )
     expected = [ 'G', 'J', 'K', '{ :H I }' ].map( LC.fromString )
-    computed = canonicalPremises( premises )
+    T = new Turnstile( premises, null )
+    T.simplifyPremises()
+    computed = T.premises
     expect( computed ).to.have.length( 4 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
@@ -216,7 +219,9 @@ suite( 'Auxiliary functions supporting derivation', () => {
     //   [ { :A B }, { :A C }, { :D :E F } ]
     premises = [ '{ :A B C }', '{ :D :E F }' ].map( LC.fromString )
     expected = [ '{ :A B }', '{ :A C }', '{ :D :E F }' ].map( LC.fromString )
-    computed = canonicalPremises( premises )
+    T = new Turnstile( premises, null )
+    T.simplifyPremises()
+    computed = T.premises
     expect( computed ).to.have.length( 3 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
@@ -225,14 +230,18 @@ suite( 'Auxiliary functions supporting derivation', () => {
     premises = [ '{ :P Q }', 'R' ].map( LC.fromString )
     premises[0].first.isAMetavariable = true
     expected = [ premises[1].copy(), premises[0].copy() ]
-    computed = canonicalPremises( premises )
+    T = new Turnstile( premises, null )
+    T.simplifyPremises()
+    computed = T.premises
     expect( computed ).to.have.length( 2 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
     expect( computed[1].equals( expected[1] ) ).to.be( true )
     // [ { :{ A B } C } ] --canonical--> [ { :{ A B } C } ]
     premises = [ '{ :{ A B } C }' ].map( LC.fromString )
     expected = [ premises[0].copy() ]
-    computed = canonicalPremises( premises )
+    T = new Turnstile( premises, null )
+    T.simplifyPremises()
+    computed = T.premises
     expect( computed ).to.have.length( 1 )
     expect( computed[0].equals( expected[0] ) ).to.be( true )
   } )
@@ -270,8 +279,8 @@ suite( 'Derivation with matching', () => {
 
   let checkSolutions = ( premises, conclusion, stringMappings,
                          options = { } ) => {
-    let matchingSolutions =
-      allDerivationMatches( premises, conclusion, options )
+    let T = new Turnstile( premises, conclusion )
+    let matchingSolutions = T.allDerivationMatches( options )
 
     // console.log( 'Checking solution set:' )
     // matchingSolutions.map( sol => {
@@ -298,13 +307,12 @@ suite( 'Derivation with matching', () => {
       }
       checkSolution( solution, stringMappings[i] )
     }
-    expect( stringMappings.length > 0 ).to.be(
-      existsDerivation( premises, conclusion, options ) )
+    expect( stringMappings.length > 0 ).to.be( T.existsDerivation( options ) )
   }
 
   test( 'Has all the functions needed for derivation with matching', () => {
-    expect( allDerivationMatches ).to.be.ok()
-    expect( derivationMatches ).to.be.ok()
+    expect( Turnstile ).to.be.ok()
+    expect( Proof ).to.be.ok()
   } )
 
   test( 'Correctly uses the T rule in matching', () => {

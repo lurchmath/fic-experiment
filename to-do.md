@@ -32,7 +32,3 @@
     should include the working forwards/backwards option as well as the
     question of how many copies of a formula to add.  Provide proofs of all
     the claims made in such documentation.
- 1. Create a class for premises-conclusion pairs, called `Turnstile`, defined by
-    a premise list and conclusion `LC`.  It will be a great place to put
-    routines like `canonicalPremises()`, `findDerivationMatches()`, and so on,
-    suitably renamed.
