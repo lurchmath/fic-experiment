@@ -35,9 +35,9 @@ const escapeXML = ( text ) => text.replace( /&/g, "&amp;" )
                                   .replace( />/g, "&gt;" )
                                   .replace( /"/g, "&quot;" )
                                   .replace( /'/g, "&#039;" )
-OM.prototype._toHtml = function () {
-  return `<pre>${escapeXML(this.toXML())}</pre>`
-}
+OM.prototype._toHtml = function () { return `$${this.simpleEncode()}$` }
+// And support converting Jupyter notebooks to LaTeX/PDF
+OM.prototype._toMime = function () { return { "text/latex": this._toHtml() } }
 
 // A MatchingSolution is a mapping from metavariables to expressions,
 // representing the solution to a MatchingProblem (which is defined below).
@@ -144,6 +144,27 @@ class MatchingSolution {
     return `<table style="border: 1px solid black;">`
          + `<tr><td>Metavariable</td><td>Instantiation</td></tr>`
          + `${result}</table>`
+  }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    let result = this.keys().map( metavariableName => {
+      const instantiation = this.lookup( metavariableName )
+      let rhs
+      if ( instantiation.isAQuantifier && instantiation.identifier == 'gEF' ) {
+        const vars = instantiation.allButLast.map( v => `${v}` )
+        rhs = instantiation.last._toMime()["text/latex"]
+        rhs = rhs.substring( 1, rhs.length - 1 )
+        rhs = `\\lambda ${vars.join( ',' )}.${rhs}`
+      } else {
+        rhs = instantiation._toMime()["text/latex"]
+      }
+      return `${metavariableName} & ${rhs}`
+    } ).join( '\\\\\n' )
+    if ( result == '' )
+      result = '(empty & function)\\\\'
+    return { "text/latex": `\\begin{tabular}{rl}\n`
+         + `Metavariable & Instantiation \\\\\\hline\n`
+         + `${result}\n\\end{tabular}` }
   }
 }
 
@@ -258,6 +279,18 @@ class MatchingProblem {
     return `<table style="border: 1px solid black;">`
          + `<tr><td>Pattern</td><td>Expression</td></tr>`
          + `${result}</table>`
+  }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    let result = this._MC.challengeList.contents.map( pair => {
+      return `${pair.pattern._toMime()["text/latex"]} & `
+           + `${pair.expression._toMime()["text/latex"]}`
+    } ).join( '\\\\\n' )
+    if ( result == '' )
+      result = '(empty & function)\\\\'
+    return { "text/latex": `\\begin{tabular}{ll}\n`
+         + `Pattern & Expression \\\\\\hline\n`
+         + `${result}\n\\end{tabular}` }
   }
 }
 

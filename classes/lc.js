@@ -166,6 +166,13 @@ class LC extends Structure {
           .replace( /'/g, "&#039;" )
     return `<pre>${escapeXML(this.toString())}</pre>`
   }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    const escapeMath = ( text ) =>
+      text.replace( / /g, '~' ).replace( /{/g, '\\{' ).replace( /}/g, '\\}' )
+          .replace( /[:]/g, '{:}' )
+    return { "text/latex": `$${escapeMath( this.toString() )}$` }
+  }
 
   // Abstract-like method that subclasses will fix:
   toOM () {

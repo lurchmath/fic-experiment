@@ -52,6 +52,14 @@ class Turnstile {
     const concl = withoutPreTags( this.conclusion._toHtml() )
     return `<tt>${prems}</tt> $~\\vdash~$ <tt>${concl}</tt>`
   }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    const removeMathMode = ( text ) => text.substring( 1, text.length - 1 )
+    const prems = this.premises.map( p =>
+      removeMathMode( p._toMime()["text/latex"] ) ).join( ', ' )
+    const concl = removeMathMode( this.conclusion._toMime()["text/latex"] )
+    return { "text/latex": `$${prems} \\vdash ${concl}$` }
+  }
   // Compare two LCs in a way that is useful for the derivation checker, defined
   // later in this class.
   // Specifically, it returns an object with the following attributes:
@@ -632,6 +640,27 @@ class Proof {
            + `<td style="text-align: left;">${rule}</td></tr>`
     } )
     return `<table style="border: 1px solid black;">${lines.join( '' )}</table>`
+  }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    const prepareMath = ( text ) =>
+      text.replace( / /g, '~' ).replace( /{/g, '\\{' ).replace( /}/g, '\\}' )
+          .replace( /[:]/g, '{:}' ).replace( /[|]-/g, '\\vdash' )
+    const lines = this.toString().split( '\n' ).map( line => {
+      if ( line.substring( line.length - 25 ) == ' using these subproof(s):' )
+        line = line.substring( 0, line.length - 25 )
+      const rule = line.split( ' ' ).pop()
+      line = line.substring( 0, line.length - rule.length - 4 )
+      let indent = ''
+      while ( line.substring( 0, 2 ) == '. ' ) {
+        line = line.substring( 2 )
+        indent += '\\hspace{1cm}'
+      }
+      return `${indent}${prepareMath( line )} & \\text{${rule}}`
+    } )
+    return {
+      "text/latex": `$\\begin{array}{ll}${lines.join('\\\\\n')}\\end{array}$`
+    }
   }
 }
 
