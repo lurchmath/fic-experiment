@@ -50,7 +50,7 @@ class Turnstile {
     const withoutPreTags = ( html ) => html.substring( 5, html.length - 6 )
     const prems = this.premises.map(p=>withoutPreTags(p._toHtml())).join(', ')
     const concl = withoutPreTags( this.conclusion._toHtml() )
-    return `<tt>${prems}</tt> $\\vdash$ <tt>${concl}</tt>`
+    return `<tt>${prems}</tt> $~\\vdash~$ <tt>${concl}</tt>`
   }
   // Compare two LCs in a way that is useful for the derivation checker, defined
   // later in this class.
@@ -627,6 +627,7 @@ class Proof {
                              .replace( />/g, "&gt;" )
                              .replace( /"/g, "&quot;" )
                              .replace( /'/g, "&#039;" ) + '</tt>'
+      result = result.replace( / [|]- /g, '</tt> $~\\vdash~$ <tt>' )
       return `<tr><td style="text-align: left;">${result}</td>`
            + `<td style="text-align: left;">${rule}</td></tr>`
     } )
