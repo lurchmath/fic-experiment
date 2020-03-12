@@ -206,10 +206,10 @@ class Turnstile {
   // optionally with proofs contained in them, if options.withProofs is truthy.
   *findDerivationMatches ( toExtend, options = { } ) {
     // first a utility function for returning solutions with embedded proofs
-    const ruleWorked = ( ruleName, solution, subproofs = [ ] ) => {
+    const ruleWorked = ( ruleName, solution, subproofs = [ ], index ) => {
       const copy = solution.copy()
       if ( options.withProofs ) {
-        copy.proof = new Proof( this.shallowCopy(), ruleName, subproofs )
+        copy.proof = new Proof( this.shallowCopy(), ruleName, subproofs, index )
       }
       return copy
     }
@@ -298,7 +298,7 @@ class Turnstile {
           // If there's a direct match, then apply rule S:
           if ( comparison.same ) {
             debug( 'straight premise-conclusion equality, so apply rule S' )
-            yield ruleWorked( 'S', toExtend )
+            yield ruleWorked( 'S', toExtend, [ ], i )
           // Otherwise, try to simplify the question through matching
           // (unless Turnstile.compareLCs() already said this was impossible):
           } else if ( comparison.pattern ) {
@@ -309,7 +309,7 @@ class Turnstile {
             // For each way that it matches, that's a new solution via rule S:
             for ( const solution of problem.enumerateSolutions() ) {
               debug( `match ${solution} lets us apply rule S` )
-              yield ruleWorked( 'S', solution )
+              yield ruleWorked( 'S', solution, [ ], i )
             }
           }
         // If the premise is an environment, then canonicalPremises() guarantees
@@ -344,7 +344,7 @@ class Turnstile {
             const T2 = new Turnstile(
               result1.apply( this.premises.without( i ) ), AEnv )
             for ( let solution of T2.findDerivationMatches( result1, options ) ) {
-              yield ruleWorked( 'GL', solution, [ subproof, solution.proof ] )
+              yield ruleWorked( 'GL', solution, [ subproof, solution.proof ], i )
             }
           }
         } else { // the premise is a declaration
@@ -358,7 +358,7 @@ class Turnstile {
           T.premises = [ ...this.premises.without( i ), ...T.premises ]
           T.makePremisesEfficient()
           for ( let solution of T.findDerivationMatches( toExtend, options ) ) {
-            yield ruleWorked( 'DE/LE', solution, [ solution.proof ] )
+            yield ruleWorked( 'DE/LE', solution, [ solution.proof ], i )
           }
         }
       }
@@ -406,7 +406,7 @@ class Turnstile {
             const T = new Turnstile( [ pBody ], cBody )
             T.simplifyPremises()
             for ( let solution of T.findDerivationMatches( toExtend, options ) ) {
-              yield ruleWorked( 'LI/DI', solution, [ solution.proof ] )
+              yield ruleWorked( 'LI/DI', solution, [ solution.proof ], i )
             }
           } else {
             // In this case, either the premise has metavariables and the conclusion
@@ -425,7 +425,7 @@ class Turnstile {
                                        matchSol.apply( cBody ) )
               T.simplifyPremises()
               for ( let solution of T.findDerivationMatches( matchSol, options ) ) {
-                yield ruleWorked( 'LI/DI', solution, [ solution.proof ] )
+                yield ruleWorked( 'LI/DI', solution, [ solution.proof ], i )
               }
             }
           }
@@ -480,7 +480,7 @@ class Turnstile {
               const T2 = new Turnstile(
                 result1.apply( this.premises.without( i ) ), AEnv )
               for ( let solution of T2.findDerivationMatches( result1, options ) ) {
-                yield ruleWorked( 'GL', solution, [ subproof, solution.proof ] )
+                yield ruleWorked( 'GL', solution, [ subproof, solution.proof ], i )
               }
             }
           } else {
@@ -511,7 +511,7 @@ class Turnstile {
                   result1.apply( this.premises.without( i ) ), AEnv )
                 T2.simplifyPremises()
                 for ( let solution of T2.findDerivationMatches( result1, options ) ) {
-                  yield ruleWorked( 'GL', solution, [ subproof, solution.proof ] )
+                  yield ruleWorked( 'GL', solution, [ subproof, solution.proof ], i )
                 }
               }
             }
@@ -605,44 +605,49 @@ class Turnstile {
   }
 }
 
-// A proof contains a rule name R, a list of zero or more premises P, a
-// conclusion C, and a list of zero or more subproofs S.  These are guaranteed
-// to relate in the following ways, respecting the meaning of the rule names.
-//  - If R = "S" then P = [ C ] and S = [ ].
-//  - If R = "T" then C = { }.
-//  - If R = "GL" then there is a p in P of the form { :A1 ... :An B } and S
+// A proof contains a rule name R, a list of n>=0 or more premises P, a
+// conclusion C, a list of zero or more subproofs S, and an optional premise
+// index i.  These are guaranteed to relate in the following ways,
+// respecting the meaning of the rule names.
+//  - If R = "S" then 0<=i<n and P[i] = C and S = [ ].
+//  - If R = "T" then C = { } and S = [ ] and i is undefined.
+//  - If R = "GL" then 0<=i<n and P[i] is of the form { :A1 ... :An B } and S
 //    contains two subproofs, call them S1 and S2, and we will use dot notation
 //    to speak of their components, which satisfy:
-//    S1.P = P - p and S1.C = { A1 ... An }
-//    S2.P = P - p + B and S2.C = { A1 ... An }
+//    S1.P = P - P[i] and S1.C = { A1 ... An }
+//    S2.P = P - P[i] + B and S2.C = { A1 ... An }
 //  - If R = "GR" then C is of the form { :A1 ...others } and S contains one
-//    subproof whose premises are P + A1 and whose conclusion is { ...others }.
+//    subproof whose premises are P + A1 and whose conclusion is { ...others },
+//    with i undefined.
 //  - There will not be a case in which R = "CL" because we will use a
 //    canonicalPremises() function to eliminate all such cases, but if there
-//    were, then the meaning of the CL rule would dictate that there would be a
-//    p in P of the form { A1 ... An } and S would consist of precisely one
-//    subproof with the same conclusion but with premises P - p + A1 + ... + An.
+//    were, then the meaning of the CL rule would dictate that we whould have
+//    0<=i<n and P[i] would be of the form { A1 ... An } and S would consist of
+//    precisely one subproof with the same conclusion but with premises
+//    P - P[i] + A1 + ... + An.
 //  - If R = "CR" then C is of the form { A1 ... An } and S contains two
 //    subproofs, both of which have the same premises as this one, but one of
 //    which has conclusion A1, and the other conclusion { A2 ... An }.  This is
-//    true even if n=1, in which case { A2 ... An } = { }.
+//    true even if n=1, in which case { A2 ... An } = { }.  And i is undefined.
 //  - If R = "DI/LI" then C is of the form Let{ v1 ... vn B } or the form
-//    Declare{ v1 ... vn B } and and there is some premise p with the same
+//    Declare{ v1 ... vn B } and 0<=i<n and premise P[i] has the same
 //    declaration type (Let/Declare), same variables list, and body B', and
 //    there is a single subproof whose premise list is [ B' ] and whose
 //    conclusion is B.
-//  - If R = "DE/LE" then some p in P is of the form Let{ v1 ... vn B } or
+//  - If R = "DE/LE" then 0<=i<n and P[i] is of the form Let{ v1 ... vn B } of
 //    Declare{ v1 ... vn B } and S contains a single subproof with the same
-//    conclusion as this one, but whose premise list is equivalent to P - p + B
-//    (but with B potentially simplified or reformulated for efficiency).
+//    conclusion as this one, but whose premise list is equivalent to
+//    P - P[i] + B (but with B potentially simplified or reformulated for
+//    efficiency).
 // These guarantees are not enforced by the Proof constructor; they are enforced
 // by the routines below which use the Proof constructor.
 class Proof {
   // Build one; feel free to write to these variables at any time
-  constructor ( turnstile, rule, subproofs ) {
+  constructor ( turnstile, rule, subproofs, index ) {
     this.turnstile = turnstile
     this.rule = rule
     this.subproofs = subproofs
+    this.index = index
   }
   // Apply a MatchingSolution to instantiate metavariables across all parts of
   // this proof
@@ -663,6 +668,7 @@ class Proof {
     let result = ''
     for ( let i = 0 ; i < depth ; i++ ) result += '. '
     result += `${this.turnstile} by ${this.rule}`
+    if ( this.index !== undefined ) result += ` on premise ${this.index+1}`
     if ( this.subproofs.length > 0 ) result += ' using these subproof(s):'
     result += '\n'
     this.subproofs.map( S => result += S.toString( compact, depth + 1 ) )
@@ -673,8 +679,9 @@ class Proof {
     const lines = this.toString().split( '\n' ).map( line => {
       if ( line.substring( line.length - 25 ) == ' using these subproof(s):' )
         line = line.substring( 0, line.length - 25 )
-      const rule = line.split( ' ' ).pop()
-      line = line.substring( 0, line.length - rule.length - 4 )
+      const pieces = line.split( ' ' )
+      const citation = pieces.slice( pieces.lastIndexOf( 'by' ) ).join( ' ' )
+      line = line.substring( 0, line.length - citation.length )
       let result = ''
       while ( line.substring( 0, 2 ) == '. ' ) {
         line = line.substring( 2 )
@@ -687,7 +694,7 @@ class Proof {
                              .replace( /'/g, "&#039;" ) + '</tt>'
       result = result.replace( / [|]- /g, '</tt> $~\\vdash~$ <tt>' )
       return `<tr><td style="text-align: left;">${result}</td>`
-           + `<td style="text-align: left;">${rule}</td></tr>`
+           + `<td style="text-align: left;">${citation}</td></tr>`
     } )
     return `<table style="border: 1px solid black;">${lines.join( '' )}</table>`
   }
@@ -697,16 +704,15 @@ class Proof {
       text.replace( / /g, '~' ).replace( /{/g, '\\{' ).replace( /}/g, '\\}' )
           .replace( /[:]/g, '{:}' ).replace( /[|]-/g, '\\vdash' )
     const lines = this.toString().split( '\n' ).map( line => {
-      if ( line.substring( line.length - 25 ) == ' using these subproof(s):' )
-        line = line.substring( 0, line.length - 25 )
-      const rule = line.split( ' ' ).pop()
-      line = line.substring( 0, line.length - rule.length - 4 )
+      const pieces = line.split( ' ' )
+      const citation = pieces.slice( pieces.lastIndexOf( 'by' ) ).join( ' ' )
+      line = line.substring( 0, line.length - citation.length )
       let indent = ''
       while ( line.substring( 0, 2 ) == '. ' ) {
         line = line.substring( 2 )
         indent += '\\hspace{1cm}'
       }
-      return `${indent}${prepareMath( line )} & \\text{${rule}}`
+      return `${indent}${prepareMath( line )} & \\text{${citation}}`
     } )
     return {
       "text/latex": `$\\begin{array}{ll}${lines.join('\\\\\n')}\\end{array}$`
