@@ -271,9 +271,10 @@ class Turnstile {
             // Recur to try to prove the remaining environment { C2 ... Cn }
             // (which, again, may contain a combination of givens and claims).
             debug( `applied ${result1} to conclusions: ${Cs}; continuing rule CR` )
-            const T2 = new Turnstile(
-              result1.apply( [ ...this.premises, C1 ] ), Cs )
+            const T2 = new Turnstile( [ result1.apply( C1 ) ], Cs )
             T2.simplifyPremises()
+            T2.premises = T2.premises.concat( result1.apply( this.premises ) )
+            T2.makePremisesEfficient()
             for ( let solution of T2.findDerivationMatches( result1, options ) ) {
               yield ruleWorked( 'CR', solution, [ subproof, solution.proof ] )
             }
@@ -730,6 +731,7 @@ class Proof {
 //    "must be used" so that if we ever get to a point where we would want to
 //    drop that premise and explore a subgoal, we would simply give up and not
 //    explore it, knowing that any such proof will be found elsewhere instead.
+//    premises may be more important, and thus this idea may be irrelevant.
 //  - Pre-compute which LCs contain metavariables and just look the result up
 //    in Turnstile.compareLCs() rather than recomputing it.  This may be more
 //    trouble than it's worth, because these computations are rather trivial.
