@@ -601,6 +601,7 @@ class LC extends Structure {
   // Note that this routine does not make a copy of something that is already
   // a claim.
   claim () { return this.isAClaim ? this : this.claimCopy() }
+  given () { return this.isAGiven ? this : this.givenCopy() }
 
   // Validate!!  Here we go.
   validate ( withProof ) {

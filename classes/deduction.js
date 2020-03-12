@@ -116,36 +116,40 @@ class Turnstile {
     }
     this.premises = result
   }
-  // The canonical form of a premise list is this:
-  // Let C1, ..., Cn be the list of conclusions in the premise list.
-  // Then the set of entries in the canonical form is E1, ..., En, where each
-  // Ei = { :P1 ... :Pk Ci }, with P1 through Pk being all the givens accessible
-  // to Ci within the given premise list.
-  // The Ei should be returned as a list, sorted in increasing order of length of
-  // children (i.e., number of givens).
+  // I will wite S(L) to refer to the simplification of an LC L to a list of
+  // zero or more LCs that are interpreted as a conjunction.  We define that
+  // simplification routine as follows, using an auxiliary routine P defined
+  // thereafter.
+  // S(A) = [ A ] if A is a statement
+  // S(:A) = [ ] if A is a statement
+  // S({}) = [ ]
+  // S({ A ...others }) = [ ...S(A), ...S({...others}) ]
+  // S({ :A ...others }) = [ ...S({...others}).map(x=>G(S(A),x)) ]
+  // G([...As],{...Bs}) = { ...:As ...Bs } (that is, each A is a given)
+  // G([...As],B) = G([...As],{ B }) for an isolated statement B
+  // We now implement these as two internal functions inside simplifyPremises(),
+  // and that routine just applies them to all the premises, then sorts and
+  // removes duplicates through makePremisesEfficient().
   simplifyPremises () {
-    const results = [ ]
-    for ( const premise of this.premises ) {
-      const prev = ( lc ) =>
-        lc == premise ? null :
-        lc.previousSibling() ? lc.previousSibling() :
-        lc.parent() && lc.parent() != premise ? prev( lc.parent() ) : null
-      let body = premise.isAnActualDeclaration() ? premise.last : null
-      const conclusions =
-        premise instanceof Statement || premise.isAnActualDeclaration() ?
-          ( premise.isAGiven ? [ ] : [ premise ] ) :
-          premise.conclusions()
-      for ( const conclusion of conclusions ) {
-        const result = [ conclusion ]
-        let walk = conclusion
-        while ( walk = prev( walk ) ) {
-          if ( walk.isAGiven ) result.unshift( walk )
-        }
-        results.push( new Environment( ...result.map( x => x.copy() ) ) )
-      }
-    }
-    this.premises = results.map( premise =>
-      premise.children().length == 1 ? premise.first : premise )
+    // neither S nor G ever make copies; they just manipulate the originals,
+    // because we make copies before we call either S or G, so that the copying
+    // happens precisely once.
+    const G = ( givens, conclusion ) =>
+      conclusion instanceof Statement || conclusion.isAnActualDeclaration() ?
+      G( givens, new Environment( conclusion ) ) :
+      new Environment( ...givens.map( g => g.given() ),
+                       ...conclusion.children() )
+    const S = L =>
+      L instanceof Statement || L.isAnActualDeclaration() ?
+        ( L.isAGiven ? [ ] : [ L ] ) :
+      L.children().length == 0 ? [ ] :
+      L.first.isAClaim ?
+        [ ...S( L.first ),
+          ...S( new Environment( ...L.children().slice( 1 ) ) ) ] :
+        [ ...S( new Environment( ...L.children().slice( 1 ) ) ).map(
+            x => G( S( L.first.claimCopy() ), x ) ) ]
+    this.premises = this.premises.map( p => S( p.copy() ) )
+                                 .reduce( ( a, b ) => a.concat( b ), [ ] )
     this.makePremisesEfficient()
   }
   // This function is not intended for client use; call derivationMatches()
@@ -699,11 +703,6 @@ class Proof {
 //    rule, proving first X and then { }.  To save some recursion, we could just
 //    replace the { X } with X immediately.  This will make proof objects a bit
 //    smaller.
-//  - Ken is in the process of defining a better flattened form than what is
-//    currently implemented in canonicalPremises() in this file.  For instance,
-//    the premise { :{ A B } C } could be made more efficient to process as
-//    { :A :B C }, but canonicalPremises() doesn't currently do that.  We will
-//    update the code in this routine once that design is complete.
 
 module.exports.Turnstile = Turnstile
 module.exports.Proof = Proof

@@ -238,7 +238,7 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( computed[1].equals( expected[1] ) ).to.be( true )
     // [ { :{ A B } C } ] --canonical--> [ { :{ A B } C } ]
     premises = [ '{ :{ A B } C }' ].map( LC.fromString )
-    expected = [ premises[0].copy() ]
+    expected = [ '{ :A :B C }' ].map( LC.fromString )
     T = new Turnstile( premises, null )
     T.simplifyPremises()
     computed = T.premises
