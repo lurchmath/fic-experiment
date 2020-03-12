@@ -109,7 +109,7 @@ class Turnstile {
       Turnstile.complexity( a ) - Turnstile.complexity( b ) )
     const result = [ ]
     for ( const premise of this.premises ) {
-      if ( premise instanceof Statement
+      if ( ( premise instanceof Statement || premise.isAnActualDeclaration() )
         && result.some( entry => entry.hasSameMeaningAs( premise ) ) ) continue
       if ( premise instanceof Environment
         && result.some( entry => entry.hasSameMeaningAs( premise.last ) ) )
@@ -236,7 +236,9 @@ class Turnstile {
             // Recur to try to prove the remaining environment { C2 ... Cn }
             // (which, again, may contain a combination of givens and claims).
             debug( `applied ${result1} to conclusions: ${Cs}; continuing rule CR` )
-            const T2 = new Turnstile( result1.apply( this.premises ), Cs )
+            const T2 = new Turnstile(
+              result1.apply( [ ...this.premises, C1 ] ), Cs )
+            T2.simplifyPremises()
             for ( let solution of T2.findDerivationMatches( result1, options ) ) {
               yield ruleWorked( 'CR', solution, [ subproof, solution.proof ] )
             }
@@ -679,12 +681,14 @@ class Proof {
 
 // Efficiency improvements for later:
 //  - In findDerivationMatches(), where you are trying to prove many conclusions
-//    C1,...,Cn, after having successfully proven C1, take advantage of that to
-//    simplify further recursion, in two ways:
-//    1. Add C1 to the list of premises (LHS of turnstile) when you recur.
-//    2. Remove C1 from any other premise's list of givens-needing-proof, and
-//    adjust the order of those premises to preserve increasing order of
-//    number of givens.
+//    C1,...,Cn, after having successfully proven C1, we already take advantage
+//    of that to simplify further recursion by adding C1 to the list of premises
+//    (LHS of turnstile) when we recur, but we could also remove C1 from any
+//    other premise's list of givens-needing-proof (then adjust the order of
+//    those premises to preserve increasing order of number of givens).  The
+//    reason we do not yet do this is because it would make our proofs no longer
+//    able to cite specific rules for their steps, because this would be a
+//    shortcut not justifiable by only one rule application.
 //  - Pre-compute which LCs contain metavariables and just look the result up
 //    in Turnstile.compareLCs() rather than recomputing it.
 //  - Is there any efficiency in creating a routine that can quickly detect when
