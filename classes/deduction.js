@@ -194,6 +194,11 @@ class Turnstile {
         // apply rule T:
         debug( 'rule T' )
         yield ruleWorked( 'T', toExtend )
+      // This case is not strictly necessary, but improves efficiency:
+      } else if ( Cs.length == 1 ) {
+        debug( 'just address the single statement in the conclusion' )
+        const T = new Turnstile( this.premises, Cs[0] )
+        yield* T.findDerivationMatches( toExtend, options )
       } else { // n > 0, there are conclusions to prove
         // Pop the first thing off the conclusions Environment
         // and process it as either a given or a claim, depending on its status:
@@ -702,10 +707,6 @@ class Proof {
 //    "must be used" so that if we ever get to a point where we would want to
 //    drop that premise and explore a subgoal, we would simply give up and not
 //    explore it, knowing that any such proof will be found elsewhere instead.
-//  - Right now with conclusions of the form { X }, we treat them with the CR
-//    rule, proving first X and then { }.  To save some recursion, we could just
-//    replace the { X } with X immediately.  This will make proof objects a bit
-//    smaller.
 
 module.exports.Turnstile = Turnstile
 module.exports.Proof = Proof
