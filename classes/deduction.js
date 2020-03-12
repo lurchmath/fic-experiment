@@ -199,7 +199,7 @@ class Turnstile {
           // Because C1 may be a complex hierarchy, we first apply to it the
           // canonicalization scheme that gets it into the appropriate premise
           // form, then re-sort premises to preserve order.
-          const T = new Turnstile( [ C1.claim() ], Cs )
+          const T = new Turnstile( [ C1.claimCopy() ], Cs )
           T.simplifyPremises()
           T.premises = T.premises.concat( this.premises )
           T.makePremisesEfficient()
@@ -267,7 +267,7 @@ class Turnstile {
         } else if ( premise instanceof Environment
                  && !premise.isAnActualDeclaration() ) {
           debug( `premise is an environment: ${premise}` )
-          const As = premise.children().map( A => A.claim() )
+          const As = premise.children().map( A => A.claimCopy() )
           const B = As.pop()
           // The GL rule splits this into 2 subgoals:
           // 1. Can our other premises plus B prove the conclusion?
@@ -420,7 +420,7 @@ class Turnstile {
               // new goal is to prove those, with the solution we've found so far
               // applied to them, to instantiate any now-determined metavariables:
               let AEnv = result1.apply( new Environment(
-                ...premise.allButLast.map( A => A.claim() ) ) )
+                ...premise.allButLast.map( A => A.claimCopy() ) ) )
               const subproof = result1.proof // store here, before result1 changes
               debug( `applying rule GL means next attacking the givens ${AEnv}` )
               // Recur to try to prove the remaining environment { A1 ... An }
@@ -453,7 +453,7 @@ class Turnstile {
                 debug( `rule GL proved ${conclusion} with ${result1}` )
                 // very similar to above; not repeating comments again
                 let AEnv = result1.apply( new Environment(
-                  ...premise.allButLast.map( A => A.claim() ) ) )
+                  ...premise.allButLast.map( A => A.claimCopy() ) ) )
                 const subproof = result1.proof // store here, before result1 changes
                 debug( `applying rule GL means next attacking the givens ${AEnv}` )
                 // very similar to above; not repeating comments again
@@ -487,7 +487,7 @@ class Turnstile {
     //     if ( !G.isAGiven ) continue
     //     debug( `can we satisfy premise ${G} in ${F}?` )
     //     for ( let P of premises.filter( p => !p.isAFormula ) ) {
-    //       const problem = toExtend.asProblem().plusConstraint( G.claim(), P )
+    //       const problem = toExtend.asProblem().plusConstraint( G.claimCopy(), P )
     //       debug( `trying out this new matching constraint: (${G},${P})` )
     //       // for each way that it matches, check to see if that match can be the
     //       // start of a proof using the now one-step-smaller premise F

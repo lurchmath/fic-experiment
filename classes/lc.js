@@ -585,16 +585,22 @@ class LC extends Structure {
     throw( 'Cannot convert this type of OpenMath structure to LC' )
   }
 
+  // Sometimes you want a copy that's guaranteed to be a given/claim
+  claimCopy () {
+    let copy = this.copy()
+    copy.isAClaim = true
+    return copy
+  }
+  givenCopy () {
+    let copy = this.copy()
+    copy.isAGiven = true
+    return copy
+  }
   // In order to use the FIC recursion for rules GR and GL we need
   // to make copies of the LC :A that is not a given.  This accomplishes that.
   // Note that this routine does not make a copy of something that is already
   // a claim.
-  claim () {
-      if ( this.isAClaim ) return this
-      let copy = this.copy()
-      copy.isAClaim = true
-      return copy
-  }
+  claim () { return this.isAClaim ? this : this.claimCopy() }
 
   // Validate!!  Here we go.
   validate ( withProof ) {
