@@ -721,16 +721,14 @@ class Proof {
 //    premise and then the second, we get four subcases we must prove, but the
 //    first of them implies the third, so we should consider only three:
 //    Gamma |- C;  Gamma, D |- A;  Gamma, B |- C;  Gamma, B, D |- P.
-//  - There is another redundancy in the recursion.  For example, consider the
-//    rule that converts the goal Gamma, { :A B } |- C to the two subgoals
-//    Gamma, B |- C and Gamma |- A.  In the first subgoal, we somehow want to
-//    say "and you must use B," because any derivation Gamma, B |- C that
-//    doesn't use B is a derivation Gamma |- C, which will be found without
-//    our exploring { :A B } in the first place.  There's no need to find such a
-//    derivation twice.  It would be nice to be able to mark some premise as
-//    "must be used" so that if we ever get to a point where we would want to
-//    drop that premise and explore a subgoal, we would simply give up and not
-//    explore it, knowing that any such proof will be found elsewhere instead.
+//    This efficiency improvement is significant, because a 2^n improvement
+//    becomes an F_n improvement (still exponential but much smaller).  But we
+//    already have the strategy of applying GL to Gamma, { :A B } |- C by first
+//    asking whether Gamma, B |- C before checking whether Gamma |- A because,
+//    in general, there is more than one premise A, and this is a time saver.
+//    This means that we would evaluate the four cases above in reverse order,
+//    and thus not be able to carry the informtion from the leftmost over to
+//    help us skip the 3rd-from-the-left.  This efficiency regarding multiple
 //    premises may be more important, and thus this idea may be irrelevant.
 //  - Pre-compute which LCs contain metavariables and just look the result up
 //    in Turnstile.compareLCs() rather than recomputing it.  This may be more
