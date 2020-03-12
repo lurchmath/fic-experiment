@@ -35,6 +35,11 @@ class Turnstile {
     this.premises = premises
     this.conclusion = conclusion
   }
+  // make a deep copy
+  copy () {
+    return new Turnstile( this.premises.map( p => p.copy() ),
+                          this.conclusion.copy() )
+  }
   // you can apply a metavariable instantiation to this turnstile, and it
   // distributes it over all premises and the conclusion
   instantiateWith ( solution ) {
@@ -171,7 +176,7 @@ class Turnstile {
     // first a utility function for returning solutions with embedded proofs
     const ruleWorked = ( ruleName, solution, subproofs = [ ] ) => {
       if ( options.withProofs ) {
-        solution.proof = new Proof( this, ruleName, subproofs )
+        solution.proof = new Proof( this.copy(), ruleName, subproofs )
       }
       return solution
     }
@@ -522,8 +527,8 @@ class Turnstile {
       if ( !solutionsFound.some( s => s.equals( result ) ) ) {
         if ( options.withProofs ) {
           result.proof.instantiateWith( result )
-          // console.log( result.proof.toString() )
-        }
+          if ( verbose ) console.log( result.proof.toString() )
+        } else if ( verbose ) console.log( result.toString() )
         solutionsFound.push( result )
         yield result
       }

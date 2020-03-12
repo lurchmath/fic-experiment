@@ -296,15 +296,15 @@ suite( 'Derivation with matching', () => {
     expect( matchingSolutions ).to.have.length( stringMappings.length )
     for ( let i = 0 ; i < matchingSolutions.length ; i++ ) {
       const solution = matchingSolutions[i]
-      if ( solution.proof ) {
-        console.log( 'Original problem:', premises.map( p=>`${p}` ).join( ', ' ),
-                     `|- ${conclusion}` )
-        console.log( 'Instantiated to: ',
-                     solution.apply( premises ).map( p=>`${p}` ).join( ', ' ),
-                     `|- ${solution.apply( conclusion )}` )
-        console.log( `Proof:\n${solution.proof}` )
-        console.log( `Compact proof:\n${solution.proof.toString(true)}` )
-      }
+      // if ( solution.proof ) {
+      //   console.log( 'Original problem:', premises.map( p=>`${p}` ).join( ', ' ),
+      //                `|- ${conclusion}` )
+      //   console.log( 'Instantiated to: ',
+      //                solution.apply( premises ).map( p=>`${p}` ).join( ', ' ),
+      //                `|- ${solution.apply( conclusion )}` )
+      //   console.log( `Proof:\n${solution.proof}` )
+      //   console.log( `Compact proof:\n${solution.proof.toString(true)}` )
+      // }
       checkSolution( solution, stringMappings[i] )
     }
     expect( stringMappings.length > 0 ).to.be( T.existsDerivation( options ) )
@@ -680,8 +680,93 @@ suite( 'Derivation with matching', () => {
         makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
       ],
       makeExpression( 'b' ),
+      [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ]
+    )
+  } )
+
+  // Repeat all tests in previous function, but now asking for proofs in each
+  // case.  These proofs are not checked in any way, but we want to ensure that
+  // constructing them doesn't introduce any new bugs.
+  test( 'Correctly uses rules in combination, with matching and proofs', () => {
+    // First consider _X_ |- { :{ } A }, which should pass in exactly one way
+    checkSolutions(
+      [
+        makePattern( '_X_' )
+      ],
+      makeExpression( '{ :{ } A }' ),
+      [ { 'X' : 'A' } ],
+      { withProofs : true }
+    )
+    // Next consider _P_, Let{ _x_ _P_(_x_) } |- { Let{ z Q(z) } Q },
+    // which should pass in the way you'd expect, with x=z and P=Q.
+    checkSolutions(
+      [
+        makePattern( '_P_' ),
+        makePattern( 'Let{ _x_ _P_(_x_) }' )
+      ],
+      makeExpression( '{ Let{ z Q(z) } Q }' ),
+      [ { 'x' : 'z', 'P' : 'Q' } ],
+      { withProofs : true }
+    )
+    // Next consider
+    // { :P(_X_) P(S(_X_)) }, Let{ _x_ P(_x_) } |- Let{ t P(S(t)) },
+    // which should pass with x=t.
+    checkSolutions(
+      [
+        makePattern( '_P_' ),
+        makePattern( 'Let{ _x_ _P_(_x_) }' )
+      ],
+      makeExpression( '{ Let{ z Q(z) } Q }' ),
+      [ { 'x' : 'z', 'P' : 'Q' } ],
+      { withProofs : true }
+    )
+    // Next consider { _A_ _B_ } |- { }, which can work by the T rule only
+    checkSolutions(
+      [
+        makePattern( '{ _A_ _B_ }' )
+      ],
+      makeExpression( '{ }' ),
+      [ { } ],
+      { withProofs : true }
+    )
+    // Next consider { :imp(_A_,_B_) :_A_ _B_ }, imp(P,Q), P |- Q
+    checkSolutions(
+      [
+        makePattern( '{ :imp(_A_,_B_) { :_A_ _B_ } }' ),
+        makeExpression( 'imp(P,Q)' ),
+        makeExpression( 'P' )
+      ],
+      makeExpression( 'Q' ),
+      [ { 'A' : 'P', 'B' : 'Q' } ],
+      { withProofs : true }
+    )
+    // Also, consider:
+    // { :or(_A_,_B_) { :imp(_A_,_C_) { :imp(_B_,_C_) _C_ } } }, imp(yo,dude),
+    // imp(hey,dude), or(hey,yo) |- dude
+    checkSolutions(
+      [
+        makePattern( '{ :or(_A_,_B_) :imp(_A_,_C_) :imp(_B_,_C_) _C_ }' ),
+        makeExpression( 'imp(yo,dude)' ),
+        makeExpression( 'imp(hey,dude)' ),
+        makeExpression( 'or(hey,yo)' )
+      ],
+      makeExpression( 'dude' ),
+      [ { 'A' : 'hey', 'B' : 'yo', 'C' : 'dude' } ],
+      { withProofs : true }
+    )
+    // Now how about a large example?
+    // or(a,and(b,c)), not(a),
+    //   { :or(_X1_,_Y1_) :not(_X1_) _Y1_ }, { :and(_X2_,_Y2_) _X2_ } |- b
+    checkSolutions(
+      [
+        makeExpression( 'or(a,and(b,c))' ),
+        makeExpression( 'not(a)' ),
+        makePattern( '{ :or(_X1_,_Y1_) :not(_X1_) _Y1_ }' ),
+        makePattern( '{ :and(_X2_,_Y2_) _X2_ }' )
+      ],
+      makeExpression( 'b' ),
       [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ],
-      // { withProofs : true }
+      { withProofs : true }
     )
   } )
 
