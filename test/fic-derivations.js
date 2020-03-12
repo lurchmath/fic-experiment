@@ -114,7 +114,32 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( Turnstile.compareLCs( M, M2 ).expression ).to.be( undefined )
   } )
 
-  test( 'compareLCs of 1 LC with metavariables and 1 w/o sorts them', () => {
+  test( 'compareLCs of 2 that obviously cannot share a shape is false', () => {
+    let L = LC.fromString( 'i(have,three,kids)' )
+    let M = LC.fromString( 'i(have,two)' )
+    M.child( 1 ).isAMetavariable = true
+    expect( L.containsAMetavariable() ).to.be( false )
+    expect( M.containsAMetavariable() ).to.be( true )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, L ).same ).to.be( false )
+    expect( Turnstile.compareLCs( M, L ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, L ).expression ).to.be( undefined )
+    L = LC.fromString( 'example(1,2,3,f(4))' )
+    M = LC.fromString( 'example(X,2,3)' )
+    M.child( 1 ).isAMetavariable = true
+    expect( L.containsAMetavariable() ).to.be( false )
+    expect( M.containsAMetavariable() ).to.be( true )
+    expect( Turnstile.compareLCs( L, M ).same ).to.be( false )
+    expect( Turnstile.compareLCs( L, M ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( L, M ).expression ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, L ).same ).to.be( false )
+    expect( Turnstile.compareLCs( M, L ).pattern ).to.be( undefined )
+    expect( Turnstile.compareLCs( M, L ).expression ).to.be( undefined )
+  } )
+
+  test( 'compareLCs of every other kind sorts the LCs correctly', () => {
     let L = LC.fromString( 'foo' )
     let M = LC.fromString( 'bar' )
     L.isAMetavariable = true
@@ -127,8 +152,8 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( Turnstile.compareLCs( M, L ).pattern ).to.be( L )
     expect( Turnstile.compareLCs( M, L ).expression ).to.be( M )
     L = LC.fromString( 'example(1,2,3,f(4))' )
-    M = LC.fromString( 'other(~thing,a(b),~c)' )
-    M.child( 1 ).isAMetavariable = true
+    M = LC.fromString( 'example(X,2,3,f(4))' )
+    M.child( 0 ).isAMetavariable = true
     expect( L.containsAMetavariable() ).to.be( false )
     expect( M.containsAMetavariable() ).to.be( true )
     expect( Turnstile.compareLCs( L, M ).same ).to.be( false )

@@ -80,12 +80,47 @@ class Turnstile {
   // { same: false, pattern: P, expression: E } means the CLs have different
   //   meanings, and we can use matching with the given (P,E) pair to try to
   //   make progress on reconciling those different meanings
+  // One exception:  The { same: false } case may also be returned in cases when
+  // precisely one LC had metavariables, but it was obvious from a cursory
+  // inspection that they could never match, so we state that now to save
+  // unnecessary matchmaking attempts.
   static compareLCs ( lc1, lc2 ) {
+    // if they have the same meaning, including metavariables, this is easy
     if ( lc1.hasSameMeaningAs( lc2 ) ) return { same : true }
+    // if they have different meanings, but the same metavariable status,
+    // they're clearly different, so this is also easy
     const mv1 = lc1.containsAMetavariable()
     const mv2 = lc2.containsAMetavariable()
-    return mv1 == mv2 ? { same : false } :
-           mv1 ? { same : false, pattern : lc1, expression : lc2 }
+    if ( mv1 == mv2 ) return { same : false }
+    // the next two clauses handle the "one exception" case mentioned above
+    const differentExpressions = ( x, y ) => !x.containsAMetavariable()
+                                          && !y.containsAMetavariable()
+                                          && !x.hasSameMeaningAs( y )
+    const nc1 = lc1.children().length
+    const nc2 = lc2.children().length
+    if ( nc1 == nc2 ) {
+      if ( lc1.children().some( ( child, index ) =>
+          differentExpressions( child, lc2.child( index ) ) ) ) {
+        // same # children, but one pair that would need to match are two
+        // different expressions, neither containing metavariables
+        return { same : false }
+      }
+      if ( !lc1.isAMetavariable && !lc2.isAMetavariable
+        && lc1.identifier != lc2.identifier ) {
+        // equivalent to asking if the heads of each LC are diff. expressions
+        return { same : false }
+      }
+    } else {
+      if ( nc1 == 0 && mv2 || nc2 == 0 && mv1 || nc1 > 0 && nc2 > 0 ) {
+        // either we have a non-metavariable atomic trying to match a
+        // compound statement or we are trying to match two compound statements
+        // of different # children; metavariables can't solve these problems
+        return { same : false }
+      }
+    }
+    // last, if precisely one contains metavariables, correctly sort which is
+    // the pattern vs. which is the expression
+    return mv1 ? { same : false, pattern : lc1, expression : lc2 }
                : { same : false, pattern : lc2, expression : lc1 }
   }
   // We can measure the complexity of a premise by the number of givens you would
@@ -691,11 +726,6 @@ class Proof {
 //    shortcut not justifiable by only one rule application.
 //  - Pre-compute which LCs contain metavariables and just look the result up
 //    in Turnstile.compareLCs() rather than recomputing it.
-//  - Is there any efficiency in creating a routine that can quickly detect when
-//    a match is not possible?  For example, if both are compound with different
-//    head symbols or different numbers of children, it can't match.  Or if one
-//    is a metavariable and the other is not, it can.  Could this be used to
-//    prune some explorations early?
 //  - Consider the redundancy inherent in exploring all possibilities from
 //    Gamma, { :A B }, { :C D } |- P.  If we apply GL to the first environment
 //    premise and then the second, we get four subcases we must prove, but the
