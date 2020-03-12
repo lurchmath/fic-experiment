@@ -58,6 +58,12 @@ class MatchingSolution {
           this._mapping[key] = mapping[key]
     }
   }
+  // deep copy
+  copy () {
+    const result = new MatchingSolution()
+    this.keys().map( key => result.add( key, this.lookup( key ).copy() ) )
+    return result
+  }
   // You can extend the solution with arbitrary metavariable/expression pairs
   // after constructing it.  The metavariable can be a string or a Statement LC
   // that is a metavariable.
@@ -93,12 +99,14 @@ class MatchingSolution {
   // variable capture checks in this function.)
   // The instantiation is done in-place, modifying the given argument.
   applyInPlace ( target ) {
-    if ( target.children().length > 0 ) {
-      target.children().map( child => this.applyInPlace( child ) )
-    } else if ( target.isAnIdentifier && target.isAMetavariable
-                                      && this.has( target.identifier ) ) {
+    target.children().map( child => this.applyInPlace( child ) )
+    if ( target.isAMetavariable && this.has( target.identifier ) ) {
+      // make a copy of the metavariable instantiation for this new location
       const replacement = this.lookup( target.identifier ).copy()
       replacement.isAGiven = target.isAGiven
+      // move target's children into its replacement
+      target.children().map( child => replacement.push( child ) )
+      // replace target in parent context with replacement
       target.replaceWith( replacement )
     }
   }

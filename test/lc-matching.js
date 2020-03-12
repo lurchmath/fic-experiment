@@ -86,6 +86,13 @@ suite( 'MatchingSolution', () => {
     // and the coversion happened correctly
     expect( pattern4.equals( LC.fromString( 'f(thing(1),Y,z,DUDE)' ) ) )
       .to.be( true )
+    // now test the corner case where the metavariable is applied as a function
+    const pattern5 = LC.fromString( 'MV(a,b)' )
+    pattern5.isAMetavariable = true
+    const solution3 = new MatchingSolution()
+    solution3.add( 'MV', LC.fromString( 'phi' ) )
+    const test = solution3.apply( pattern5 )
+    expect( test.equals( LC.fromString( 'phi(a,b)' ) ) ).to.be( true )
   } )
 
 } )

@@ -35,11 +35,8 @@ class Turnstile {
     this.premises = premises
     this.conclusion = conclusion
   }
-  // make a deep copy
-  copy () {
-    return new Turnstile( this.premises.map( p => p.copy() ),
-                          this.conclusion.copy() )
-  }
+  // make a shallow copy
+  shallowCopy () { return new Turnstile( this.premises, this.conclusion ) }
   // you can apply a metavariable instantiation to this turnstile, and it
   // distributes it over all premises and the conclusion
   instantiateWith ( solution ) {
@@ -175,10 +172,11 @@ class Turnstile {
   *findDerivationMatches ( toExtend, options = { } ) {
     // first a utility function for returning solutions with embedded proofs
     const ruleWorked = ( ruleName, solution, subproofs = [ ] ) => {
+      const copy = solution.copy()
       if ( options.withProofs ) {
-        solution.proof = new Proof( this.copy(), ruleName, subproofs )
+        copy.proof = new Proof( this.shallowCopy(), ruleName, subproofs )
       }
-      return solution
+      return copy
     }
     // now the actual routine begins
     debugin()

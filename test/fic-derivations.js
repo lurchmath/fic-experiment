@@ -297,11 +297,10 @@ suite( 'Derivation with matching', () => {
     for ( let i = 0 ; i < matchingSolutions.length ; i++ ) {
       const solution = matchingSolutions[i]
       // if ( solution.proof ) {
-      //   console.log( 'Original problem:', premises.map( p=>`${p}` ).join( ', ' ),
-      //                `|- ${conclusion}` )
-      //   console.log( 'Instantiated to: ',
-      //                solution.apply( premises ).map( p=>`${p}` ).join( ', ' ),
-      //                `|- ${solution.apply( conclusion )}` )
+      //   console.log( `Original problem: ${T}` )
+      //   const T2 = T.shallowCopy()
+      //   T2.instantiateWith( solution )
+      //   console.log( `Instantiated to:  ${T2}` )
       //   console.log( `Proof:\n${solution.proof}` )
       //   console.log( `Compact proof:\n${solution.proof.toString(true)}` )
       // }
