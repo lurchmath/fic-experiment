@@ -714,18 +714,7 @@ class Proof {
 }
 
 
-// Efficiency improvements for later:
-//  - In findDerivationMatches(), where you are trying to prove many conclusions
-//    C1,...,Cn, after having successfully proven C1, we already take advantage
-//    of that to simplify further recursion by adding C1 to the list of premises
-//    (LHS of turnstile) when we recur, but we could also remove C1 from any
-//    other premise's list of givens-needing-proof (then adjust the order of
-//    those premises to preserve increasing order of number of givens).  The
-//    reason we do not yet do this is because it would make our proofs no longer
-//    able to cite specific rules for their steps, because this would be a
-//    shortcut not justifiable by only one rule application.
-//  - Pre-compute which LCs contain metavariables and just look the result up
-//    in Turnstile.compareLCs() rather than recomputing it.
+// Efficiency improvements for later, in decreasing priority order:
 //  - Consider the redundancy inherent in exploring all possibilities from
 //    Gamma, { :A B }, { :C D } |- P.  If we apply GL to the first environment
 //    premise and then the second, we get four subcases we must prove, but the
@@ -741,6 +730,18 @@ class Proof {
 //    "must be used" so that if we ever get to a point where we would want to
 //    drop that premise and explore a subgoal, we would simply give up and not
 //    explore it, knowing that any such proof will be found elsewhere instead.
+//  - Pre-compute which LCs contain metavariables and just look the result up
+//    in Turnstile.compareLCs() rather than recomputing it.  This may be more
+//    trouble than it's worth, because these computations are rather trivial.
+//  - In findDerivationMatches(), where you are trying to prove many conclusions
+//    C1,...,Cn, after having successfully proven C1, we already take advantage
+//    of that to simplify further recursion by adding C1 to the list of premises
+//    (LHS of turnstile) when we recur, but we could also remove C1 from any
+//    other premise's list of givens-needing-proof (then adjust the order of
+//    those premises to preserve increasing order of number of givens).  The
+//    reason we do not yet do this is because it would make our proofs no longer
+//    able to cite specific rules for their steps, because this would be a
+//    shortcut not justifiable by only one rule application.
 
 module.exports.Turnstile = Turnstile
 module.exports.Proof = Proof
