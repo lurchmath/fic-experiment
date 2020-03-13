@@ -32,3 +32,5 @@
     should include the working forwards/backwards option as well as the
     question of how many copies of a formula to add.  Provide proofs of all
     the claims made in such documentation.
+ 1. Create a compact string encoding of LCs (a faithful embedding) for use when
+    caching things like whether derivations hold.
