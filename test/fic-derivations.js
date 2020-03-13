@@ -792,6 +792,40 @@ suite( 'Derivation with matching', () => {
       [ { 'X1' : 'a', 'Y1' : 'and(b,c)', 'X2' : 'b', 'Y2' : 'c' } ],
       { withProofs : true }
     )
+    // How about something tricky?
+    checkSolutions(
+      [
+        makePattern( '{ :and(_A_,_B_) and(_B_,_A_) }' ),
+        makePattern( '{ :and(_C_,_D_) _C_ }' ),
+        makeExpression( 'and(x,y)' )
+      ],
+      makeExpression( 'y' ),
+      [ { 'A' : 'x', 'B' : 'y', 'C': 'y', 'D' : 'x' } ],
+    )
+  } )
+
+  test( 'And yet FIC with matching cannot prove everything', () => {
+    checkSolutions(
+      [
+        makePattern( '{ :foo(_A_) bar(_A_,_B_) }' ),
+        makePattern( '{ :bar(_C_,_D_) baz(_D_) }' ),
+        makeExpression( 'foo(x)' )
+      ],
+      makeExpression( 'baz(y)' ),
+      [ ]
+    )
+    // // This test is commented out because it does not help us differentiate
+    // // workBothWays true from false.
+    // checkSolutions(
+    //   [
+    //     makePattern( '{ :foo(_A_) bar(_A_,_B_) }' ),
+    //     makePattern( '{ :bar(_C_,_D_) baz(_D_) }' ),
+    //     makeExpression( 'foo(x)' )
+    //   ],
+    //   makeExpression( 'baz(y)' ),
+    //   [ ],
+    //   { workBothWays : true }
+    // )
   } )
 
 } )

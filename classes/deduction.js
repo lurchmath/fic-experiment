@@ -519,38 +519,52 @@ class Turnstile {
         }
       }
     }
-    // I am no longer sure the following code is required.
+    // I do not yet have any evidence that we need the following code.
+    // It would be nice to produce a test that worked iff workBothWays: true.
 
     // // In the event that we found no solutions by working backwards from our
     // // goal, we may still find solutions by working forward from our premises,
     // // but this is typically more expensive.  So we do not do it by default.
     // // But if the user sets options.workBothWays to true, we will.
-    // // To do so, we seek any formula premise F and any non-formula premise P
-    // // such that the first given inside F matches P.
+    // // To do so, we seek any formula premise and any non-formula premise such
+    // // that the first given inside the formula matches the premise.
     // if ( options.workBothWays ) {
     //   debug( `trying working forwards from premises...` )
-    //   for ( let i = 0 ; i < premises.length ; i++ ) {
-    //     let F = premises[i]
-    //     if ( !F.containsAMetavariable() || !( F instanceof Environment ) )
-    //       continue
-    //     let G = F.first
-    //     if ( !G.isAGiven ) continue
-    //     debug( `can we satisfy premise ${G} in ${F}?` )
-    //     for ( let P of premises.filter( p => !p.isAFormula ) ) {
-    //       const problem = toExtend.asProblem().plusConstraint( G.claimCopy(), P )
-    //       debug( `trying out this new matching constraint: (${G},${P})` )
+    //   for ( let i = 0 ; i < this.premises.length ; i++ ) {
+    //     let formula = this.premises[i]
+    //     if ( !formula.containsAMetavariable()
+    //       || !( formula instanceof Environment ) ) continue
+    //     let given = formula.first
+    //     if ( !given.isAGiven ) continue
+    //     debug( `can we satisfy premise ${given} in ${formula}?` )
+    //     for ( let premise of
+    //           this.premises.filter( p => !p.containsAMetavariable() ) ) {
+    //       const problem = toExtend.asProblem()
+    //                               .plusConstraint( given.claimCopy(), premise )
+    //       debug( `trying out this new matching constraint: (${given},${premise})` )
     //       // for each way that it matches, check to see if that match can be the
-    //       // start of a proof using the now one-step-smaller premise F
-    //       for ( const solution of problem.enumerateSolutions() ) {
-    //         debug( `satisfied: ${solution}...so removing ${G} from ${F}` )
-    //         const newPremises = solution.apply( premises )
+    //       // start of a proof using the now one-step-smaller premise formula
+    //       for ( const result1 of problem.enumerateSolutions() ) {
+    //         const subproof = result1.proof // store here, before result1 changes
+    //         debug( `satisfied: ${result1}...so removing ${given} from ${formula}` )
+    //         // remove that given and re-simplify all premises
+    //         const newPremises = result1.apply( this.premises )
     //         newPremises[i].removeChild( 0 )
-    //         yield* findDerivationMatches(
-    //           newPremises, solution.apply( conclusion ), solution, options )
+    //         const T = new Turnstile( [ newPremises[i] ],
+    //                                  result1.apply( this.conclusion ) )
+    //         T.simplifyPremises()
+    //         T.premises = T.premises.concat( newPremises.without( i ) )
+    //         T.makePremisesEfficient()
+    //         // recur on the slightly simpler proof
+    //         for ( const solution of T.findDerivationMatches( result1, options ) ) {
+    //           yield ruleWorked( 'GL', solution, [ subproof, solution.proof ], i )
+    //         }
     //       }
     //     }
     //   }
     // }
+
+    // End of routine
     debugout()
   }
 
