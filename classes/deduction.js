@@ -736,6 +736,14 @@ class Proof {
 
 
 // Efficiency improvements for later, in decreasing priority order:
+//  - When simplifying premises into { :A1 ... :An B } form, sort the A's
+//    so that the most complex of them appear first.  This has two positive
+//    effects:  First, if we end up attempting to prove { A1 ... An }, and it
+//    is not possible to prove one of them, we have increased the chances of
+//    discovering that early by placing the complex ones first.  Second, if we
+//    attempt to work forwards, matching existing premises against the A's, we
+//    will discover more constraints sooner by dealing with the complex
+//    matching requirements first.
 //  - Consider the redundancy inherent in exploring all possibilities from
 //    Gamma, { :A B }, { :C D } |- P.  If we apply GL to the first environment
 //    premise and then the second, we get four subcases we must prove, but the
