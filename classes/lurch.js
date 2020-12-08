@@ -5,7 +5,7 @@
 // Description: This allows us to define a node REPL which has all
 //              of the lurch FIC brains loaded.
 //
-// Syntax: at the bash prompt type "node init.js"  where init.js is this file,
+// Syntax: at the bash prompt type "node lurch.js"  where lurch.js is this file,
 //         assuming the current directory is the /classes directory.
 //
 // Features: Entering the node command '.clear' (no '' quotes) at the node
@@ -33,7 +33,8 @@ const dependencies = [
   './statement.js',
   './environment.js',
   './deduction.js',
-  './matching.js'
+  './matching.js',
+  '../dependencies/LSAT.js'
 ]
 
 function initializeLurch ( context ) {
