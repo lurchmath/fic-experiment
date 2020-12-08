@@ -5,8 +5,7 @@
 let expect = require( 'expect.js' )
 
 // import relevant classes and the deduction routine
-const { LC, Statement, Environment, existsDerivation } =
-  require( '../classes/all.js' )
+const { LC, Statement, Environment, Turnstile } = require( '../classes/all.js' )
 
 let lc = ( s ) => LC.fromString( s )
 
@@ -137,19 +136,19 @@ suite( 'Validation', () => {
               + '  }                     '
               + '}                       '
       let DA = LC.fromString(divalg)
-      expect(existsDerivation([D],D)).to.be(true)
-      expect(existsDerivation([D,L],D)).to.be(true)
-      expect(existsDerivation([D,L],L)).to.be(true)
-      expect(existsDerivation([D],L)).to.be(false)
-      expect(existsDerivation([L],D)).to.be(false)
-      expect(existsDerivation([D],Pst)).to.be(true)
-      expect(existsDerivation([Pst],D)).to.be(false)
-      expect(existsDerivation([L],Pst)).to.be(true)
-      expect(existsDerivation([Pst],L)).to.be(false)
-      expect(existsDerivation([],Pst)).to.be(false)
-      expect(existsDerivation([],L)).to.be(false)
-      expect(existsDerivation([],X)).to.be(false)
-      expect(existsDerivation([],DA)).to.be(true)
+      expect( new Turnstile( [ D ],   D   ).existsDerivation() ).to.be( true )
+      expect( new Turnstile( [ D,L ], D   ).existsDerivation() ).to.be( true )
+      expect( new Turnstile( [ D,L ], L   ).existsDerivation() ).to.be( true )
+      expect( new Turnstile( [ D ],   L   ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [ L ],   D   ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [ D ],   Pst ).existsDerivation() ).to.be( true )
+      expect( new Turnstile( [ Pst ], D   ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [ L ],   Pst ).existsDerivation() ).to.be( true )
+      expect( new Turnstile( [ Pst ], L   ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [  ],    Pst ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [  ],    L   ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [  ],    X   ).existsDerivation() ).to.be( false )
+      expect( new Turnstile( [  ],    DA  ).existsDerivation() ).to.be( true )
   } )
 
   test( 'Testing valdation involving declarations.', () => {

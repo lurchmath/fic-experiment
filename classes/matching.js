@@ -29,6 +29,16 @@ const {
 const { OM } = require( '../dependencies/openmath.js' )
 const { LC } = require( './lc.js' )
 
+// Add Jupyter support to OpenMath
+const escapeXML = ( text ) => text.replace( /&/g, "&amp;" )
+                                  .replace( /</g, "&lt;" )
+                                  .replace( />/g, "&gt;" )
+                                  .replace( /"/g, "&quot;" )
+                                  .replace( /'/g, "&#039;" )
+OM.prototype._toHtml = function () { return `$${this.simpleEncode()}$` }
+// And support converting Jupyter notebooks to LaTeX/PDF
+OM.prototype._toMime = function () { return { "text/latex": this._toHtml() } }
+
 // A MatchingSolution is a mapping from metavariables to expressions,
 // representing the solution to a MatchingProblem (which is defined below).
 class MatchingSolution {
@@ -47,6 +57,12 @@ class MatchingSolution {
         if ( mapping.hasOwnProperty( key ) )
           this._mapping[key] = mapping[key]
     }
+  }
+  // deep copy
+  copy () {
+    const result = new MatchingSolution()
+    this.keys().map( key => result.add( key, this.lookup( key ).copy() ) )
+    return result
   }
   // You can extend the solution with arbitrary metavariable/expression pairs
   // after constructing it.  The metavariable can be a string or a Statement LC
@@ -83,12 +99,14 @@ class MatchingSolution {
   // variable capture checks in this function.)
   // The instantiation is done in-place, modifying the given argument.
   applyInPlace ( target ) {
-    if ( target.children().length > 0 ) {
-      target.children().map( child => this.applyInPlace( child ) )
-    } else if ( target.isAnIdentifier && target.isAMetavariable
-                                      && this.has( target.identifier ) ) {
+    target.children().map( child => this.applyInPlace( child ) )
+    if ( target.isAMetavariable && this.has( target.identifier ) ) {
+      // make a copy of the metavariable instantiation for this new location
       const replacement = this.lookup( target.identifier ).copy()
       replacement.isAGiven = target.isAGiven
+      // move target's children into its replacement
+      target.children().map( child => replacement.push( child ) )
+      // replace target in parent context with replacement
       target.replaceWith( replacement )
     }
   }
@@ -113,6 +131,48 @@ class MatchingSolution {
   toString () {
     return '{ ' + this.keys().map( metavariableName =>
       `(${metavariableName},${this.lookup(metavariableName)})` ) + ' }'
+  }
+  // For use in Jupyter notebooks
+  _toHtml () {
+    let result = this.keys().map( metavariableName => {
+      const instantiation = this.lookup( metavariableName )
+      let rhs
+      if ( instantiation.isAQuantifier && instantiation.identifier == 'gEF' ) {
+        const vars = instantiation.allButLast.map( v => `${v}` )
+        rhs = `&lambda;${vars.join( ',' )}.${instantiation.last}`
+      } else {
+        rhs = `${instantiation}`
+      }
+      return `<tr><td>${metavariableName}</td>`
+           + `<td style="text-align: left;">${rhs}</td></tr>`
+    } ).join( '' )
+    if ( result == '' )
+      result = '<tr><td colspan=2 style="text-align: center;">'
+             + '(empty function)</td></tr>'
+    return `<table style="border: 1px solid black;">`
+         + `<tr><td>Metavariable</td><td>Instantiation</td></tr>`
+         + `${result}</table>`
+  }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    let result = this.keys().map( metavariableName => {
+      const instantiation = this.lookup( metavariableName )
+      let rhs
+      if ( instantiation.isAQuantifier && instantiation.identifier == 'gEF' ) {
+        const vars = instantiation.allButLast.map( v => `${v}` )
+        rhs = instantiation.last._toMime()["text/latex"]
+        rhs = rhs.substring( 1, rhs.length - 1 )
+        rhs = `\\lambda ${vars.join( ',' )}.${rhs}`
+      } else {
+        rhs = instantiation._toMime()["text/latex"]
+      }
+      return `${metavariableName} & ${rhs}`
+    } ).join( '\\\\\n' )
+    if ( result == '' )
+      result = '(empty & function)\\\\'
+    return { "text/latex": `\\begin{tabular}{rl}\n`
+         + `Metavariable & Instantiation \\\\\\hline\n`
+         + `${result}\n\\end{tabular}` }
   }
 }
 
@@ -212,6 +272,33 @@ class MatchingProblem {
       this._MC.challengeList.contents.map( pair =>
         `(${pair.pattern.simpleEncode()},${pair.expression.simpleEncode()})` )
       .join( ',' ) + ' }'
+  }
+  // For use in Jupyter notebooks
+  _toHtml () {
+    let result = this._MC.challengeList.contents.map( pair => {
+      let lhs = escapeXML( pair.pattern.simpleEncode() )
+      let rhs = escapeXML( pair.expression.simpleEncode() )
+      return `<tr><td style="text-align: left;">${lhs}</td>`
+           + `<td style="text-align: left;">${rhs}</td></tr>`
+    } ).join( '' )
+    if ( result == '' )
+      result = '<tr><td colspan=2 style="text-align: center;">'
+             + '(empty problem)</td></tr>'
+    return `<table style="border: 1px solid black;">`
+         + `<tr><td>Pattern</td><td>Expression</td></tr>`
+         + `${result}</table>`
+  }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    let result = this._MC.challengeList.contents.map( pair => {
+      return `${pair.pattern._toMime()["text/latex"]} & `
+           + `${pair.expression._toMime()["text/latex"]}`
+    } ).join( '\\\\\n' )
+    if ( result == '' )
+      result = '(empty & function)\\\\'
+    return { "text/latex": `\\begin{tabular}{ll}\n`
+         + `Pattern & Expression \\\\\\hline\n`
+         + `${result}\n\\end{tabular}` }
   }
 }
 

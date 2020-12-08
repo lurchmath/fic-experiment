@@ -151,12 +151,34 @@ class LC extends Structure {
     }
   }
 
+  // Statement LCs can contain metavariables, so here we provide a generic
+  // routine for checking whether this LC or any statement inside it contains
+  // a metavariable
+  containsAMetavariable = () =>
+    this instanceof Statement && this.isAMetavariable ||
+    this.children().some( x => x.containsAMetavariable() )
+
   // Abstract-like method that subclasses will fix:
   toString () {
     return ( this.isAGiven ? ':' : '' )
          + 'LC('
          + this.children().map( child => child.toString() ).join( ',' )
          + ')'
+  }
+  // Add support for Jupyter notebooks
+  _toHtml () {
+    const escapeXML = ( text ) =>
+      text.replace( /&/g, "&amp;" ).replace( /</g, "&lt;" )
+          .replace( />/g, "&gt;" ).replace( /"/g, "&quot;" )
+          .replace( /'/g, "&#039;" )
+    return `<pre>${escapeXML(this.toString())}</pre>`
+  }
+  // for converting Jupyter notebooks to LaTeX/PDF
+  _toMime () {
+    const escapeMath = ( text ) =>
+      text.replace( / /g, '~' ).replace( /{/g, '\\{' ).replace( /}/g, '\\}' )
+          .replace( /[:]/g, '{:}' )
+    return { "text/latex": `$${escapeMath( this.toString() )}$` }
   }
 
   // Abstract-like method that subclasses will fix:
@@ -677,16 +699,23 @@ class LC extends Structure {
     throw( 'Cannot convert this type of OpenMath structure to LC' )
   }
 
+  // Sometimes you want a copy that's guaranteed to be a given/claim
+  claimCopy () {
+    let copy = this.copy()
+    copy.isAClaim = true
+    return copy
+  }
+  givenCopy () {
+    let copy = this.copy()
+    copy.isAGiven = true
+    return copy
+  }
   // In order to use the FIC recursion for rules GR and GL we need
   // to make copies of the LC :A that is not a given.  This accomplishes that.
   // Note that this routine does not make a copy of something that is already
   // a claim.
-  claim () {
-      if ( this.isAClaim ) return this
-      let copy = this.copy()
-      copy.isAClaim = true
-      return copy
-  }
+  claim () { return this.isAClaim ? this : this.claimCopy() }
+  given () { return this.isAGiven ? this : this.givenCopy() }
 
   // Validate!!  Here we go.
   validate ( withProof ) {
@@ -697,32 +726,16 @@ class LC extends Structure {
     this.markDeclarations()
 
     // fetch the conclusions - they are the only things we validte with FIC
-    let concs = this.conclusions()
-
-    concs.forEach( ( X ) => {
-      let LHS = X.allAccessibles()
-      LHS = LHS.map( x => x.claim() )
-      if ( withProof ) {
-        let result = firstDerivation( LHS, X , { withProofs: true } )
-
-        if (result) {
-          X.setAttribute( 'validation' ,
-          { status: true, feedback:'Good job!', proof: result.proof } )
-        } else {
-          X.setAttribute( 'validation' , { status: false,
-                                         feedback: 'This doesn\'t follow.' } )
-        }
-
-      } else {
-        let result = existsDerivation( LHS, X )
-
-        if (result) {
-          X.setAttribute( 'validation' , { status: true, feedback:'Good job!' } )
-        } else {
-          X.setAttribute( 'validation' , { status: false,
-                                         feedback: 'This doesn\'t follow.' } )
-        }
-      }
+    this.conclusions().forEach( C => {
+      const T = new Turnstile( C.allAccessibles().map( A => A.claim() ), C )
+      const right = { status: true, feedback: 'Good job!' }
+      const wrong = { status: false, feedback: 'This doesn\'t follow.' }
+      const result = T.firstDerivation( { withProofs: withProof } )
+      if ( result && withProof )
+        right.proof = result.proof
+      else
+        delete right.proof
+      C.setAttribute( 'validation', result ? right : wrong )
     } )
   }
 
@@ -1047,3 +1060,4 @@ const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
 const { existsDerivation, firstDerivation } =
        require( '../classes/deduction.js' )
+const { Turnstile } = require( '../classes/deduction.js' )
