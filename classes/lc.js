@@ -1,4 +1,3 @@
-
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { satSolve } = require( '../dependencies/LSAT.js' )
@@ -291,7 +290,10 @@ class LC extends Structure {
   // The formula and given statuses of the original L are copied over.
   // The following routine computes this, which involves making copies of each
   // Li, so that we do not destroy/alter the original LC L.
-  fullyParenthesizedForm () {
+  fullyParenthesizedForm (showtimes) {
+      let debug = (msg) => { if (showtimes) console.log(msg) }
+      let start= new Date
+      debug(`Computing fully parenthesized form ...`)
     if ( this.LCchildren().length < 3 ) return this.copy()
     let kids = this.LCchildren().slice()
     let result = new Environment( kids[kids.length-2].copy(),
@@ -302,6 +304,8 @@ class LC extends Structure {
       result = new Environment( kids.pop().copy(), result )
     result.isAFormula = this.isAFormula
     result.isAGiven = this.isAGiven
+      let fin = new Date
+      debug(`... ${(fin-start)/1000} seconds`)
     return result
   }
 
@@ -739,6 +743,7 @@ class LC extends Structure {
     } )
   }
 
+  /////////////////////////////////////////////////////////////////////
   //
   // SAT validation
   //
@@ -748,11 +753,276 @@ class LC extends Structure {
   // the LC's as a proposition where { :A B } means A=>B and { A B } means
   // 'A and B', and convert any LC to CNF.
 
-  // First, we make a catalog that numbers all of the statements.
-  // Given an lc it returns
-  // an array of statements contained in that lc, where no statement can appear
-  // more than once. The value assigned to each statement is one more than its
-  // index in its catalog (because it can't be zero).
+  // Since { :A :B :C D } is effectively declaring A,B,C|-D, something of the
+  // form { }, { :A } or { :A :B } are not something we need to validate,
+  // and we will return undefined in that situation.
+
+  // Similarly, we will treat something of the form { A :B } as being
+  // equivalent to { A } for Validation purposes, which in turn is equivalent
+  // to just A.
+
+  // An LC can compute its own cnf form, which is an array of sets.
+  // Each set should represent a clause in the cnf, and is the disjunction of
+  // its elements.  The array containing the sets represents their conjunction.
+
+  // For Statements, S, the cnf is [ X ] where X is a js set containing
+  // S.toString(). These strings will eventually be numbered for passing to
+  // satSolve.
+
+  // For Environments, E, we use the interpretations above to recursively
+  // construct the cnf.
+
+  // IMPORTANT NOTE:  We CANNOT cache these values for an
+  // important reason.  Namely, if we do not use switch variables when computing
+  // the cnf, we will have exponential growth in the number of terms.  But if we
+  // do use switch variables, then the cnf form of a decendant of an LC depends
+  // on it's ancestors.  This is because introducing switch variables produces a
+  // cnf that is equisatisfiable but not logically equivalent.  If we cache
+  // cnfs that are not logically equivalent to the original LC, then if we use
+  // substitute those cnfs into a larger expression we can obtain a cnf which is
+  // neither logically equivalent, nor equisatisfiable with, the larger
+  // expression.  See the Infamous Bug Proposition in the testing suite for
+  // an example.
+
+  // For efficiency, it's better to add an extra argument to cnf that tells us
+  // whether that cnf should have it's Given attribute toggled.  The reason this
+  // is more efficient is because the cnf form of an LC is generally much larger
+  // than the original LC, so negating the cnf's of the children of an Environment
+  // is generally more time consuming than computing the cnf's of the negations
+  // of the children (which in LC form is determined by how we interpret the
+  // Given attribute).
+
+  cnf (switchVar = '_Z',toggleGiven = false) {
+    indent+=1
+    // pretty print a cnf
+    let show = (A) => {
+      if ( A === undefined ) { return undefined }
+      let a = A.map( x => Array.from(x) )
+      let ans = '['
+      a.forEach( x => ans += ' {'+x.toString()+'}')
+      return ans+' ]'
+    }
+    // make it easy to toggle on/off
+    // let debug =  (arg,skip) => {
+    //   if (skip) console.log('')
+    //   console.log('  '.repeat(indent)+arg)
+    // }
+    let debug = () => true
+    debug(`Finding the cnf for ${this.toString()} with switch variable ${switchVar} ...`,true)
+
+    // a leading ':' in a string can conveniently act as our negation symbol
+    // so we want to be able to toggle it for variables.
+    let negate = (str) => {
+      debug(`Negating the string ${str} ... returning `+
+            `${(str[0]===':') ? str.slice(1) : ':'+str}`)
+      return (str[0]===':') ? str.slice(1) : ':'+str
+    }
+
+    // for Statements it's just their toString() form (or its negation) wrapped
+    // appropriately
+    if (this.isAnActualStatement()) {
+      let str = (toggleGiven) ? negate(this.toString()) : this.toString()
+      debug(`Returning ${ show( [ new Set( [ str ] )  ] ) } `+
+            `since it is a Statement.`)
+      indent+=-1
+      return [ new Set( [ str ] ) ]
+
+    // environments are where all the action is
+    } else if (this.isAnActualEnvironment()) {
+
+      /////////////////////////////////////////////////////////////////////
+      // CNF Utilities
+      //
+      // We need some obvious utilities. These will take arguments A,B which
+      // should be cnf's of LC's, and an option switch variable when needed.
+      //
+      // andCNF is easy... just concat them.
+      // this does not check for duplicates
+      let andCNF = (A,B) => {
+        if ( A===undefined && B ) { return B
+        } else if ( B===undefined && A ) { return A
+        } else if ( A===undefined && B==undefined ) { return undefined
+        } else {
+          let ans = A.concat(B)
+          indent+=1
+          debug(`Computing ${show(A)} AND ${show(B)} ...`,true)
+          debug(`Returning ${show(ans)}.`)
+          indent+=-1
+          return ans
+        }
+      }
+
+      // for orCNF we want to use switch variables to reduce the number of terms
+      // produced from the product |A||B| to the sum |A|+|B|.  This
+      // reduces it from exponential growth to quadratic
+      // The third argument is the name to use for a switch variable if needed.
+      let orCNF = (A,B,switchVar) => {
+        if ( A===undefined && B ) { return B
+        } else if ( B===undefined && A ) { return A
+        } else if ( A===undefined && B==undefined ) { return undefined
+        } else {
+          indent+=1
+          debug(`Computing ${show(A)} OR ${show(B)} ...`,true)
+          // initialize the answer array
+          let ans = [ ]
+
+          // if |a| or |b| is 1, or if both are 2, then just distribute because
+          // it's more efficient than adding another variable
+          if ( A.length==1 || B.length==1 || (A.length==2 && B.length==2) ) {
+            A.forEach( x => B.forEach( y => ans.push( union(x,y) ) ) )
+          } else {
+            // add the new switch variable to all of the elements of the first
+            // array and add those to the answer array
+            A.map( y => new Set(y).add(switchVar) ).forEach( z => ans.push(z) )
+            // add the negation of the switch variable to the remaining sets
+            // and add them to ans array
+            B.map( y => new Set(y).add(negate(switchVar))).
+                                   forEach( z => ans.push(z) )
+          }
+          debug(`Returning ${show(ans)}.`)
+          indent+=-1
+          return ans
+        }
+      }
+
+      // negation - if all goes well we won't need this
+      // We pass the switchVar name to use if we have to call orCNF
+      // let negCNF = ( A , switchVar ) => {
+      //    indent+=1
+      //    debug(`Computing NOT ${show(A)} with switch ${switchVar} ...`,true)
+      //    if (A === undefined ) {
+      //      debug(`Returning undefined.`)
+      //      indent+=-1
+      //      return undefined
+      //    }
+      //    // check for a single clause
+      //    if (A.length == 1) {
+      //      let ans = Array.
+      //                from( A[0] ).
+      //                map( x => new Set( [ negate(x) ] ) )
+      //      debug(`Returning ${show(ans)}.`)
+      //      indent+=-1
+      //      return ans
+      //    }
+      //    // otherwise or the negations of the clauses
+      //    let ans = negCNF( [A[0]] , switchVar+'_'+0 )
+      //    for (let i=1; i<A.length; i++) {
+      //      ans = orCNF( ans , negCNF( [A[i]] , switchVar ) , switchVar+'_'+i)
+      //    }
+      //    debug(`Returning ${show(ans)}.`,true)
+      //    indent+=-1
+      //    return ans
+      // }
+      /////////////////////////////////////////////////////////////////////
+
+      /////////////////////////////////////////////////////////////////////
+      // Process Environments
+      //
+
+      // it's easier to process pairs
+      let fpf = this.fullyParenthesizedForm()
+
+      // get the kids.  There are at most two since it's fpf.
+      let kids = fpf.LCchildren()
+
+      // if it has no children or Conclusions then its validation is undefined
+      // note that we are not considering whether the environment itself
+      // is a Given at this step (or else all child environments that are Givens
+      // will have cnf be undefined.
+
+      // { }, :{ }, { :A }, :{ :A }, { :A :B }
+      if (kids.length == 0 ||
+          kids.length == 1 && kids[0].isAGiven ||
+          kids.length == 2 && kids[0].isAGiven && kids[1].isAGiven
+        ) {
+          debug(`Returning undefined.`)
+          indent+=-1
+          return undefined
+      }
+
+      // determine if we negate the children
+      let toggle = (fpf.isAGiven) ? !toggleGiven : toggleGiven
+
+      // If it contains a single claim just unwrap it.  Also ignore
+      // trailing givens.
+
+      // { A }, :{ A }, { A :B }, :{ A :B }
+      if ( kids.length == 1 || kids[1].isAGiven ) {
+        let A = kids[0]
+        let ans = A.cnf(switchVar+'0',toggle)
+        debug(`Returning ${show(ans)}.`,true)
+        indent+=-1
+        return ans
+      }
+
+      // This takes care of all the environments except for the four main ones.
+      // :{ A B }, :{ :A B }, { A B }, { :A B }
+
+      // IMPORTANT: I got burned by this the first time around.  In order to use
+      // switch variables to improve efficiency, we MUST check if the environment
+      // is a given first, and deal with that leading negation first rather than
+      // converting the children first and then negating the whole thing.  Switch
+      // variables don't work correctly in that scenario.
+
+      // Note: since cnfs tend to be messier than the original LC, it is generally
+      // messier to work with cnfs than with LC's.  So for Given Environments,
+      // we negate the LC children, A, B first, and then compute and OR their
+      // cnfs, rather than computing the cnfs first, and then negating those
+      // before ORing them.
+
+      let A = kids[0]
+      let B = kids[1]
+      let Acnf = A.cnf(switchVar+'1',toggle)
+      let Bcnf = B.cnf(switchVar+'2',toggle)
+
+      // :{ A B } or { A B } and toggle is false ...  or
+      // :{ :A B } or { :A B } and toggle is true ... just AND the toggled cnfs
+      if ( (A.isAClaim && !toggle) || (A.isAGiven && toggle) ) {
+        let ans = andCNF(Acnf,Bcnf)
+        debug(`Returning ${show(ans)}.`,true)
+        indent+=-1
+        return ans
+
+      // :{ A B } or { A B } and toggle is true ...  or
+      // :{ :A B } or { :A B } and toggle is false ... just OR the toggled cnfs
+      } else {
+        let ans = orCNF(Acnf,Bcnf,switchVar+'3')
+        debug(`Returning ${show(ans)}.`,true)
+        indent+=-1
+        return ans
+      }
+
+      // We shouldn't end up here
+      debug(`Returning a error.`)
+      indent+=-1
+      throw 'Something went wrong.'
+
+    } else {
+      debug(`Returning a unknown situation.`)
+      indent+=-1
+      return 'Not yet implemented'
+    }
+
+  }
+
+  // produce the cnf in the format required by satSolve
+  // if toggle is true, negate it (since you want to show the negation is not
+  // satisfiable)
+  satcnf (toggle = false) {
+    let s = x => x.replace(/:/g,'')
+    let c = this.cnf(undefined,toggle)
+    let cat = new Set()
+    c.map( x => {
+      x.forEach( z => {
+        let sz = s(z)
+        if (!cat.has(sz)) { cat.add(sz) }
+      } )
+    } )
+    cat=Array.from(cat)
+    let N = s => { return (cat.indexOf(s.replace(/:/g,''))+1)*((s[0]==':')?-1:1) }
+    return c.map(x=>Array.from(x)).map(x=>x.map(N))
+  }
+
   catalog () {
     let s=this.toString().replace(/:/g,'')
     // if its a statement, catalog it
@@ -808,57 +1078,6 @@ class LC extends Structure {
       debug(ind + `  and: ${cnfs.map(say)} -> ${say(ans)}`)
       return ans
     }
-
-    // for orCNF we want to use switch variables to reduce the number of terms
-    // produced from the product |A||B| to the sum |A|+|B|.  This
-    // reduces it from exponential growth to quadratic.  For now we will add a
-    // switch variable for every cnf argument.  Later we can improve it
-    // by handling cnf's with only one clause separately to avoid the extra
-    // switch variable in that case.
-    // let orCNF = (...cnfs) => {
-    //   debug(ind + `  **> try to or: ${cnfs.map(say)}`)
-    //   // add one new switch variable for each cnf being or'ed
-    //
-    //   // TODO: handle the case of cnfs with a single clause separately since
-    //   // there is no efficiency gain from adding a switch variable for them
-    //   let l=cat.length + 1
-    //   let m=cnfs.length
-    //   let zees = seq(x=>x,l,l+m-1)
-    //   cat = cat.concat(zees)
-    //   debug(ind + `  new cat is ${cat}`)
-    //
-    //   // start with the switch variables clause
-    //   let ans = [ new Set(zees) ]
-    //   // then add the negation of one switch variable per cnf to each of its
-    //   // clauses
-    //   for (let i=0; i<m; i++) {
-    //     let z=new Set([-zees[i]])
-    //     let C=cnfs[i]
-    //     ans.push( ...C.map( x => union(z,x) ) )
-    //   }
-    //   debug(ind + `  or: ${cnfs.map(say)} -> ${say(ans)}`)
-    //   return ans
-    //
-    //   // if |A| or |B| is 1, or if both are 2, then just distribute because
-    //   // it's more efficient than adding another variable
-    //   if ( A.length==1 || B.length==1 || (A.length==2 && B.length==2) ) {
-    //     A.forEach( x => B.forEach( y => ans.push( union(x,y) ) ) )
-    //   } else {
-    //     debug(ind + `   (big boy mode)`)
-    //     // otherwise add another variable to the catalog.  Dummy vars have
-    //     // integer values rather than strings.
-    //     let l=cat.length + 1
-    //     cat.push(l)
-    //     debug(ind + `   Adding variable. cat is now [${cat}]`)
-    //     // add the new dummy variable to all of the elements of the first
-    //     // array and add those to the answer array
-    //     A.map( y => y.add(l) ).forEach( z => ans.push(z) )
-    //     // add -l to all of the remaining sets and add them to ans array
-    //     B.map( y => y.add(-l) ).forEach( z => ans.push(z) )
-    //   }
-    //   debug(ind + `  ${say(A)} or ${say(B)} -> ${say(ans)}`)
-    //   return ans
-    // }
 
     // // for orCNF we want to use switch variables to reduce the number of terms
     // // produced from the product |A||B| to the sum |A|+|B|.  This
@@ -987,8 +1206,22 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
-  Validate () {
-    let debug=console.log
+  Validate (showtimes) {
+    let debug = (msg) => { if (showtimes) console.log(msg) }
+      let start= new Date
+      debug(`Starting validation...`)
+    let c = this.satcnf(true)
+    let n = LC.numvars(c)
+      let t1=new Date
+      debug(`Convert to SAT cnf: ${(t1-start)/1000} seconds`)
+    let ans=!satSolve(n,c)
+    let t2=new Date
+      debug(`Run SAT: ${(t2-t1)/1000} seconds`)
+    return ans
+  }
+
+  oldValidate (showtimes) {
+    let debug = (msg) => { if (showtimes) console.log(msg) }
       let start= new Date
     debug(`Starting validation...`)
       let L=this.copy()
@@ -1065,6 +1298,23 @@ const seq = (f,start,end,inc=1) => {
     return ans
 }
 
+// For testing we want to be able to check when two cnf arrays are equal
+// as cnfs. A cnf is an array of sets, but that array itself is a conjunction
+// so mathematically is also a set.  The array can contain duplicates, thus
+// checking the array length is not a good test mathematically.  Similarly,
+// js sets pretty much suck as mathematical sets, because you can't easily
+// test them for equality without doing it all by hand. For example a js Set of
+// js Sets could easily have duplicate elements.
+equalcnf = (A,B) => { return setequals(A,B,setequals) }
+
+// We also want to easily construct a cnf by hand
+makecnf = ( ...clauses ) => { return clauses.map( x => new Set(x) ) }
+
+// quick hack for a global variable so I don't have to pass it as an arg
+var indent = -1
+
+///////////////////////////////////////////////////////////////////////
+
 
 module.exports.LC = LC
 module.exports.CNF = CNF
@@ -1072,6 +1322,9 @@ module.exports.union = union
 module.exports.subset = subset
 module.exports.setequals = setequals
 module.exports.seq = seq
+module.exports.equalcnf = equalcnf
+module.exports.makecnf = makecnf
+module.exports.indent = indent
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
