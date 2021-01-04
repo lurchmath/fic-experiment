@@ -11,7 +11,7 @@ class LC extends Structure {
   // register with Structure ancestor class for good serialization/copying
   className = Structure.addSubclass( 'LC', LC )
 
-  // Strictures can have attributes, but only some of them affect the meaning
+  // Structures can have attributes, but only some of them affect the meaning
   // of an LC.  We keep the list of such keys here.
   static LCkeys() { return [ 'declaration', 'quantifier', 'formula',
                                 'identifier', 'given', 'metavariable' ]
@@ -385,7 +385,7 @@ class LC extends Structure {
     // occur because we pulled out claims.
     // So wrap it back up, restoring the original attributes, and removing
     // the environment wrapper from the last entry, if present.
-    if ( ff.length !== 1 || !ff[0].isAnActualEnvironment ) {
+    if ( ff.length !== 1 || !ff[0].isAnActualEnvironment() ) {
       let ans = new Environment( ...ff )
       ans.copyLCattributes( savedAttributes )
       if ( ans.last && ans.last.isAnActualEnvironment() ) {
