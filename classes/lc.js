@@ -1043,6 +1043,21 @@ const union = (...sets) => {
     return new Set( sets.map( x=>Array.from(x) ).reduce( (A,B)=>A.concat(B),[] ) )
 }
 
+// it is also nice to have the subset relation.  This works for arrays as well
+// as js Sets (both can have 'duplicate' elements in some situations, like a
+// Set of Sets). The optional argument 'tester' is a boolean function that tests
+// when two elements are equal.
+const subset = (_A,_B,same = (x,y) => x===y ) => {
+   let A = Array.from(_A)
+   let B = Array.from(_B)
+   return A.every( x => B.some( y => same(x,y)))
+}
+
+// it is also nice to have the set equality, which we can use
+const setequals = (A,B,same = (x,y) => x===y) => {
+   return (subset(A,B,same) && subset(B,A,same))
+}
+
 // sorry... the Aging Mathematician is too used to this Maple command.
 const seq = (f,start,end,inc=1) => {
     let ans = []
@@ -1054,6 +1069,8 @@ const seq = (f,start,end,inc=1) => {
 module.exports.LC = LC
 module.exports.CNF = CNF
 module.exports.union = union
+module.exports.subset = subset
+module.exports.setequals = setequals
 module.exports.seq = seq
 
 const { Statement } = require( './statement.js' )
