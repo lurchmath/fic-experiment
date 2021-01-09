@@ -652,15 +652,15 @@ suite( 'Derivation with matching', () => {
       [ { 'x' : 'z', 'P' : 'Q' } ]
     )
     // Next consider
-    // { :P(_X_) P(S(_X_)) }, Let{ _x_ P(_x_) } |- Let{ t P(S(t)) },
+    // { :P(_X_) P(S(_X_)) }, Let{ _x_ P(S(_x_)) } |- Let{ t P(S(t)) },
     // which should pass with x=t.
     checkSolutions(
       [
-        makePattern( '_P_' ),
-        makePattern( 'Let{ _x_ _P_(_x_) }' )
+        makePattern( '{ :P(_X_) P(S(_X_)) }' ),
+        makePattern( 'Let{ _x_ P(S(_x_)) }' )
       ],
-      makeExpression( '{ Let{ z Q(z) } Q }' ),
-      [ { 'x' : 'z', 'P' : 'Q' } ]
+      makeExpression( 'Let{ t P(S(t)) }' ),
+      [ { 'x' : 't' } ]
     )
     // Next consider { _A_ _B_ } |- { }, which can work by the T rule only
     checkSolutions(
