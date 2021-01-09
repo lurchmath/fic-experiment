@@ -20,7 +20,6 @@ const size = () => DB.length
 const getTest = i => DB[i]
 
 // for clients: change entry i in the DB to the new test object given here
-// (this automatically saves the new DB to disk)
 const setTest = ( i, test ) => DB[i] = test
 
 // what does it mean for two turnstiles to be the same, for the purposes of
@@ -37,7 +36,6 @@ const sameTurnstiles = ( t1, t2 ) => {
 }
 
 // for clients: append a new TurnstileTest instance to the DB
-// (and immediately save to disk)
 const addTest = test => {
     if ( !DB.some( oldTest => sameTurnstiles( oldTest.turnstile, test.turnstile ) ) )
         DB.push( test )
