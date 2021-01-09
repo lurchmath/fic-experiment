@@ -36,9 +36,15 @@ const sameTurnstiles = ( t1, t2 ) => {
 }
 
 // for clients: append a new TurnstileTest instance to the DB
+// (unless an identical one is already there)
+// also ensure that its metadata says whether it uses metavariables or not
 const addTest = test => {
-    if ( !DB.some( oldTest => sameTurnstiles( oldTest.turnstile, test.turnstile ) ) )
-        DB.push( test )
+    if ( DB.some( oldTest =>
+         sameTurnstiles( oldTest.turnstile, test.turnstile ) ) ) return
+    test.metadata.containsMetavariables = test.turnstile.premises.some( p =>
+        p.hasDescendantSatisfying( d => d.isAMetavariable ) ) ||
+        test.turnstile.conclusion.hasDescendantSatisfying( d => d.isAMetavariable )
+    DB.push( test )
 }
 
 // the class for all objects in the database
