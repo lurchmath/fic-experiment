@@ -60,9 +60,9 @@ suite( 'Validate some short weird LCs.', () => {
   test( 'We can Validate Pierce\'s Law', () => {
     expect( lc(`{ :{ :{ :P Q } P } P }`).Validate() ).to.be.ok()
   } )
-  lctest( '{ :{ :A  B } { A } B }', false )
-  lctest( '{ :{ :A  B } { :A } B }', false )
-  lctest( '{ :{ :A  B } :{ A } B }' )
+  lctest( '{ :{ :A B } { A } B }', false )
+  lctest( '{ :{ :A B } { :A } B }', false )
+  lctest( '{ :{ :A B } :{ A } B }' )
   lctest( '{ :A { A } }' )
   lctest( '{ :{ A } { A } }' )
   lctest( '{ :{ { A } } A }')

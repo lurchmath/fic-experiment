@@ -2,6 +2,75 @@ const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { satSolve } = require( '../dependencies/LSAT.js' )
 
+// const { MatchingProblem, MatchingSolution } = require( './matching.js' )
+let MatchingProblem, MatchingSolution
+
+/////////////////////////////////////////////
+//
+// Global profiling utility
+//
+// Times is an object whose keys are the names of subroutines
+// and whose values are the total amount of time that routine was executed
+let Times = {}       // global
+let StartTimes = {}  // global
+// TimerStart saves the current time globally. Then TimerStop adds it to
+// the Times table.  If the start time is already set, don't update it
+// (for recursive calls).  This is done by TimerStart returning true if
+// it is a recursive call, and false if it is not a recursive call.
+//
+//  Usage: To time a function first make a local variable at the top
+//
+// ////////////////////
+// let recursive = TimerStart(fname)
+// ////////////////////
+//
+//  where fname is the name you want to give the function (it doesn't
+//  have to match any js name of the function.  It can be any string).
+//  Then just before returning, call
+//
+// ////////////////////
+// TimerStop(fname,recursive)
+// ////////////////////
+//
+let  TimerStart = (fname) => {
+        // check if timing is a recursive call
+        if (!StartTimes.hasOwnProperty(fname)) {
+           StartTimes[fname] = new Number(process.hrtime.bigint())/1000000
+           return false
+        // if it is recursive, just return true and do nothing else
+        } else {
+          return true
+        }
+      }
+let TimerStop = (fname,recursive) => {
+   // should not do anything if it's a recursive call
+   if (!recursive) {
+     let time = new Number(process.hrtime.bigint())/1000000 - StartTimes[fname]
+     if (Times.hasOwnProperty(fname)) {
+       Times[fname]=Times[fname]+time
+     } else {
+       Times[fname]=time
+     }
+     delete StartTimes[fname]
+   }
+ }
+
+// pattern P to match against an expression E
+// P contains metavars
+// mark the identifiers in P with subexpr.isAMetavariable = true
+// prob = new MatchingProblem( [ P, E ] )
+// sols = prob.getSolutions()
+// it's an array
+// of MatchingSolution instances
+// given any S in sols
+// you can do: S.lookup('metavarname')
+// you can do: S.keys() to get list of metavars in it
+// you can do: S.toString() for debugging
+// note: S.lookup() takes STRINGS as input, the NAMES of the metavars, not the LCs
+// note: if there are no solutions to the matching problem, then sols is [ ]
+// you can also do: prob.getOneSolution() and it will either be a MatchingSolution instance if one exists, or null if there are no solutions
+// or prob.isSolvable()
+
 // const verbose = false
 // let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
 
@@ -291,10 +360,22 @@ class LC extends Structure {
   // The following routine computes this, which involves making copies of each
   // Li, so that we do not destroy/alter the original LC L.
   fullyParenthesizedForm (showtimes) {
+
+    ////////////////////
+    let recursive = TimerStart('fpf')
+    ////////////////////
+
       let debug = (msg) => { if (showtimes) console.log(msg) }
       let start= new Date
       debug(`Computing fully parenthesized form ...`)
-    if ( this.LCchildren().length < 3 ) return this.copy()
+    if ( this.LCchildren().length < 3 ) {
+      // time the copying
+      let thiscopy=this.copy()
+      ////////////////////
+      TimerStop('fpf',recursive)
+      ////////////////////
+      return thiscopy
+    }
     let kids = this.LCchildren().slice()
     let result = new Environment( kids[kids.length-2].copy(),
                                   kids[kids.length-1].copy() )
@@ -306,6 +387,11 @@ class LC extends Structure {
     result.isAGiven = this.isAGiven
       let fin = new Date
       debug(`... ${(fin-start)/1000} seconds`)
+
+    ////////////////////
+    TimerStop('fpf',recursive)
+    ////////////////////
+
     return result
   }
 
@@ -474,7 +560,20 @@ class LC extends Structure {
   // One exception: You can include //...\n one-line JS-style comments,
   // which will, of course, be ignored when parsing.
   static fromString ( string ) {
-    const ident = /^[a-zA-Z_0-9⇒¬⇔→←=≠∈×⊆℘∩∪∀∃!∉∅\-+∘<>≤≥⋅]+/
+    const ident = /^[a-zA-Z_0-9⇒¬⇔→←=≠∈×⊆℘∩∪∀∃!∉∅\-+∘<>≤≥⋅⊥]+/
+    const longnames = {
+      '⇒'  : 'implies'    , '¬' : 'not'       , '⇔' : 'iff'      ,
+      '←'  : 'from'        , '=' : 'equal'     , '≠' : 'notequal' ,
+      '×'  : 'cross'       , '⊆' : 'subseteq'  , '℘' : 'powerset' ,
+      '∩'  : 'intersect'   , '∪' : 'union'     , '∀' : 'forall'   ,
+      '!'  : 'unique'      , '∉' : 'notmember' , '∅' : 'emptyset' ,
+      '\-' : 'difference'  , '∘' : 'compose'   , '<' : 'lessthan' ,
+      '>'  : 'greaterthan' , '≤' : 'leq'       , '→' : 'to'       ,
+      '≥'  : 'geq'         , '∈' : 'member'    , '+' : 'plus'     ,
+      '⋅'  : 'cdot'        , '∃' : 'exists'    , '⊥' : 'false'    ,
+      '∃!' : 'existsunique', '0'  : 'zero'        , '1'  : 'one'  ,
+      '→←' : 'false'
+    }
     const comment = /^\/\/[^\n]*\n|^\/\/[^\n]*$/
     var match
     let stack = [ ]
@@ -610,7 +709,7 @@ class LC extends Structure {
         munge( 1 )
       } else if ( match = ident.exec( string ) ) {
         let S = setFlags( new Statement() )
-        S.identifier = match[0]
+        S.identifier  = (match[0] in longnames) ? longnames[match[0]] : match[0]
         stack.push( S )
         munge( match[0].length )
         last = 'identifier'
@@ -793,6 +892,11 @@ class LC extends Structure {
   // Given attribute).
 
   cnf (switchVar = '_Z',toggleGiven = false) {
+
+    ////////////////////
+    let recursive = TimerStart('cnf')
+    ////////////////////
+
     indent+=1
     // pretty print a cnf
     let show = (A) => {
@@ -839,15 +943,35 @@ class LC extends Structure {
       // andCNF is easy... just concat them.
       // this does not check for duplicates
       let andCNF = (A,B) => {
-        if ( A===undefined && B ) { return B
-        } else if ( B===undefined && A ) { return A
-        } else if ( A===undefined && B==undefined ) { return undefined
+
+        ////////////////////
+        let recursivea = TimerStart('andCNF')
+        ////////////////////
+
+        if ( A===undefined && B ) {
+          ////////////////////
+          TimerStop('andCNF',recursivea)
+          ////////////////////
+          return B
+        } else if ( B===undefined && A ) {
+          ////////////////////
+          TimerStop('andCNF',recursivea)
+          ////////////////////
+          return A
+        } else if ( A===undefined && B==undefined ) {
+          ////////////////////
+          TimerStop('andCNF',recursivea)
+          ////////////////////
+          return undefined
         } else {
           let ans = A.concat(B)
           indent+=1
           debug(`Computing ${show(A)} AND ${show(B)} ...`,true)
           debug(`Returning ${show(ans)}.`)
           indent+=-1
+          ////////////////////
+          TimerStop('andCNF',recursivea)
+          ////////////////////
           return ans
         }
       }
@@ -857,9 +981,26 @@ class LC extends Structure {
       // reduces it from exponential growth to quadratic
       // The third argument is the name to use for a switch variable if needed.
       let orCNF = (A,B,switchVar) => {
-        if ( A===undefined && B ) { return B
-        } else if ( B===undefined && A ) { return A
-        } else if ( A===undefined && B==undefined ) { return undefined
+
+        ////////////////////
+        let recursiveo = TimerStart('orCNF')
+        ////////////////////
+
+        if ( A===undefined && B ) {
+          ////////////////////
+          TimerStop('orCNF',recursiveo)
+          ////////////////////
+          return B
+        } else if ( B===undefined && A ) {
+          ////////////////////
+          TimerStop('orCNF',recursiveo)
+          ////////////////////
+          return A
+        } else if ( A===undefined && B==undefined ) {
+          ////////////////////
+          TimerStop('orCNF',recursiveo)
+          ////////////////////
+          return undefined
         } else {
           indent+=1
           debug(`Computing ${show(A)} OR ${show(B)} ...`,true)
@@ -881,6 +1022,9 @@ class LC extends Structure {
           }
           debug(`Returning ${show(ans)}.`)
           indent+=-1
+          ////////////////////
+          TimerStop('orCNF',recursiveo)
+          ////////////////////
           return ans
         }
       }
@@ -920,8 +1064,10 @@ class LC extends Structure {
       //
 
       // it's easier to process pairs
+      // let now = () => new Number(process.hrtime.bigint())/1000000
+      // let start = now()
       let fpf = this.fullyParenthesizedForm()
-
+      // console.log(`${now()-start}`)
       // get the kids.  There are at most two since it's fpf.
       let kids = fpf.LCchildren()
 
@@ -935,9 +1081,12 @@ class LC extends Structure {
           kids.length == 1 && kids[0].isAGiven ||
           kids.length == 2 && kids[0].isAGiven && kids[1].isAGiven
         ) {
-          debug(`Returning undefined.`)
-          indent+=-1
-          return undefined
+        debug(`Returning undefined.`)
+        indent+=-1
+        ////////////////////
+        TimerStop('cnf',recursive)
+        ////////////////////
+        return undefined
       }
 
       // determine if we negate the children
@@ -952,6 +1101,9 @@ class LC extends Structure {
         let ans = A.cnf(switchVar+'0',toggle)
         debug(`Returning ${show(ans)}.`,true)
         indent+=-1
+        ////////////////////
+        TimerStop('cnf',recursive)
+        ////////////////////
         return ans
       }
 
@@ -972,6 +1124,7 @@ class LC extends Structure {
 
       let A = kids[0]
       let B = kids[1]
+
       let Acnf = A.cnf(switchVar+'1',toggle)
       let Bcnf = B.cnf(switchVar+'2',toggle)
 
@@ -981,6 +1134,9 @@ class LC extends Structure {
         let ans = andCNF(Acnf,Bcnf)
         debug(`Returning ${show(ans)}.`,true)
         indent+=-1
+        ////////////////////
+        TimerStop('cnf',recursive)
+        ////////////////////
         return ans
 
       // :{ A B } or { A B } and toggle is true ...  or
@@ -989,6 +1145,9 @@ class LC extends Structure {
         let ans = orCNF(Acnf,Bcnf,switchVar+'3')
         debug(`Returning ${show(ans)}.`,true)
         indent+=-1
+        ////////////////////
+        TimerStop('cnf',recursive)
+        ////////////////////
         return ans
       }
 
@@ -1000,6 +1159,9 @@ class LC extends Structure {
     } else {
       debug(`Returning a unknown situation.`)
       indent+=-1
+      ////////////////////
+      TimerStop('cnf',recursive)
+      ////////////////////
       return 'Not yet implemented'
     }
 
@@ -1024,17 +1186,29 @@ class LC extends Structure {
   }
 
   catalog () {
+    ////////////////////
+    let recursive = TimerStart('catalog')
+    ////////////////////
+
     let s=this.toString().replace(/:/g,'')
     // if its a statement, catalog it
-    if (this.isAnActualStatement()) { return [ s ]
+    if (this.isAnActualStatement()) {
+      ////////////////////
+      TimerStop('catalog',recursive)
+      ////////////////////
+      return [ s ]
     // otherwise if it's an environment. Catalog its children in one big catalog
     } else {
       let A = this.LCchildren().map(x=>x.catalog()).flat()
       let ans = new Set(A)  // remove duplicates
+      ////////////////////
+      TimerStop('catalog',recursive)
+      ////////////////////
       return Array.from(ans)
     }
   }
 
+  // DEPRICATED
   // CNF - we need to convert an environment LC to its CNF in the format accepted
   // by SAT.js. It returns an array of arrays of non-zero integers.
 
@@ -1194,6 +1368,7 @@ class LC extends Structure {
     throw(`We don't handle that yet`)
   }
 
+  // DEPRICATED
   // toCNF does all the work, but CNF converts it to the format
   // needed by satSolve
   CNF () { return this.toCNF().map( x => Array.from(x) ) }
@@ -1315,7 +1490,6 @@ var indent = -1
 
 ///////////////////////////////////////////////////////////////////////
 
-
 module.exports.LC = LC
 module.exports.CNF = CNF
 module.exports.union = union
@@ -1325,9 +1499,15 @@ module.exports.seq = seq
 module.exports.equalcnf = equalcnf
 module.exports.makecnf = makecnf
 module.exports.indent = indent
+module.exports.Times = Times
+module.exports.StartTimes = StartTimes
+module.exports.TimerStart = TimerStart
+module.exports.TimerStop = TimerStop
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
 const { existsDerivation, firstDerivation } =
        require( '../classes/deduction.js' )
 const { Turnstile } = require( '../classes/deduction.js' )
+MatchingProblem = require('./matching.js').MatchingProblem
+MatchingSolution = require('./matching.js').MatchingSolution

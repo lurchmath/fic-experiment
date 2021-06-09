@@ -1,7 +1,7 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
-const { LC } = require( './lc.js' )
+const { LC, Times, StartTimes, TimerStart, TimerStop } = require( './lc.js' )
 const { isMetavariable, setMetavariable, clearMetavariable } =
   require( '../dependencies/matching.js' )
 
@@ -17,6 +17,7 @@ class Statement extends LC {
   constructor ( ...children ) {
     super( ...children )
     this.isAQuantifier = false // see below for details
+    this.StringCache = ''
   }
   // Statements may optionally have string identifiers attached,
   // which you can get/set with the .identifier property:
@@ -45,8 +46,19 @@ class Statement extends LC {
       this.clearAttributes( 'metavariable' )
     return value
   }
+
+  // cache the toString
+  StringCache = ''
   // What do Statements look like, for printing/debugging purposes?
   toString (options) {
+
+    // if it's cached, use that
+    if (this.StringCache !== '') return this.StringCache
+
+    ////////////////////
+    let recursive = TimerStart('toString')
+    ////////////////////
+
     let result = ''
     if ( this.isAGiven ) result += ':'
     if ( this.isAQuantifier ) result += '~'
@@ -81,6 +93,12 @@ class Statement extends LC {
     // declarations.
     if ( options && options.FIC && this.isValidated )
        if (this.isValid) { result += '✓' } else { result += '✗' }
+
+    ////////////////////
+    TimerStop('toString',recursive)
+    ////////////////////
+    this.StringCache = result
+
     return result
   }
   // What do Statements look like in OM form?

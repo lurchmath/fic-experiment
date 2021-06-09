@@ -295,7 +295,7 @@ suite( 'Marking declarations', () => {
     expect( in2.successfullyBinds( 'y' ) ).to.be( true )
   } )
 
-  test( 'markDeclarations() handles { Decl{ x{} } Let{ x{} } }', () => {
+  test( 'markDeclarations() handles { Declare{ x{} } Let{ x{} } }', () => {
     let E = LC.fromString( '{ Declare{ x{} } Let{ x{} } }' )
     let in1 = E.first
     let in2 = E.child( 1 )

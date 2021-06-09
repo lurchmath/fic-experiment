@@ -1,7 +1,7 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
-const { LC } = require( './lc.js' )
+const { LC, Times, StartTimes, TimerStart, TimerStop } = require( './lc.js' )
 const { Statement } = require( './statement.js' )
 
 class Environment extends LC {
@@ -113,6 +113,11 @@ class Environment extends LC {
   // The optional argument options should be an object with named booleans
   // which are false when omitted.
   toString ( options ) {
+
+    ////////////////////
+    let recursive = TimerStart('toString')
+    ////////////////////
+
     // options.Indent determines if we should indent and add newlines
     if (options && options.Indent ) {
       // indentLevel and tabsize are also optional options
@@ -137,8 +142,18 @@ class Environment extends LC {
             + ( this.isAFormula  ? ']' : '}' )
             + ( ( options && options.FIC && this.isValidated ) ?
                 ( (this.isValid) ? '✓' : '✗' ) : '' )
+
+      ////////////////////
+      TimerStop('toString',recursive)
+      ////////////////////
+
       return result
     } else {
+
+      ////////////////////
+      TimerStop('toString',recursive)
+      ////////////////////
+
       return ( this.isAGiven    ? ':'         : '' )
            + ( this.isAFormula  ? '[ '        :
              ( this.declaration && this.declaration === 'variable'
