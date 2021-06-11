@@ -47,13 +47,8 @@ class Statement extends LC {
     return value
   }
 
-  // cache the toString
-  StringCache = ''
   // What do Statements look like, for printing/debugging purposes?
   toString (options) {
-
-    // if it's cached, use that
-    if (this.StringCache !== '') return this.StringCache
 
     ////////////////////
     let recursive = TimerStart('toString')
@@ -97,7 +92,6 @@ class Statement extends LC {
     ////////////////////
     TimerStop('toString',recursive)
     ////////////////////
-    this.StringCache = result
 
     return result
   }
