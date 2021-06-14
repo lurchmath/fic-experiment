@@ -115,7 +115,7 @@ class Environment extends LC {
   toString ( options ) {
 
     ////////////////////
-    let recursive = TimerStart('toString')
+    // let recursive = TimerStart('toString')
     ////////////////////
 
     // options.Indent determines if we should indent and add newlines
@@ -144,14 +144,14 @@ class Environment extends LC {
                 ( (this.isValid) ? '✓' : '✗' ) : '' )
 
       ////////////////////
-      TimerStop('toString',recursive)
+      // TimerStop('toString',recursive)
       ////////////////////
 
       return result
     } else {
 
       ////////////////////
-      TimerStop('toString',recursive)
+      // TimerStop('toString',recursive)
       ////////////////////
 
       return ( this.isAGiven    ? ':'         : '' )

@@ -7,7 +7,9 @@ let expect = require( 'expect.js' )
 // import all classes defined in this repo
 const { OM, Structure, LC, Statement, Environment }
       = require( '../classes/all.js' )
+const { Proofstr } = require( './data/PropProofs.js' )
 const { AllofLurchstr } = require( './data/AllofLurch.js' )
+const { EvenMoreLurchstr } = require( './data/EvenMoreLurch.js' )
 
 let lc = (s) => LC.fromString(s)
 // pretty print a cnf
@@ -36,30 +38,99 @@ let cnftest = (lcstring,...clauses) =>
           expect(lc(lcstring).cnf()).to.be(undefined)
        } )
 
-suite( 'Validate conversion to cnf.', () => {
-  cnftest('P',['P'])
-  cnftest(':P',[':P'])
-  cnftest('{ P }',['P'])
-  cnftest('{ :P }')
-  cnftest('{ P Q }',['P'],['Q'])
-  cnftest('{ P Q }',['Q'],['P'])
-  cnftest('{ :P Q }',[':P','Q'])
-  cnftest('{ :P Q }',['Q',':P'])
-  cnftest('{ :P :Q R }',[':P',':Q','R'])
-  cnftest('{ :P :Q R }',[':P',':Q','R'],['R',':P',':Q',':Q'])
-  cnftest('{ :P :Q R S }',[':P',':Q','R'],[':Q',':P','S'])
-  cnftest('{ :P :Q R S }',[':P',':Q','R'],[':Q',':P','S'])
-  cnftest('{ :{ :P Q } Q }',['P','Q'],[':Q','Q'])
+suite( 'Validate conversion to cnf that should return empty.', () => {
+  cnftest('{ }')
+  cnftest('{ :A }')
+  cnftest('{ :A :A }')
+  cnftest('{ :A :B }')
+  cnftest('{ :{ A } }')
+  cnftest('{ :{ A B } }')
+  cnftest('{ :{ A B } :C }')
+  cnftest('{ :C :{ A B } }')
+  cnftest('{ :{ A B } :{ C D }}')
+  cnftest('{ :{ :A B } :{ C :D }}')
+  cnftest('{ { :A :B } { :C :D }}')
+  cnftest('{ { :A :{ :B C } } }')
+  cnftest('{ { :A { :B :C } } }')
+  cnftest('{ { :A { :B { :C :D} } } }')
+  cnftest('{ { :{ A B } { :C :D} } }')
+  cnftest(':{ }')
+  cnftest(':{ :A }')
+  cnftest(':{ :A :A }')
+  cnftest(':{ :A :B }')
+  cnftest(':{ :{ A } }')
+  cnftest(':{ :{ A B } }')
+  cnftest(':{ :{ A B } :C }')
+  cnftest(':{ :C :{ A B } }')
+  cnftest(':{ :{ A B } :{ C D }}')
+  cnftest(':{ :{ :A B } :{ C :D }}')
+  cnftest(':{ { :A :B } { :C :D }}')
+  cnftest(':{ { :A :{ :B C } } }')
+  cnftest(':{ { :A { :B :C } } }')
+  cnftest(':{ { :A { :B { :C :D} } } }')
+  cnftest('{ { :{ A B } { :C :D} } }')
 } )
 
-suite( 'Validate some short weird LCs.', () => {
+suite( 'Validate conversion to nontrivial cnf of simple LCs.', () => {
+  cnftest('A',['A'])
+  cnftest(':A',[':A'])
+  cnftest('{ A }',['A'])
+  cnftest('{ A B }',['A'],['B'])
+  cnftest('{ A B }',['B'],['A'])
+  cnftest('{ :A B }',[':A','B'])
+  cnftest('{ :A B }',['B',':A'])
+  cnftest('{ :A :B C }',[':A',':B','C'])
+  cnftest('{ :A :B C }',[':A',':B','C'],['C',':A',':B',':B'])
+  cnftest('{ :A :B C D }',[':A',':B','C'],[':B',':A','D'])
+  cnftest('{ :{ :A B } B }',['A','B'],[':B','B'])
+  cnftest('{ :{ :A B } :A B }',['A',':A','B'],[':B',':A','B'])
+  cnftest(':{ :{ :A B } B }',[':A','B'],[':B'])
+  // Shunting
+  cnftest('{ :{ :A { :B C } } { :A :B C } }',['A',':A',':B','C'],['B',':A',':B','C'],[':C',':A',':B','C'])
+  // SimpleSwitch: Note - this will need to be updated when we pick
+  // permanent names for switch variables
+  cnftest('{:{:{:A B} {:A C}} {:{:B C} C}}',[':A','B','Z1'],['A','Z1'],[':C','Z1'],['B','C',':Z1'],[':C','C',':Z1']) 
+} )
+
+suite( 'Validate some short LCs and check accessibility.', () => {
+
+  let Contrapositive = lc(`
+       {
+         :{:{:A B} C}
+         :{:{:D E} B}
+         :{:{:F G} E}
+         :{:D :H G}
+         :{:A :F H}
+         {:A {:D {:F H G} E} B}
+         C
+       }`)
+   let ShortContra = lc(`
+           {
+             :{:{:A B} C}
+             :{:{:D E} B}
+             :{:{:F G} E}
+             :{:D :H G}
+             :{:A :F H}
+             C
+           }`)
 
   test( 'We can Validate the Infamous Bug Proposition', () => {
     expect( lc(`{ :{ :W :V U V } :W :V U }`).Validate() ).to.be.ok()
   } )
+
   test( 'We can Validate Pierce\'s Law', () => {
     expect( lc(`{ :{ :{ :P Q } P } P }`).Validate() ).to.be.ok()
   } )
+
+  test( 'We can Validate the short Contrapositive Proof', () => {
+    expect( ShortContra.Validate() ).to.be.ok()
+  } )
+
+  test( 'We can Validate the Contrapositive Proof', () => {
+    expect( Contrapositive.Validate() ).to.be.ok()
+  } )
+
+  // checking accessibility
   lctest( '{ :{ :A B } { A } B }', false )
   lctest( '{ :{ :A B } { :A } B }', false )
   lctest( '{ :{ :A B } :{ A } B }' )
@@ -74,10 +145,20 @@ suite( 'Validate some short weird LCs.', () => {
 
 suite( 'Validate large documents', () => {
 
+  let Proofs = lc( Proofstr )
   let AllofLurch = lc( AllofLurchstr )
+  let EvenMoreLurch = lc( EvenMoreLurchstr )
+
+  test( 'We can Validate a few proofs', () => {
+    expect( Proofs.Validate() ).to.be.ok()
+  } )
 
   test( 'We can Validate All of Lurch and a few proofs', () => {
     expect( AllofLurch.Validate() ).to.be.ok()
+  } )
+
+  test( 'We can Validate Even More of Lurch and a few proofs', () => {
+    expect( EvenMoreLurch.Validate() ).to.be.ok()
   } )
 
 } )

@@ -2,9 +2,6 @@ const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { satSolve } = require( '../dependencies/LSAT.js' )
 
-// const { MatchingProblem, MatchingSolution } = require( './matching.js' )
-let MatchingProblem, MatchingSolution
-
 /////////////////////////////////////////////
 //
 // Global profiling utility
@@ -55,13 +52,16 @@ let TimerStop = (fname,recursive) => {
    }
  }
 
+
+ // const { MatchingProblem, MatchingSolution } = require( './matching.js' )
+ let MatchingProblem, MatchingSolution
+
 // pattern P to match against an expression E
 // P contains metavars
 // mark the identifiers in P with subexpr.isAMetavariable = true
 // prob = new MatchingProblem( [ P, E ] )
 // sols = prob.getSolutions()
-// it's an array
-// of MatchingSolution instances
+// it's an array of MatchingSolution instances
 // given any S in sols
 // you can do: S.lookup('metavarname')
 // you can do: S.keys() to get list of metavars in it
@@ -362,7 +362,7 @@ class LC extends Structure {
   fullyParenthesizedForm (showtimes) {
 
     ////////////////////
-    let recursive = TimerStart('fpf')
+    // let recursive = TimerStart('fpf')
     ////////////////////
 
       let debug = (msg) => { if (showtimes) console.log(msg) }
@@ -372,7 +372,7 @@ class LC extends Structure {
       // time the copying
       let thiscopy=this.copy()
       ////////////////////
-      TimerStop('fpf',recursive)
+      // TimerStop('fpf',recursive)
       ////////////////////
       return thiscopy
     }
@@ -389,7 +389,7 @@ class LC extends Structure {
       debug(`... ${(fin-start)/1000} seconds`)
 
     ////////////////////
-    TimerStop('fpf',recursive)
+    // TimerStop('fpf',recursive)
     ////////////////////
 
     return result
@@ -855,7 +855,6 @@ class LC extends Structure {
   // Since { :A :B :C D } is effectively declaring A,B,C|-D, something of the
   // form { }, { :A } or { :A :B } are not something we need to validate,
   // and we will return undefined in that situation.
-
   // Similarly, we will treat something of the form { A :B } as being
   // equivalent to { A } for Validation purposes, which in turn is equivalent
   // to just A.
@@ -891,322 +890,15 @@ class LC extends Structure {
   // of the children (which in LC form is determined by how we interpret the
   // Given attribute).
 
-  cnf (switchVar = '_Z',toggleGiven = false) {
-
-    ////////////////////
-    let recursive = TimerStart('cnf')
-    ////////////////////
-
-    indent+=1
-    // pretty print a cnf
-    let show = (A) => {
-      if ( A === undefined ) { return undefined }
-      let a = A.map( x => Array.from(x) )
-      let ans = '['
-      a.forEach( x => ans += ' {'+x.toString()+'}')
-      return ans+' ]'
-    }
-    // make it easy to toggle on/off
-    // let debug =  (arg,skip) => {
-    //   if (skip) console.log('')
-    //   console.log('  '.repeat(indent)+arg)
-    // }
-    let debug = () => true
-    debug(`Finding the cnf for ${this.toString()} with switch variable ${switchVar} ...`,true)
-
-    // a leading ':' in a string can conveniently act as our negation symbol
-    // so we want to be able to toggle it for variables.
-    let negate = (str) => {
-      debug(`Negating the string ${str} ... returning `+
-            `${(str[0]===':') ? str.slice(1) : ':'+str}`)
-      return (str[0]===':') ? str.slice(1) : ':'+str
-    }
-
-    // for Statements it's just their toString() form (or its negation) wrapped
-    // appropriately
-    if (this.isAnActualStatement()) {
-      let str = (toggleGiven) ? negate(this.toString()) : this.toString()
-      debug(`Returning ${ show( [ new Set( [ str ] )  ] ) } `+
-            `since it is a Statement.`)
-      indent+=-1
-      return [ new Set( [ str ] ) ]
-
-    // environments are where all the action is
-    } else if (this.isAnActualEnvironment()) {
-
-      /////////////////////////////////////////////////////////////////////
-      // CNF Utilities
-      //
-      // We need some obvious utilities. These will take arguments A,B which
-      // should be cnf's of LC's, and an option switch variable when needed.
-      //
-      // andCNF is easy... just concat them.
-      // this does not check for duplicates
-      let andCNF = (A,B) => {
-
-        ////////////////////
-        let recursivea = TimerStart('andCNF')
-        ////////////////////
-
-        if ( A===undefined && B ) {
-          ////////////////////
-          TimerStop('andCNF',recursivea)
-          ////////////////////
-          return B
-        } else if ( B===undefined && A ) {
-          ////////////////////
-          TimerStop('andCNF',recursivea)
-          ////////////////////
-          return A
-        } else if ( A===undefined && B==undefined ) {
-          ////////////////////
-          TimerStop('andCNF',recursivea)
-          ////////////////////
-          return undefined
-        } else {
-          let ans = A.concat(B)
-          indent+=1
-          debug(`Computing ${show(A)} AND ${show(B)} ...`,true)
-          debug(`Returning ${show(ans)}.`)
-          indent+=-1
-          ////////////////////
-          TimerStop('andCNF',recursivea)
-          ////////////////////
-          return ans
-        }
-      }
-
-      // for orCNF we want to use switch variables to reduce the number of terms
-      // produced from the product |A||B| to the sum |A|+|B|.  This
-      // reduces it from exponential growth to quadratic
-      // The third argument is the name to use for a switch variable if needed.
-      let orCNF = (A,B,switchVar) => {
-
-        ////////////////////
-        let recursiveo = TimerStart('orCNF')
-        ////////////////////
-
-        if ( A===undefined && B ) {
-          ////////////////////
-          TimerStop('orCNF',recursiveo)
-          ////////////////////
-          return B
-        } else if ( B===undefined && A ) {
-          ////////////////////
-          TimerStop('orCNF',recursiveo)
-          ////////////////////
-          return A
-        } else if ( A===undefined && B==undefined ) {
-          ////////////////////
-          TimerStop('orCNF',recursiveo)
-          ////////////////////
-          return undefined
-        } else {
-          indent+=1
-          debug(`Computing ${show(A)} OR ${show(B)} ...`,true)
-          // initialize the answer array
-          let ans = [ ]
-
-          // if |a| or |b| is 1, or if both are 2, then just distribute because
-          // it's more efficient than adding another variable
-          if ( A.length==1 || B.length==1 || (A.length==2 && B.length==2) ) {
-            A.forEach( x => B.forEach( y => ans.push( union(x,y) ) ) )
-          } else {
-            // add the new switch variable to all of the elements of the first
-            // array and add those to the answer array
-            A.map( y => new Set(y).add(switchVar) ).forEach( z => ans.push(z) )
-            // add the negation of the switch variable to the remaining sets
-            // and add them to ans array
-            B.map( y => new Set(y).add(negate(switchVar))).
-                                   forEach( z => ans.push(z) )
-          }
-          debug(`Returning ${show(ans)}.`)
-          indent+=-1
-          ////////////////////
-          TimerStop('orCNF',recursiveo)
-          ////////////////////
-          return ans
-        }
-      }
-
-
-      // negation - if all goes well we won't need this
-      // We pass the switchVar name to use if we have to call orCNF
-      // let negCNF = ( A , switchVar ) => {
-      //    indent+=1
-      //    debug(`Computing NOT ${show(A)} with switch ${switchVar} ...`,true)
-      //    if (A === undefined ) {
-      //      debug(`Returning undefined.`)
-      //      indent+=-1
-      //      return undefined
-      //    }
-      //    // check for a single clause
-      //    if (A.length == 1) {
-      //      let ans = Array.
-      //                from( A[0] ).
-      //                map( x => new Set( [ negate(x) ] ) )
-      //      debug(`Returning ${show(ans)}.`)
-      //      indent+=-1
-      //      return ans
-      //    }
-      //    // otherwise or the negations of the clauses
-      //    let ans = negCNF( [A[0]] , switchVar+'_'+0 )
-      //    for (let i=1; i<A.length; i++) {
-      //      ans = orCNF( ans , negCNF( [A[i]] , switchVar ) , switchVar+'_'+i)
-      //    }
-      //    debug(`Returning ${show(ans)}.`,true)
-      //    indent+=-1
-      //    return ans
-      // }
-      /////////////////////////////////////////////////////////////////////
-
-
-      /////////////////////////////////////////////////////////////////////
-      // Process Environments
-      //
-
-      // it's easier to process pairs
-      // let now = () => new Number(process.hrtime.bigint())/1000000
-      // let start = now()
-      let fpf = this.fullyParenthesizedForm()
-      // console.log(`${now()-start}`)
-      // get the kids.  There are at most two since it's fpf.
-      let kids = fpf.LCchildren()
-
-      // if it has no children or Conclusions then its validation is undefined
-      // note that we are not considering whether the environment itself
-      // is a Given at this step (or else all child environments that are Givens
-      // will have cnf be undefined.
-
-      // { }, :{ }, { :A }, :{ :A }, { :A :B }
-      if (kids.length == 0 ||
-          kids.length == 1 && kids[0].isAGiven ||
-          kids.length == 2 && kids[0].isAGiven && kids[1].isAGiven
-        ) {
-        debug(`Returning undefined.`)
-        indent+=-1
-        ////////////////////
-        TimerStop('cnf',recursive)
-        ////////////////////
-        return undefined
-      }
-
-      // determine if we negate the children
-      let toggle = (fpf.isAGiven) ? !toggleGiven : toggleGiven
-
-      // If it contains a single claim just unwrap it.  Also ignore
-      // trailing givens.
-
-      // { A }, :{ A }, { A :B }, :{ A :B }
-      if ( kids.length == 1 || kids[1].isAGiven ) {
-        let A = kids[0]
-        let ans = A.cnf(switchVar+'0',toggle)
-        debug(`Returning ${show(ans)}.`,true)
-        indent+=-1
-        ////////////////////
-        TimerStop('cnf',recursive)
-        ////////////////////
-        return ans
-      }
-
-      // This takes care of all the environments except for the four main ones.
-      // :{ A B }, :{ :A B }, { A B }, { :A B }
-
-      // IMPORTANT: I got burned by this the first time around.  In order to use
-      // switch variables to improve efficiency, we MUST check if the environment
-      // is a given first, and deal with that leading negation first rather than
-      // converting the children first and then negating the whole thing.  Switch
-      // variables don't work correctly in that scenario.
-
-      // Note: since cnfs tend to be messier than the original LC, it is generally
-      // messier to work with cnfs than with LC's.  So for Given Environments,
-      // we negate the LC children, A, B first, and then compute and OR their
-      // cnfs, rather than computing the cnfs first, and then negating those
-      // before ORing them.
-
-      let A = kids[0]
-      let B = kids[1]
-
-      let Acnf = A.cnf(switchVar+'1',toggle)
-      let Bcnf = B.cnf(switchVar+'2',toggle)
-
-      // :{ A B } or { A B } and toggle is false ...  or
-      // :{ :A B } or { :A B } and toggle is true ... just AND the toggled cnfs
-      if ( (A.isAClaim && !toggle) || (A.isAGiven && toggle) ) {
-        let ans = andCNF(Acnf,Bcnf)
-        debug(`Returning ${show(ans)}.`,true)
-        indent+=-1
-        ////////////////////
-        TimerStop('cnf',recursive)
-        ////////////////////
-        return ans
-
-      // :{ A B } or { A B } and toggle is true ...  or
-      // :{ :A B } or { :A B } and toggle is false ... just OR the toggled cnfs
-      } else {
-        let ans = orCNF(Acnf,Bcnf,switchVar+'3')
-        debug(`Returning ${show(ans)}.`,true)
-        indent+=-1
-        ////////////////////
-        TimerStop('cnf',recursive)
-        ////////////////////
-        return ans
-      }
-
-      // We shouldn't end up here
-      debug(`Returning a error.`)
-      indent+=-1
-      throw 'Something went wrong.'
-
-    } else {
-      debug(`Returning a unknown situation.`)
-      indent+=-1
-      ////////////////////
-      TimerStop('cnf',recursive)
-      ////////////////////
-      return 'Not yet implemented'
-    }
-
-  }
-
-
   /////////////////////////////////////////////////////////////////////
   // CNF Utilities
   //
   // We need some obvious utilities. These will take arguments A,B which
   // should be cnf's of LC's, and an option switch variable when needed.
   //
-  // andCNF is easy... just concat them.
+  // andFast is easy... just concat them.
   // this does not check for duplicates
-  static andFast = (A,B) => {
-
-    ////////////////////
-    // let recursive = TimerStart('andFast')
-    ////////////////////
-
-    if ( A===undefined && B ) {
-      ////////////////////
-      // TimerStop('andFast',recursive)
-      ////////////////////
-      return B
-    } else if ( B===undefined && A ) {
-      ////////////////////
-      // TimerStop('andFast',recursive)
-      ////////////////////
-      return A
-    } else if ( A===undefined && B==undefined ) {
-      ////////////////////
-      // TimerStop('andFast',recursive)
-      ////////////////////
-      return undefined
-    } else {
-      let ans = A.concat(B)
-      ////////////////////
-      // TimerStop('andCNF',recursivea)
-      ////////////////////
-      return ans
-    }
-  }
+  static andFast = (A,B) => { return A.concat(B) }
 
   // for orFast we want to use switch variables to reduce the number of terms
   // produced from the product |A||B| to the sum |A|+|B|.  This
@@ -1214,51 +906,29 @@ class LC extends Structure {
   // The third argument is the name to use for a switch variable if needed.
   static orFast = (A,B,switchVar) => {
 
-    ////////////////////
-    // let recursive  = TimerStart('orFast')
-    ////////////////////
+    // if one of the cnfs is empty, just concat them
+    if ( A.length===0 || B.length===0 ) {
+      return A.concat(B)
 
-    if ( A===undefined && B ) {
-      ////////////////////
-      // TimerStop('orFast',recursive)
-      ////////////////////
-      return B
-    } else if ( B===undefined && A ) {
-      ////////////////////
-      // TimerStop('orFast',recursive)
-      ////////////////////
-      return A
-    } else if ( A===undefined && B==undefined ) {
-      ////////////////////
-      // TimerStop('orFast',recursive)
-      ////////////////////
-      return undefined
     } else {
-      // indent+=1
-      // debug(`Computing ${show(A)} OR ${show(B)} ...`,true)
       // initialize the answer array
       let ans = [ ]
 
-      // if |a| or |b| is 1, or if both are 2, then just distribute because
-      // it's more efficient than adding another variable
+      // if |A| or |B| is 1, or if both are 2, then just distribute because
+      // it's more efficient than adding a switch variable
       if ( A.length==1 || B.length==1 || (A.length==2 && B.length==2) ) {
         A.forEach( x => B.forEach( y => ans.push( union(x,y) ) ) )
+
       } else {
         // add the new switch variable to all of the elements of the first
-        // array and add those to the answer array
+        // array
         A.forEach( y => y.add(switchVar) )
         // add the negation of the switch variable to the remaining sets
-        // and add them to ans array
         let negSwitchVar = LC.negateFast(switchVar)
         B.map( y => y.add(negSwitchVar) )
         // then just concatenate them
         ans = A.concat(B)
       }
-      // debug(`Returning ${show(ans)}.`)
-      // indent+=-1
-      ////////////////////
-      // TimerStop('orFast',recursive)
-      ////////////////////
       return ans
     }
   }
@@ -1273,40 +943,15 @@ class LC extends Structure {
 
   // increment the subscript on the switchvar
   static nextSwitchVar = (switchVar) => {
-    if (switchVar === 'Z') { return 'Z1' }
-    else { return 'Z'+(parseInt(switchVar.slice(1))+1) }
+    return 'Z'+(parseInt(switchVar.slice(1))+1)
   }
 
-  fastcnf (switchVar = 'Z',toggleGiven = false) {
-
-    ////////////////////
-    // let recursive = TimerStart('fastcnf')
-    ////////////////////
-
-    // indent+=1
-    // // pretty print a cnf
-    // let show = (A) => {
-    //   if ( A === undefined ) { return undefined }
-    //   let a = A.map( x => Array.from(x) )
-    //   let ans = '['
-    //   a.forEach( x => ans += ' {'+x.toString()+'}')
-    //   return ans+' ]'
-    // }
-    // make it easy to toggle on/off
-    // let debug =  (arg,skip) => {
-    //   if (skip) console.log('')
-    //   console.log('  '.repeat(indent)+arg)
-    // }
-    // let debug = () => true
-    // debug(`Finding the cnf for ${this.toString()} with switch variable ${switchVar} ...`,true)
+  cnf (switchVar = 'Z0',toggleGiven = false) {
 
     // for Statements it's just their toString() form (or its negation) wrapped
     // appropriately
     if (this.isAnActualStatement()) {
       let str = (toggleGiven) ? LC.negateFast(this.toString()) : this.toString()
-      // debug(`Returning ${ show( [ new Set( [ str ] )  ] ) } `+
-      //       `since it is a Statement.`)
-      // indent -= 1
       return [ new Set( [ str ] ) ]
 
     // environments are where all the action is
@@ -1316,13 +961,6 @@ class LC extends Structure {
       // Process Environments
       //
 
-      // let now = () => new Number(process.hrtime.bigint())/1000000
-      // let start = now()
-
-      // Fastification: this next line is slow, so we now avoid it
-      // let fpf = this.fullyParenthesizedForm()
-
-      // console.log(`${now()-start}`)
       // get the kids
       let kids = this.LCchildren()
 
@@ -1333,7 +971,7 @@ class LC extends Structure {
       // from the right, converting that to a cnf, and continuing until
       // all the children are processed.
 
-      let currentcnf = undefined
+      let currentcnf = [ ]
 
       // determine if we negate the children
       let toggle = (this.isAGiven) ? !toggleGiven : toggleGiven
@@ -1350,53 +988,34 @@ class LC extends Structure {
       // cnfs, rather than computing the cnfs first, and then negating those
       // before ORing them.
 
+      // First, toss out any trailing Givens or claims that have empty
+      // cnf until we either run out of kids or find the first one that is
+      // nontrivial inside of an environment
+      while (kids.length>0 && currentcnf.length === 0) {
+        // if it's a given, just ignore it
+        if (kids[kids.length-1].isAGiven) { kids.pop()
+        // if it's not a given, see if it's trivial
+        } else {
+        currentcnf = kids.pop().cnf(switchVar,toggle)
+        }
+      }
+      // then starting from the right, pop off the last argument, convert it
+      // to a cnf, and combine it appropriately with the cnf computed so far
       while (kids.length>0) {
          let A = kids.pop()
          switchVar = LC.nextSwitchVar(switchVar)
          if (A.isAGiven !== toggle) {
-           currentcnf = LC.orFast(A.fastcnf(switchVar,toggle),currentcnf,switchVar)
+           currentcnf = LC.orFast(A.cnf(switchVar,toggle),currentcnf,switchVar)
          } else {
-           currentcnf = LC.andFast(A.fastcnf(switchVar,toggle),currentcnf)
+           currentcnf = LC.andFast(A.cnf(switchVar,toggle),currentcnf)
          }
       }
-      // debug(`Returning ${show(currentcnf)}.`)
-      // indent -= 1
+
       return currentcnf
 
     }
   }
 
-  // produce the cnf in the format required by satSolve
-  // if toggle is true, negate it (since you want to show the negation is not
-  // satisfiable)
-  fastsatcnf (toggle = false) {
-    let s = x => x.replace(/:/g,'')
-    let c = this.fastcnf(undefined,toggle)
-    let cat = new Set()
-    c.map( x => {
-      x.forEach( z => {
-        let sz = s(z)
-        if (!cat.has(sz)) { cat.add(sz) }
-      } )
-    } )
-    cat=Array.from(cat)
-    let N = s => { return (cat.indexOf(s.replace(/:/g,''))+1)*((s[0]==':')?-1:1) }
-    return c.map(x=>Array.from(x)).map(x=>x.map(N))
-  }
-
-  fastValidate (showtimes) {
-    let debug = (msg) => { if (showtimes) console.log(msg) }
-      let start= new Date
-      debug(`Starting validation...`)
-    let c = this.fastsatcnf(true)
-    let n = LC.numvars(c)
-      let t1=new Date
-      debug(`Convert to SAT cnf (fast): ${(t1-start)/1000} seconds`)
-    let ans=!satSolve(n,c)
-    let t2=new Date
-      debug(`Run SAT: ${(t2-t1)/1000} seconds`)
-    return ans
-  }
   // produce the cnf in the format required by satSolve
   // if toggle is true, negate it (since you want to show the negation is not
   // satisfiable)
@@ -1415,204 +1034,6 @@ class LC extends Structure {
     return c.map(x=>Array.from(x)).map(x=>x.map(N))
   }
 
-  catalog () {
-    ////////////////////
-    let recursive = TimerStart('catalog')
-    ////////////////////
-
-    let s=this.toString().replace(/:/g,'')
-    // if its a statement, catalog it
-    if (this.isAnActualStatement()) {
-      ////////////////////
-      TimerStop('catalog',recursive)
-      ////////////////////
-      return [ s ]
-    // otherwise if it's an environment. Catalog its children in one big catalog
-    } else {
-      let A = this.LCchildren().map(x=>x.catalog()).flat()
-      let ans = new Set(A)  // remove duplicates
-      ////////////////////
-      TimerStop('catalog',recursive)
-      ////////////////////
-      return Array.from(ans)
-    }
-  }
-
-  hideme = () => {
-  // DEPRICATED
-  // CNF - we need to convert an environment LC to its CNF in the format accepted
-  // by SAT.js. It returns an array of arrays of non-zero integers.
-
-  // We need to pass it an optional catalog in order to call it recursively.
-  // For efficiency, our clauses will be js Sets.  These can be converted to
-  // arrays before sending them to satSolve()
-  // toCNF (_cat,_lvl) {
-  //   // We need to replace statements with integers, so we have a catalog
-  //   // if this is a recursive call, it should be passed as an argument
-  //   let cat = _cat ? _cat : this.catalog()
-  //   // for debugging we can optionally pass the level of recursion
-  //   let lvl = _lvl ? _lvl : 0
-  //   let ind = '  '.repeat(lvl)
-  //   // N(x) is the encoded numerical value of statement x
-  //   let N = (x) => cat.indexOf(x.toString().replace(/:/g,''))+1
-  //
-  //   // store the clauses as sets of integers, and the cnf as an array of clauses
-  //   let cnf = [ ]
-  //
-  //   // debugging utility for pretty formatting
-  //   let say = x => {
-  //     let varname = t => t<0 ? '-'+cat[-t-1] : cat[t-1]
-  //     if ( x instanceof Set) { return `[${Array.from(x).map(varname)}]` }
-  //     else if ( x.length>0 && x[0] instanceof Set ) {
-  //       return `[${x.map( y => '['+Array.from(y).map(varname)+']')}]` }
-  //     else { return `[${x.map( y => '['+y.map( z => '['+Array.from(z).map(varname)+']')+']')}]` }
-  //   }
-  //   // make it easy to toggle on/off
-  //   let debug =  (arg) => true // console.log(arg)
-  //
-  //   debug(ind + `Checking ${this.toString()} with catalog ${cat}`)
-  //   // console.log(`Catalog is ${cat}`)
-  //
-  //   // we will need utilities for negating a cnf, and'ing two cnfs, and or'ing
-  //   // two cnfs.  They should all share the same catalog, cat, and modify
-  //   // it as needed.
-  //
-  //   // andCNF is easy... just concat them
-  //   let andCNF = (...cnfs) => {
-  //     let ans = cnfs.reduce((A,B)=>A.concat(B),[])
-  //     debug(ind + `  and: ${cnfs.map(say)} -> ${say(ans)}`)
-  //     return ans
-  //   }
-  //
-  //   // // for orCNF we want to use switch variables to reduce the number of terms
-  //   // // produced from the product |A||B| to the sum |A|+|B|.  This
-  //   // // reduces it from exponential growth to quadratic
-  //   let orCNF = (A,B) => {
-  //     debug(ind + `    ** trying ${say(A)} or ${say(B)} `)
-  //     // initialize the answer array
-  //     let ans = [ ]
-  //     // if |A| or |B| is 1, or if both are 2, then just distribute because
-  //     // it's more efficient than adding another variable
-  //     if ( A.length==1 || B.length==1 || (A.length==2 && B.length==2) ) {
-  //       A.forEach( x => B.forEach( y => ans.push( union(x,y) ) ) )
-  //     } else {
-  //       debug(ind + `\n    (big boy mode)`)
-  //       // otherwise add another variable to the catalog.  Dummy vars have
-  //       // integer values rather than strings.
-  //       let l=cat.length + 1
-  //       cat.push(l)
-  //       debug(ind + `    Adding a variable. cat is now [${cat}]`)
-  //       // add the new dummy variable to all of the elements of the first
-  //       // array and add those to the answer array
-  //       A.map( y => new Set(y).add(l) ).forEach( z => ans.push(z) )
-  //       // add -l to all of the remaining sets and add them to ans array
-  //       B.map( y => new Set(y).add(-l) ).forEach( z => ans.push(z) )
-  //     }
-  //     debug(ind + `  ${say(A)} or ${say(B)} -> ${say(ans)}`)
-  //     return ans
-  //   }
-  //
-  //   // negation
-  //   let negCNF = (A) => {
-  //      debug(ind + `    ** trying to negate ${say(A)}`)
-  //      // check for a single clause
-  //      if (A.length == 1) {
-  //        let ans = Array.from( A[0] ).map( x => new Set( [-x] ) )
-  //        debug(ind + `  not: ${say(A)} -> ${say(ans)}`)
-  //        return ans
-  //      }
-  //      // otherwise or the negations of the clauses
-  //      let ans = negCNF( [A[0]] )
-  //      for (let i=1; i<A.length; i++) {
-  //        ans = orCNF( ans , negCNF( [A[i]] ) )
-  //      }
-  //
-  //      debug(ind + `  not ${say(A)} -> ${say(ans)}`)
-  //      return ans
-  //   }
-  //
-  //   // if the LC is a Statement, it's CNF is itself.
-  //   if (this.isAnActualStatement()) {
-  //     return this.isAGiven ? [ new Set([-N(this)]) ] : [ new Set([N(this)]) ]
-  //
-  //   // so it's an environment (for now... declarations and formulas later??)
-  //   } else if (this.isAnActualEnvironment()) {
-  //     // start with an empty array
-  //     cnf = [ ]
-  //     let fpf = this.fullyParenthesizedForm()
-  //     //
-  //     let kids = fpf.LCchildren()
-  //     // if it has no children there are no clauses to report
-  //     if (kids.length == 0) return cnf
-  //
-  //     // IMPORTANT: I got burned by this the first time around.  In order to use
-  //     // switch variables to improve efficiency, we MUST check if the environment
-  //     // is a given first, and deal with that leading negation first rather than
-  //     // converting the children first and then negating the whole thing.  Switch
-  //     // variables don't work in that scenario because they are only applying to
-  //     // a subexpression.
-  //
-  //     // then check if we have to negate the whole thing.
-  //     if (fpf.isAGiven) {
-  //       // one argument
-  //       if (kids.length == 1) {
-  //         let kid = kids[0].copy()
-  //         // double negative
-  //         kid.isAGiven = kid.isAGiven ? false : true
-  //         return kid.toCNF()
-  //       // two arguments because it's fpf
-  //       } else {
-  //          // negate both args
-  //          let A=kids[0].copy()
-  //          let B=kids[1].copy()
-  //          A.isAGiven = A.isAGiven ? false : true
-  //          B.isAGiven = B.isAGiven ? false : true
-  //          // then check if they should be ORed or ANDed
-  //          lvl++
-  //          // if the first child is a given, it's an OR, so AND them
-  //          if (kids[0].isAGiven) {
-  //            return andCNF(A.toCNF(cat,lvl),B.toCNF(cat,lvl))
-  //          // otherwise it's an AND, so OR them
-  //          } else {
-  //            return orCNF(A.toCNF(cat,lvl),B.toCNF(cat,lvl))
-  //          }
-  //       }
-  //     // the environment is not a given
-  //     } else {
-  //       // one argument
-  //       if (kids.length == 1) {
-  //         return kids[0].toCNF()
-  //       // two arguments because it's fpf
-  //       } else {
-  //          // check if they should be ORed or ANDed
-  //          lvl++
-  //          // if the first child is a given, OR them
-  //          if (kids[0].isAGiven) {
-  //            return orCNF(kids[0].toCNF(cat,lvl),kids[1].toCNF(cat,lvl))
-  //          // otherwise it's an AND
-  //          } else {
-  //            return andCNF(kids[0].toCNF(cat,lvl),kids[1].toCNF(cat,lvl))
-  //          }
-  //       }
-  //     }
-  //   }
-  //   throw(`We don't handle that yet`)
-  // }
-  //
-  // // DEPRICATED
-  // // toCNF does all the work, but CNF converts it to the format
-  // // needed by satSolve
-  // CNF () { return this.toCNF().map( x => Array.from(x) ) }
-}
-
-  // This is the WRONG way to do this but it's ok for our purposes for now
-  // We should really upgrade toCNF to use a CNF class object, not recompute the
-  // number of variables after the fact
-  static numvars (_CNF) {
-    let cnf = _CNF ? _CNF.flat() : this.CNF().flat()
-    return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
-  }
-
   Validate (showtimes) {
     let debug = (msg) => { if (showtimes) console.log(msg) }
       let start= new Date
@@ -1620,33 +1041,46 @@ class LC extends Structure {
     let c = this.satcnf(true)
     let n = LC.numvars(c)
       let t1=new Date
-      debug(`Convert to SAT cnf: ${(t1-start)/1000} seconds`)
+      debug(`Convert to SAT cnf (fast): ${(t1-start)/1000} seconds`)
     let ans=!satSolve(n,c)
     let t2=new Date
       debug(`Run SAT: ${(t2-t1)/1000} seconds`)
     return ans
   }
 
-  //
-  // oldValidate (showtimes) {
-  //   let debug = (msg) => { if (showtimes) console.log(msg) }
-  //     let start= new Date
-  //   debug(`Starting validation...`)
-  //     let L=this.copy()
-  //   L.isAGiven = this.isAGiven ? false : true
-  //     let t1=new Date
-  //     debug(`Copy the LC: ${(t1-start)/1000} seconds`)
-  //   let cnf = L.CNF()
-  //   let n = LC.numvars(cnf)
-  //     let t2=new Date
-  //     debug(`Convert to CNF: ${(t2-t1)/1000} seconds`)
-  //   let ans=!satSolve(n,cnf)
-  //   let t3=new Date
-  //     debug(`Run SAT: ${(t3-t2)/1000} seconds`)
-  //   return ans
-  // }
-  //
+  // show the catalog of unique statement names contained in this LC
+  catalog () {
+      ////////////////////
+      let recursive = TimerStart('catalog')
+      ////////////////////
 
+      let s=this.toString().replace(/:/g,'')
+      // if its a statement, catalog it
+      if (this.isAnActualStatement()) {
+        ////////////////////
+        TimerStop('catalog',recursive)
+        ////////////////////
+        return [ s ]
+      // otherwise if it's an environment. Catalog its children in one big catalog
+      } else {
+        let A = this.LCchildren().map(x=>x.catalog()).flat()
+        let ans = new Set(A)  // remove duplicates
+        ////////////////////
+        TimerStop('catalog',recursive)
+        ////////////////////
+        return Array.from(ans)
+      }
+    }
+
+  // This is the WRONG way to do this but it's ok for our purposes for now
+  // We should really upgrade toCNF to use a CNF class object, not recompute the
+  // number of variables after the fact
+  static numvars (_CNF) {
+    let cnf = _CNF ? _CNF.flat() : this.cnf().flat()
+    return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
+  }
+
+ 
 } // end of LC class definition
 
 // The annoyance with satSolve is we need both the CNF and the number of variables
@@ -1719,6 +1153,9 @@ equalcnf = (A,B) => { return setequals(A,B,setequals) }
 // We also want to easily construct a cnf by hand
 makecnf = ( ...clauses ) => { return clauses.map( x => new Set(x) ) }
 
+// Syntactic sugar
+lc = (s) => LC.fromString(s)
+
 // quick hack for a global variable so I don't have to pass it as an arg
 var indent = -1
 
@@ -1732,6 +1169,7 @@ module.exports.setequals = setequals
 module.exports.seq = seq
 module.exports.equalcnf = equalcnf
 module.exports.makecnf = makecnf
+module.exports.lc = lc
 module.exports.indent = indent
 module.exports.Times = Times
 module.exports.StartTimes = StartTimes

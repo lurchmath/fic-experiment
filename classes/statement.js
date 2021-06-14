@@ -51,7 +51,7 @@ class Statement extends LC {
   toString (options) {
 
     ////////////////////
-    let recursive = TimerStart('toString')
+    // let recursive = TimerStart('toString')
     ////////////////////
 
     let result = ''
@@ -90,7 +90,7 @@ class Statement extends LC {
        if (this.isValid) { result += '✓' } else { result += '✗' }
 
     ////////////////////
-    TimerStop('toString',recursive)
+    // TimerStop('toString',recursive)
     ////////////////////
 
     return result
