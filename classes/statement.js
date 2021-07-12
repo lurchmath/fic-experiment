@@ -237,7 +237,7 @@ class Statement extends LC {
     return false
   }
   // candy
-  isFree () { return !isBound() }
+  isFree () { return !this.isBound() }
 
   // Find the names of all free identifiers in a statement and return it as a Set
   allIdentifiers () {

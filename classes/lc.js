@@ -1056,19 +1056,19 @@ class LC extends Structure {
   //
   // This routine assumes that 'this' LC has the same absolute value as 'other'.
   hasSameScopesAs ( other ) {
-    // if (this instanceof Statement &&
-    //     // if its scope is a Statement, it's a bound variable
-    //     !(this.getAttribute('declared by')) instanceof Statement) &&
-    //     // everything else should match scopes
-    //     this.getAttribute('declared by')) !== other.getAttribute('declared by'))
-    //   ) { return false }
-    // // whether they are Statements, Declarations, or Environments... recurse
-    // let mykids = this.children()
-    // let otherkids = other.children()
-    // for (let i=0;i<mykids.length;i++) {
-    //
-    // }
-    // return true
+    if (this instanceof Statement &&
+        // if the head of this Statement is free
+        this.isFree() &&
+        // the scopes should match
+        this.getAttribute('declared by') !== other.getAttribute('declared by')
+      ) { return false }
+    // whether they are Statements, Declarations, or Environments... recurse
+    let mykids = this.children()
+    let otherkids = other.children()
+    for (let i=0;i<mykids.length;i++) {
+      if (!mykids[i].hasSameScopesAs(otherkids[i])) { return false }
+    }
+    return true
   }
 
   cnf (switchVar = 'Z0',toggleGiven = false) {
