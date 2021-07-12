@@ -207,8 +207,7 @@ class Environment extends LC {
   //  - Every quantified expression will be marked with its binding failures,
   //    even if that list is empty.  See the markFailures() and
   //    successfullyBinds() functions in the Statement class for details.
-  markDeclarations ( declaredConstNames = [ ], declaredVarNames = [ ],
-                     enclosingEnvironment ) {
+  markDeclarations ( declaredConstNames = [ ], declaredVarNames = [ ] , enclosingEnvironment ) {
     // utility functions:
     let isDeclared = ( x ) => declaredConstNames.includes( x )
                            || declaredVarNames.includes( x )

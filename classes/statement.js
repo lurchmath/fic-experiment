@@ -1,9 +1,10 @@
 
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
-const { LC, Times, StartTimes, TimerStart, TimerStop } = require( './lc.js' )
+const { LC, Times, StartTimes, TimerStart, TimerStop, union } =
+        require( './lc.js' )
 const { isMetavariable, setMetavariable, clearMetavariable } =
-  require( '../dependencies/matching.js' )
+        require( '../dependencies/matching.js' )
 
 class Statement extends LC {
   // register with Structure ancestor class for good serialization/copying
@@ -167,7 +168,8 @@ class Statement extends LC {
     }
     this.children().map( child => child.validateQuantifiers( constantNames ) )
   }
-  // The scope of a Statement that's an identifier is one of:
+
+  // The scope of an identifier in a Statement is one of:
   //  - The quantifier binding it, if it is (successfully) bound by one.
   //  - The declaration declaring it, if it is (successfully) declared by one.
   //  - The environment implicitly declaring it, in all other cases.
@@ -219,6 +221,30 @@ class Statement extends LC {
     // that, then this could happen, for implicit declarations only.  So we
     // return undefined in that case.
     return undefined // this is what JS does anyway, but just being explicit
+  }
+
+  // Check if the identifier of this Statement (which might be compound) is
+  // bound.  It is bound iff either
+  //   (a) it is inside a Declaration that declares it
+  //   (b) it is declared by a quantifier (which can only happen if its
+  //       scope is a Statement
+  // Yhis routine assumes markScopes has been run on the LC.
+  isBound () {
+    if (this.getAttribute('declared by') instanceof Statement ||
+        this.getAttribute('declared by').isAnActualDeclaration() &&
+        this.getAttribute('declared by').isAncestorOf(this)
+      ) { return true }
+    return false
+  }
+  // candy
+  isFree () { return !isBound() }
+
+  // Find the names of all free identifiers in a statement and return it as a Set
+  allIdentifiers () {
+    let ans = new Set([this.identifier])
+    let kids = this.children()
+    if (kids.length>0) kids.forEach( x => ans = union( ans , x.allIdentifiers()))
+    return ans
   }
 }
 

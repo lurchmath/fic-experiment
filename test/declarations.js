@@ -347,7 +347,7 @@ suite( 'Marking declarations', () => {
     // now go ahead and compute all the scope feedback:
     E.markDeclarations()
     // we should find that:
-    //  - outer env: no implicit declaration of P and nothing failed
+    //  - outer env: implicit declaration of P and nothing failed
     //  - inner env 1: no implicit declarations and nothing failed
     //  - way inner env: no implicit declarations, Let P failed
     expect( E.implicitDeclarations ).to.eql( [ 'P' ] )

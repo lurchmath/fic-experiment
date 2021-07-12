@@ -1,6 +1,10 @@
 const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { satSolve } = require( '../dependencies/LSAT.js' )
+const util = require('util')
+
+const verbose = true
+let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
 
 /////////////////////////////////////////////
 //
@@ -53,8 +57,8 @@ let TimerStop = (fname,recursive) => {
  }
 
 
- // const { MatchingProblem, MatchingSolution } = require( './matching.js' )
- let MatchingProblem, MatchingSolution
+// const { MatchingProblem, MatchingSolution } = require( './matching.js' )
+let MatchingProblem, MatchingSolution
 
 // pattern P to match against an expression E
 // P contains metavars
@@ -71,13 +75,13 @@ let TimerStop = (fname,recursive) => {
 // you can also do: prob.getOneSolution() and it will either be a MatchingSolution instance if one exists, or null if there are no solutions
 // or prob.isSolvable()
 
-// const verbose = false
-// let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
-
 class LC extends Structure {
 
   // register with Structure ancestor class for good serialization/copying
   className = Structure.addSubclass( 'LC', LC )
+
+  // pretty printing LCs
+  inspect () { console.log(util.inspect(this,false,null,true)) }
 
   // Structures can have attributes, but only some of them affect the meaning
   // of an LC.  We keep the list of such keys here.
@@ -199,9 +203,10 @@ class LC extends Structure {
   // check if this LC is a actual Environment (not an actual Declaration).
   isAnActualEnvironment () { return this instanceof Environment &&
                                    !this.isAnActualDeclaration() }
-                                   // check if this LC is a actual Environment (not an actual Declaration).
+  // check if this LC is a actual Quantifier (not an actual Declaration).
   isAnActualQuantifier () { return this instanceof Statement &&
                                    this.isAQuantifier }
+
   // For FIC validation we only need the declaration's last argument LC.
   // We call this its 'value'. Everything else is its own value.
   value () { return this.isAnActualDeclaration() ? this.last : this }
@@ -562,7 +567,7 @@ class LC extends Structure {
   static fromString ( string ) {
     const ident = /^[a-zA-Z_0-9⇒¬⇔→←=≠∈×⊆℘∩∪∀∃!∉∅\-+∘<>≤≥⋅⊥]+/
     const longnames = {
-      '⇒'  : 'implies'    , '¬' : 'not'       , '⇔' : 'iff'      ,
+      '⇒'  : 'implies'     , '¬' : 'not'       , '⇔' : 'iff'      ,
       '←'  : 'from'        , '=' : 'equal'     , '≠' : 'notequal' ,
       '×'  : 'cross'       , '⊆' : 'subseteq'  , '℘' : 'powerset' ,
       '∩'  : 'intersect'   , '∪' : 'union'     , '∀' : 'forall'   ,
@@ -571,7 +576,7 @@ class LC extends Structure {
       '>'  : 'greaterthan' , '≤' : 'leq'       , '→' : 'to'       ,
       '≥'  : 'geq'         , '∈' : 'member'    , '+' : 'plus'     ,
       '⋅'  : 'cdot'        , '∃' : 'exists'    , '⊥' : 'false'    ,
-      '∃!' : 'existsunique', '0'  : 'zero'        , '1'  : 'one'  ,
+      '∃!' : 'existsunique', '0' : 'zero'      , '1'  : 'one'  ,
       '→←' : 'false'
     }
     const comment = /^\/\/[^\n]*\n|^\/\/[^\n]*$/
@@ -881,6 +886,17 @@ class LC extends Structure {
   // neither logically equivalent, nor equisatisfiable with, the larger
   // expression.  See the Infamous Bug Proposition in the testing suite for
   // an example.
+  //
+  // There is one caveate to note, however, that might be useful.  Supposed we
+  // are validating an LC one claim at a time, so that for a particular claim C
+  // we have effectively the LC L={:P1 ... :Pn C } where Pi are the accessibles
+  // to C. When we incorporate matching and formulas to this, we will be
+  // instantiating rules one at a time, and putting those instantiations onto the
+  // list of premises to see if it validates. If we cache the cnf form of L,
+  // it will be ok because we then combine that cnf with the one from L and
+  // decide if we need to add one more switch variable.  The prior switch
+  // variables will have been determined since we compute the cnf recursively
+  // starting from the rightmost child, and tacking on one child at a time.
 
   // For efficiency, it's better to add an extra argument to cnf that tells us
   // whether that cnf should have it's Given attribute toggled.  The reason this
@@ -946,13 +962,132 @@ class LC extends Structure {
     return 'Z'+(parseInt(switchVar.slice(1))+1)
   }
 
+  // check if an LC is an ancestor of another one
+  isAncestorOf (x) {
+    let anc=x
+     while (anc) {
+       if (this===anc) { return true
+       } else {
+         anc = anc.parent()
+       }
+     }
+     return false
+  }
+  // Before converting to propositional form (e.g. to cnf), we have to be sure
+  // that in each step we do not allows the conclusion
+  // After markingDeclarations we can scan the whole thing to mark the scopes
+  // of all identifiers throughout the LC (even in compound statements). We
+  // store this in the 'declared by' attribute of the individual LC nodes.  Thus,
+  // a compound statement like f(x,g(y)) will have a separate scopes
+  // attribute stored for each of f, x, g, and y.
+  //
+  // This assumes you have called markDeclarations() on the surrounding LC so
+  // scope information can be computed.
+  markScopes ( ) {
+     // each time you encounter a Statement, mark its scope
+     // debug(`Is ${this+''} an instance of Statement? `+
+     //       `${(this instanceof Statement) ? 'Yes' : 'No'}`)
+     if ( this instanceof Statement ) {
+        // debug(`attributing ${this.toString()}`)
+        this.setAttribute( 'declared by' , this.scope() )
+     }
+     // and whether it's a Statement, Environment, or Declaration, recursively
+     // mark all it's children
+     this.children().forEach( x => x.markScopes() )
+  }
+
+  // for debugging ... a nice utility to print all the scopes of symbols
+  showAllScopes ( recursive = false ) {
+    if (!recursive) {
+      console.log(`\nShowing scopes for ${this+''}\n`)
+      this.markDeclarations()
+      this.markScopes()
+    }
+    if ( this instanceof Statement ) {
+       console.log(
+         `Symbol ${this.identifier} is declared by ${this.getAttribute('declared by')+''}`
+       )
+    }
+    // and whether it's a Statement, Environment, or Declaration, recursively
+    // mark all it's children
+    this.children().forEach( x => x.showAllScopes( true ) )
+  }
+
+  // For converting to CNF we need to know if two LCs have the same meaning
+  // if we ignore the Given attribute.  We call the Claim version of a Given
+  // its 'absolute value'. So :{ :P Q } and { :P Q } have the same absolute
+  // value, but not the same meaning, whereas { :P Q } and { P Q } do not have
+  // either the same meaning or the same absolute value.
+  //
+  hasSameAbsoluteValueAs ( other ) {
+    // Check if they are the same class of object
+    if (this.constructor !== other.constructor) return false
+    // they have to have the same number of children
+    let numkids = this.children().length
+    if (numkids != other.children().length) return false
+    // if they do and it's positive, then just check if the children are equal
+    if (numkids>0) {
+      for (let i=0; i<numkids; i++)
+        if (!this.children()[i].hasSameMeaningAs(other.children()[i]))
+          return false
+    }
+    // Check if the attributes that define an LC are the same
+    // (and nothing else).
+    let ours = this.attributes
+    let theirs = other.attributes
+    let keys = LC.LCkeys()
+    // ignore the 'given' attribute when comparing..
+    let j=keys.indexOf('given')
+    if ( j>0 ) keys.splice(j,1)
+    // make sure the remaining attributes match
+    for (let i=0; i<keys.length; i++) {
+      let p = keys[i]
+      if ( ours.hasOwnProperty(p) && !theirs.hasOwnProperty(p) ||
+          !ours.hasOwnProperty(p) &&  theirs.hasOwnProperty(p) ||
+           ours.hasOwnProperty(p) &&  theirs.hasOwnProperty(p) &&
+           ours[p] !== theirs[p]) return false
+    }
+    return true
+  }
+  // We must further refine our comparison of Statements and Declarations
+  // determining those with the same absolute values who also agree on the
+  // scopes of their free variables.  To do this we check that two LCs
+  // with the same absolute value have he same scopes for free identifiers.
+  //
+  // This routine assumes that 'this' LC has the same absolute value as 'other'.
+  hasSameScopesAs ( other ) {
+    // if (this instanceof Statement &&
+    //     // if its scope is a Statement, it's a bound variable
+    //     !(this.getAttribute('declared by')) instanceof Statement) &&
+    //     // everything else should match scopes
+    //     this.getAttribute('declared by')) !== other.getAttribute('declared by'))
+    //   ) { return false }
+    // // whether they are Statements, Declarations, or Environments... recurse
+    // let mykids = this.children()
+    // let otherkids = other.children()
+    // for (let i=0;i<mykids.length;i++) {
+    //
+    // }
+    // return true
+  }
+
   cnf (switchVar = 'Z0',toggleGiven = false) {
 
-    // for Statements it's just their toString() form (or its negation) wrapped
-    // appropriately
+    let debug = (msg) => console.log(msg)
+    // for Statements  it's just their toString() form
+    // (or its negation) wrapped appropriately
     if (this.isAnActualStatement()) {
       let str = (toggleGiven) ? LC.negateFast(this.toString()) : this.toString()
       return [ new Set( [ str ] ) ]
+
+    // for Declarations, it's the conjuction of their toString() form, P, and
+    // the cnf of their body
+    } else if (this.isAnActualDeclaration()) {
+      let P = (toggleGiven) ? LC.negateFast(this.toString()) : this.toString()
+      let Pcnf = [ new Set( [ P ] ) ]
+      let B = this.last
+      let Bcnf = B.cnf(switchVar,this.isAGiven != toggleGiven)
+      return LC.andFast(Pcnf,Bcnf)
 
     // environments are where all the action is
     } else if (this.isAnActualEnvironment()) {
@@ -996,7 +1131,7 @@ class LC extends Structure {
         if (kids[kids.length-1].isAGiven) { kids.pop()
         // if it's not a given, see if it's trivial
         } else {
-        currentcnf = kids.pop().cnf(switchVar,toggle)
+          currentcnf = kids.pop().cnf(switchVar,toggle)
         }
       }
       // then starting from the right, pop off the last argument, convert it
@@ -1080,7 +1215,7 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
- 
+
 } // end of LC class definition
 
 // The annoyance with satSolve is we need both the CNF and the number of variables
@@ -1148,13 +1283,17 @@ const seq = (f,start,end,inc=1) => {
 // js sets pretty much suck as mathematical sets, because you can't easily
 // test them for equality without doing it all by hand. For example a js Set of
 // js Sets could easily have duplicate elements.
-equalcnf = (A,B) => { return setequals(A,B,setequals) }
+equalcnf = (A,B) => setequals(A,B,setequals)
 
 // We also want to easily construct a cnf by hand
-makecnf = ( ...clauses ) => { return clauses.map( x => new Set(x) ) }
+makecnf = ( ...clauses ) => clauses.map( x => new Set(x) )
 
 // Syntactic sugar
-lc = (s) => LC.fromString(s)
+lc = (s) => {
+  let L = LC.fromString(s)
+  // L.markDeclarations()
+  return L
+}
 
 // quick hack for a global variable so I don't have to pass it as an arg
 var indent = -1
