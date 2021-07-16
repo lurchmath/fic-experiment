@@ -6,6 +6,9 @@ const { LC, Times, StartTimes, TimerStart, TimerStop, union } =
 const { isMetavariable, setMetavariable, clearMetavariable } =
         require( '../dependencies/matching.js' )
 
+let debug = ( ...args ) => console.log( ...args )
+
+
 class Statement extends LC {
   // register with Structure ancestor class for good serialization/copying
   className = Structure.addSubclass( 'Statement', Statement )
@@ -59,6 +62,15 @@ class Statement extends LC {
     if ( this.isAGiven ) result += ':'
     if ( this.isAQuantifier ) result += '~'
     result += this.identifier
+
+    // options.ID determines if we show ID numbers for identifiers in statements
+    //   - ID:'All' or ID:true does it for all of them
+    //   - ID:'free' does it only for free identifiers
+    if ( options && options.ID &&
+        !(options.ID==='free' && this.isBound() ) ) {
+      result += '_'+this.scope().getAttribute('ID')
+    }
+
     // options.Bound determines if we show bound variable statuses
     if ( options && options.Bound &&
          this.isAnActualIdentifier() && this.parent() &&
@@ -85,6 +97,7 @@ class Statement extends LC {
       result += '('
               + this.children().map( child => child.toString(options) ).join( ',' )
               + ')'
+
     // options.FIC determines if we show illegal identifier
     // declarations.
     if ( options && options.FIC && this.isValidated )
@@ -228,7 +241,7 @@ class Statement extends LC {
   //   (a) it is inside a Declaration that declares it
   //   (b) it is declared by a quantifier (which can only happen if its
   //       scope is a Statement
-  // Yhis routine assumes markScopes has been run on the LC.
+  // This routine assumes markDeclarations and markScopes has been run on the LC.
   isBound () {
     if (this.getAttribute('declared by') instanceof Statement ||
         this.getAttribute('declared by').isAnActualDeclaration() &&
@@ -240,10 +253,11 @@ class Statement extends LC {
   isFree () { return !this.isBound() }
 
   // Find the names of all free identifiers in a statement and return it as a Set
-  allIdentifiers () {
-    let ans = new Set([this.identifier])
+  freeIdentifiers () {
+    let ans = new Set
+    if (this.isFree()) ans = union( ans , new Set([this.identifier]) )
     let kids = this.children()
-    if (kids.length>0) kids.forEach( x => ans = union( ans , x.allIdentifiers()))
+    if (kids.length>0) kids.forEach( x => ans = union( ans , x.freeIdentifiers()))
     return ans
   }
 }

@@ -259,7 +259,21 @@ class Environment extends LC {
       // so it shouldn't impact later children.  Note that some environments are
       // formulas, which ignore declared variables, as in the second parameter,
       // below.
-      if ( child instanceof Environment ) {
+      // if ( child instanceof Environment ) {
+      //   ( function ( constants, variables, enclosing ) {
+      //     recursiveCalls.push( function ( implicitVars ) {
+      //       // console.log( 'Recurring inside child (environment) '+index+'...' )
+      //       child.markDeclarations( constants,
+      //         child.isAFormula ? [ ] : union( variables, implicitVars ),
+      //         enclosing )
+      //       // console.log( '...stepping back out of recursion.' )
+      //     } )
+      //   } )( declaredConstNames.slice(), declaredVarNames.slice(),
+      //        enclosingEnvironment ? enclosingEnvironment :
+      //        child.declaration && child.declaration != 'none' ? this :
+      //        undefined )
+      // }
+      if ( child.isAnActualEnvironment ) {
         ( function ( constants, variables, enclosing ) {
           recursiveCalls.push( function ( implicitVars ) {
             // console.log( 'Recurring inside child (environment) '+index+'...' )
@@ -286,6 +300,14 @@ class Environment extends LC {
             declaredVarNames.push( name )
           }
         } )
+
+        // The previous routine doesn't consider quantifiers themselves to
+        // be free in the statement, so we tack them on.
+        if (child.getAttribute('quantifier') &&
+            !isDeclared( child.identifier )) {
+          implicitDeclarations.push( child.identifier )
+          declaredVarNames.push( child.identifier )
+        }
         // console.log( '\tIt\'s a statement; we validated quantifiers and now '
         //            + 'additional implicit vars are ['
         //            + implicitDeclarations.join( ',' ) + ']' )
@@ -330,6 +352,7 @@ class Environment extends LC {
     recur( this )
     return result
   }
+
 }
 
 module.exports.Environment = Environment

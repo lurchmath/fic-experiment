@@ -81,7 +81,7 @@ class LC extends Structure {
   className = Structure.addSubclass( 'LC', LC )
 
   // pretty printing LCs
-  inspect () { console.log(util.inspect(this,false,null,true)) }
+  inspect (depth=null) { console.log(util.inspect(this,false,depth,true)) }
 
   // Structures can have attributes, but only some of them affect the meaning
   // of an LC.  We keep the list of such keys here.
@@ -1013,6 +1013,10 @@ class LC extends Structure {
     this.children().forEach( x => x.showAllScopes( true ) )
   }
 
+  // prettyprint an LC with indented formatting
+  show () { console.log(this.toString({ FIC: true , Scopes: true ,
+            Bound: true , Indent: true , ID: 'free' })) }
+
   // For converting to CNF we need to know if two LCs have the same meaning
   // if we ignore the Given attribute.  We call the Claim version of a Given
   // its 'absolute value'. So :{ :P Q } and { :P Q } have the same absolute
@@ -1071,19 +1075,63 @@ class LC extends Structure {
     return true
   }
 
+  // We assign a unique ID to all of the environments, declarations, and
+  // quantified statements in this LC (even quantified statements that are
+  // contained inside another Statement).
+  markIDs ( ID = 0 ) {
+    if (this instanceof Environment || // includes Declarations
+        this instanceof Statement && this.isAQuantifier )
+        this.setAttribute('ID',ID++)
+    // whether it's a Statement or an Environment, recurse.
+    for (let i=0;i<this.children().length;i++) {
+        ID = this.child(i).markIDs(ID)
+    }
+    return ID
+  }
+
+  // a convenience utility
+  markAll () {
+    this.markDeclarations()
+    this.markScopes()
+    this.markIDs()
+  }
+
+  // Each actual Statement and actual Declaration has a propositonal form
+  // which is a string that is the single propositional variable representing it
+  // for the purposes of validation by SAT or FIC. Two LCs have the same
+  // propositional form iff
+  //   (a) they have the same meaning (via hasSameMeaningAs) and
+  //   (b) are both contained in all of the same scopes (via hasSameScopesAs).
+  // We currently use toString({ID:true})to accomplish both (a) and (b).
+  //
+  // Currently this routine only works for (actual) Statements and Declarations.
+  // because out current cnf routine works on Environments. In the future
+  // we might upgrade this to give a propositional form to an environments too
+  // and then convert those to cnfs.
+  //
+  // This routine assumes you have run this.markAll() already.
+  propositionalForm () {
+     if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
+       return this.toString({ID:'free'})
+     }
+     // undefined if it's anything else.
+     return undefined
+  }
+
   cnf (switchVar = 'Z0',toggleGiven = false) {
 
     let debug = (msg) => console.log(msg)
-    // for Statements  it's just their toString() form
+    // for Statements  it's just their propositional form
     // (or its negation) wrapped appropriately
     if (this.isAnActualStatement()) {
-      let str = (toggleGiven) ? LC.negateFast(this.toString()) : this.toString()
+      let str = (toggleGiven) ? LC.negateFast(this.propositionalForm()) :
+                                this.propositionalForm()
       return [ new Set( [ str ] ) ]
 
     // for Declarations, it's the conjuction of their toString() form, P, and
     // the cnf of their body
     } else if (this.isAnActualDeclaration()) {
-      let P = (toggleGiven) ? LC.negateFast(this.toString()) : this.toString()
+      let P = (toggleGiven) ? LC.negateFast(this.propositionalForm()) : this.propositionalForm()
       let Pcnf = [ new Set( [ P ] ) ]
       let B = this.last
       let Bcnf = B.cnf(switchVar,this.isAGiven != toggleGiven)
@@ -1172,11 +1220,16 @@ class LC extends Structure {
   Validate (showtimes) {
     let debug = (msg) => { if (showtimes) console.log(msg) }
       let start= new Date
-      debug(`Starting validation...`)
+    // we run this here just in case.  This allows the propositionalForms
+    // to correctly number the identifiers.
+    debug(`Starting validation... `)
+    this.markAll()
+      let t0=new Date
+      debug(`Compute all scopes: ${(t0-start)/1000} seconds`)
     let c = this.satcnf(true)
     let n = LC.numvars(c)
       let t1=new Date
-      debug(`Convert to SAT cnf (fast): ${(t1-start)/1000} seconds`)
+      debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
     let ans=!satSolve(n,c)
     let t2=new Date
       debug(`Run SAT: ${(t2-t1)/1000} seconds`)
