@@ -243,6 +243,9 @@ class Environment extends LC {
             declaredVarNames.push( name )
         } )
         child.markFailures( failures )
+        // a declaration also behaves as if it's body is at the same level as the
+        // declaration itself.
+
         // console.log( '\tIt\'s a declaration w/failures ['
         //            + failures.join( ',' ) + '] and now consts ['
         //            + declaredConstNames.join( ',' ) + '] and vars ['
