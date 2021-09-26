@@ -199,10 +199,6 @@ suite( 'Parsing', () => {
   } )
 
   test( 'Throws errors for illegal inputs.', () => {
-    expect( parsing( 'Let{ x Let{ y } }' ) ).to.throwException( /non-declaration/ )
-    expect( parsing( 'Declare{ x Let{ y } }' ) ).to.throwException( /non-declaration/ )
-    expect( parsing( 'Let{ x Declare{ y } }' ) ).to.throwException( /non-declaration/ )
-    expect( parsing( 'Declare{ x Declare{ y } }' ) ).to.throwException( /non-declaration/ )
     expect( parsing( 'Let{ }' ) ).to.throwException( /non-declaration/ )
     expect( parsing( 'Declare{ }' ) ).to.throwException( /non-declaration/ )
     expect( parsing( 'Declare{ Let{ x } }' ) ).to.throwException( /non-declaration/ )

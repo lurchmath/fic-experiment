@@ -89,7 +89,7 @@ suite( 'Validate conversion to nontrivial cnf of simple LCs.', () => {
   cnftest('{ :{ :A { :B C } } { :A :B C } }',['A',':A',':B','C'],['B',':A',':B','C'],[':C',':A',':B','C'])
   // SimpleSwitch: Note - this will need to be updated when we pick
   // permanent names for switch variables
-  cnftest('{:{:{:A B} {:A C}} {:{:B C} C}}',[':A','B','Z1'],['A','Z1'],[':C','Z1'],['B','C',':Z1'],[':C','C',':Z1']) 
+  cnftest('{:{:{:A B} {:A C}} {:{:B C} C}}',[':A','B','Z1'],['A','Z1'],[':C','Z1'],['B','C',':Z1'],[':C','C',':Z1'])
 } )
 
 suite( 'Validate some short LCs and check accessibility.', () => {

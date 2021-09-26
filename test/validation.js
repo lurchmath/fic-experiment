@@ -36,12 +36,6 @@ suite( 'Validation', () => {
              lc('Let{ c P(c) }'))).to.be(false)
      expect( lc('Declare{ c P(c) }').hasSameMeaningAs(
              lc('Let{ c P(c) }'))).to.be(false)
-     expect( lc('Declare{ c }').hasSameMeaningAs(
-             lc('Declare{ x }'))).to.be(false)
-     expect( lc('Let{ x }').hasSameMeaningAs(
-             lc('Let{ x }'))).to.be(true)
-     expect( lc('{ Let{ x } }').hasSameMeaningAs(
-             lc('{ x }'))).to.be(false)
   } )
 
   test( 'Things that don\'t need validation don\'t get it.', () => {
@@ -223,8 +217,8 @@ suite( 'Validation', () => {
       ans = ans.replace(/\s{2,}/g, ' ')
       ans = ans.trim()
       expect(validate(divalg)).to.be(ans)
-      expect(validate('{ :{ :{ :Let{ x W(x) } Z(x) } ~All(x,implies(W(x),Z(x))) } { :Let{ x W(x) } Z(x) } ~All(x,implies(W(x),Z(x))) }'))
-              .to.be('{ :{ :{ :Let{ x✓ W(x) } Z(x) } ~All(x✓,implies(W(x),Z(x))) } { :Let{ x✓ W(x) } Z(x)✗ } ~All(x✓,implies(W(x),Z(x)))✓ }')
+      expect(validate('{ :{ :{ :Let{ x W(x) } Z(x) } ~All(x,Implies(W(x),Z(x))) } { :Let{ x W(x) } Z(x) } ~All(x,Implies(W(x),Z(x))) }'))
+              .to.be('{ :{ :{ :Let{ x✓ W(x) } Z(x) } ~All(x✓,Implies(W(x),Z(x))) } { :Let{ x✓ W(x) } Z(x)✗ } ~All(x✓,Implies(W(x),Z(x)))✓ }')
   } )
 
   test( 'Testing valdation involving quantifiers.', () => {

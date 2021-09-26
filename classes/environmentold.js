@@ -3,7 +3,6 @@ const { Structure } = require( '../dependencies/structure.js' )
 const { OM } = require( '../dependencies/openmath.js' )
 const { LC, Times, StartTimes, TimerStart, TimerStop } = require( './lc.js' )
 const { Statement } = require( './statement.js' )
-const chalk = require('chalk')
 
 let debug = ( ...args ) => console.log( ...args )
 
@@ -41,24 +40,14 @@ class Environment extends LC {
   // (c) the first n-1 are identifiers,
   // (d) the last one is a claim, and
   // (e) that claim contains neither formulas nor other declarations.
-
   canBeADeclaration () {
-    const noFormulas = ( lc ) =>
-      !lc.isAFormula &&
-      lc.children().every( noFormulas )
-    return !this.isAFormula && this.children().length > 1
+    const noFormulasNorDeclarations = ( lc ) =>
+      !lc.isAFormula && ( !lc.isAnActualDeclaration() ) &&
+      lc.children().every( noFormulasNorDeclarations )
+    return !this.isAFormula && this.children().length > 0
         && this.last.isAClaim && this.allButLast.every( v => v.isAnIdentifier )
-        && noFormulas( this.last )
+        && noFormulasNorDeclarations( this.last )
   }
-  // canBeADeclaration () {
-  //   const noFormulasNorDeclarations = ( lc ) =>
-  //     !lc.isAFormula && ( !lc.isAnActualDeclaration() ) &&
-  //     lc.children().every( noFormulasNorDeclarations )
-  //   return !this.isAFormula && this.children().length > 0
-  //       && this.last.isAClaim && this.allButLast.every( v => v.isAnIdentifier )
-  //       && noFormulasNorDeclarations( this.last )
-  // }
-
   // If something's allowed to be a declaration as above, then we'll let you set
   // it as one, providing you're trying to set it as type "variable" or
   // "constant" or "none".  Otherwise, this does nothing.
@@ -100,13 +89,6 @@ class Environment extends LC {
         .indexOf( identifierName ) == -1 &&
       this.allButLast.some( declared => declared.identifier == identifierName )
   }
-  // A declaration "simply declares" an identifier if that identifier is
-  // on its list of declared identifiers regardless of whether it was a failed
-  // declaration
-  simplyDeclares ( identifierName ) {
-    return this.isAnActualDeclaration() &&
-      this.allButLast.some( declared => declared.identifier == identifierName )
-  }
   // The getter and setter for formula status enforce the requirement that you
   // can't nest formulas.
   get isAFormula () {
@@ -129,49 +111,16 @@ class Environment extends LC {
     // no ancestor constrains us, so we can obey the setting command:
     return this.setAttribute( 'formula', value )
   }
-  get isEmpty () { return this.children().length === 0 }
-  get isEE () { return this.hasAttribute('EE') && this.getAttribute('EE') }
-
   // What do Environments look like, for printing/debugging purposes?
   // The optional argument options should be an object with named booleans
   // which are false when omitted.
-  //
-  // options - an object containing various options (optional).  The options are:
-  //
-  //  * FIC:true     - show FIC validation of conclusions
-
-  //  * Bound:true   - show validation of identifiers declared by quantifiers
-  //                   and Declarations
-  //  * Indent:true  - format the output with indentations and newlines
-  //  * Color:true   - use color for syntax highlighting of output
-  //  * EEs:true     - print EEs that were added for constant declarations
-  //  * indentLevel  - keeps track of the current level of indentation
-  //  * tabsize      - the number of spaces in one indentation level
-
   toString ( options ) {
 
-    // Hide EEs when necessary
-    if (options && !options.EEs && this.isEE ) { return '' }
-
-    // define syntax highlighting
-    let colorize = ( x, col , font ) =>
-      ( options && options.Color ) ?
-        ( ( font ) ? chalk[col][font](x) : chalk[col](x) ) : x
-    let decColor = 'yellow',
-        envColor = 'whiteBright'
-    let colon    = colorize(':','whiteBright','bold'),
-        lsqr     = colorize('[',envColor),
-        lset     = colorize('{',envColor),
-        letStr   = colorize('Let{',decColor),
-        decStr   = colorize('Declare{',decColor),
-        rsqr     = colorize(']',envColor),
-        rset     = colorize('}',envColor),
-        closeDec = colorize('}',decColor),
-        correct  = colorize('✓','yellowBright'),
-        wrong    = colorize('✗','redBright')
-
-    // initialize
-    let result = ''
+    debug(`Converting this environment to string:`)
+    this.inspect()
+    ////////////////////
+    // let recursive = TimerStart('toString')
+    ////////////////////
 
     // options.Indent determines if we should indent and add newlines
     if (options && options.Indent ) {
@@ -179,79 +128,47 @@ class Environment extends LC {
       if (!options.hasOwnProperty('indentLevel')) options.indentLevel = 0
       if (!options.hasOwnProperty('tabsize')) options.tabsize = 2
       let tab = () => ' '.repeat(options.tabsize).repeat(options.indentLevel)
-
-      // given's : first before environments and declarations
-      result  +=  this.isAGiven ? colon : ''
-
-      // Declarations are formatted on a single line, unless their body is an
-      // environment, in which case we format the body starting on the following
-      // line.
-      if ( this.isAnActualDeclaration() ) {
-        result+= ((this.declaration === 'variable') ? letStr : decStr)
-              + ' '
-              + this.allButLast.map(
-                    child => child.toString(options)
-                  ).join(' ')
-        // Check for environment bodies
-        if (this.last.isAnActualEnvironment() && !this.last.isEmpty) {
-          options.indentLevel++
-          result+= '\n'
-                +  tab()
-                +  this.last.toString( options )
-                +  '\n'
-          options.indentLevel--
-          result+= tab()
-        // otherwise format the body on one line
-        } else {
-          result+= ' '
-                +  this.last.toString( options )
-                +  ' '
-        }
-        // then close the declaration
-          result+= closeDec
-
-      // empty environments are formatted inline
-      } else if ( this.isEmpty ) {  return lset+' '+rset
-
-      // Ordinary environments are printed as indented subproofs
-      } else {
-        options.indentLevel++
-        result+= ( this.isAFormula  ? lsqr  : lset )
-              +  '\n'
-              +  tab()
-              +  this.children().map(
-                   child => child.toString( options ) )
-                            .filter( Boolean )  // filter out empty strings
-                            .join('\n'+tab())
-              +  '\n'
-        options.indentLevel--
-        result+= tab()
-              + ( this.isAFormula ? rsqr : rset )
-              + ( ( options && options.FIC && this.isValidated ) ?
-                ( (this.isValid) ? correct : wrong ) : '' )
-      }
-
-    // if indentations not requested, print it as a flat string
-    } else {
-      result+=( this.isAGiven    ? colon         : '' )
-            + ( this.isAFormula  ? lsqr          :
+      let result = ''
+      result+=( this.isAGiven    ? ':'         : '' )
+            + ( this.isAFormula  ? '['        :
               ( this.declaration && this.declaration === 'variable'
-                                 ? letStr        :
+                                 ? 'Let{'     :
               ( this.declaration && this.declaration === 'constant'
-                                 ? decStr : lset )))
-            + ' '
+                                 ? 'Declare{' : '{' )))
+            + '\n'
+      options.indentLevel++
+      result+= tab()
             + this.children().map( child => child.toString(options) )
-                        .filter( Boolean )  // skip empty strings
-                        .join( ' ' )
-            + ' '
-            + ( this.isAFormula  ? rsqr        : rset )
+                             .join('\n'+tab())
+            + '\n'
+      options.indentLevel--
+      result+= tab()
+            + ( this.isAFormula  ? ']' : '}' )
             + ( ( options && options.FIC && this.isValidated ) ?
-                ( (this.isValid) ? correct : wrong ) : '' )
+                ( (this.isValid) ? '✓' : '✗' ) : '' )
 
+      ////////////////////
+      // TimerStop('toString',recursive)
+      ////////////////////
+
+      return result
+    } else {
+
+      ////////////////////
+      // TimerStop('toString',recursive)
+      ////////////////////
+
+      return ( this.isAGiven    ? ':'         : '' )
+           + ( this.isAFormula  ? '[ '        :
+             ( this.declaration && this.declaration === 'variable'
+                                ? 'Let{ '     :
+             ( this.declaration && this.declaration === 'constant'
+                                ? 'Declare{ ' : '{ ' )))
+           + this.children().map( child => child.toString(options) ).join( ' ' )
+           + ( this.isAFormula ? ' ]' : ' }' )
+           + ( ( options && options.FIC && this.isValidated ) ?
+               ( (this.isValid) ? '✓' : '✗' ) : '' )
     }
-
-    return result
-
   }
 
   // What do Environments look like in OM form?
@@ -311,17 +228,8 @@ class Environment extends LC {
     //            + declaredConstNames.join( ',' ) + '] and vars ['
     //            + declaredVarNames.join( ',' ) + ']:' )
 
-    // The body of a Declaration is supposed to be at the same level in the LC
-    // tree as the declaration itself.  We emulate this by putting a copt of
-    // the body immediately after each declaration.
-    // let kiddies = []
-    // for (let k=0;k<this.children().length;k++) {
-    //   kiddies.push(this.child(k))
-    //   if (this.child(k).isAnActualDeclaration()) kiddies.push(this.child(k).last)
-    // }
     this.children().map( ( child, index ) => {
       // console.log( 'Handling child ' + child + ':' )
-
       // If it's a declaration, grade whether any of its declarations are wrong.
       // Do this by writing to the "declaration failures" attribute an array of
       // names of things you tried to declare but failed.  If the declaration
@@ -338,6 +246,9 @@ class Environment extends LC {
             declaredVarNames.push( name )
         } )
         child.markFailures( failures )
+        // a declaration also behaves as if it's body is at the same level as the
+        // declaration itself.
+
         // console.log( '\tIt\'s a declaration w/failures ['
         //            + failures.join( ',' ) + '] and now consts ['
         //            + declaredConstNames.join( ',' ) + '] and vars ['
@@ -354,7 +265,21 @@ class Environment extends LC {
       // so it shouldn't impact later children.  Note that some environments are
       // formulas, which ignore declared variables, as in the second parameter,
       // below.
-      if ( child instanceof Environment ) {
+      // if ( child instanceof Environment ) {
+      //   ( function ( constants, variables, enclosing ) {
+      //     recursiveCalls.push( function ( implicitVars ) {
+      //       // console.log( 'Recurring inside child (environment) '+index+'...' )
+      //       child.markDeclarations( constants,
+      //         child.isAFormula ? [ ] : union( variables, implicitVars ),
+      //         enclosing )
+      //       // console.log( '...stepping back out of recursion.' )
+      //     } )
+      //   } )( declaredConstNames.slice(), declaredVarNames.slice(),
+      //        enclosingEnvironment ? enclosingEnvironment :
+      //        child.declaration && child.declaration != 'none' ? this :
+      //        undefined )
+      // }
+      if ( child.isAnActualEnvironment() ) {
         ( function ( constants, variables, enclosing ) {
           recursiveCalls.push( function ( implicitVars ) {
             // console.log( 'Recurring inside child (environment) '+index+'...' )

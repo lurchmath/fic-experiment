@@ -21,16 +21,16 @@ suite( 'Declarations', () => {
     expect( E.declaration ).to.be( 'none' )
   } )
 
-  test( '{ A } can be a declaration but isn\'t one by default', () => {
+  test( '{ A } cannot be a declaration and isn\'t one by default', () => {
     let E = LC.fromString( '{ A }' )
-    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.canBeADeclaration() ).to.be( false )
     expect( E.declaration ).to.be( 'none' )
     E.declaration = 'constant'
-    expect( E.canBeADeclaration() ).to.be( true )
-    expect( E.declaration ).to.be( 'constant' )
+    expect( E.canBeADeclaration() ).to.be( false )
+    expect( E.declaration ).to.be( 'none' )
     E.declaration = 'variable'
-    expect( E.canBeADeclaration() ).to.be( true )
-    expect( E.declaration ).to.be( 'variable' )
+    expect( E.canBeADeclaration() ).to.be( false )
+    expect( E.declaration ).to.be( 'none' )
   } )
 
   test( '{ A B } can be a declaration but isn\'t one by default', () => {
@@ -81,15 +81,15 @@ suite( 'Declarations', () => {
     expect( E.declaration ).to.be( 'none' )
   } )
 
-  test( 'Modifying { A } can remove its declaration status', () => {
-    let E = LC.fromString( '{ A }' )
+  test( 'Modifying { A B } can remove its declaration status', () => {
+    let E = LC.fromString( '{ A B }' )
     expect( E.canBeADeclaration() ).to.be( true )
     expect( E.declaration ).to.be( 'none' )
     E.declaration = 'constant'
     expect( E.canBeADeclaration() ).to.be( true )
     expect( E.declaration ).to.be( 'constant' )
     E.insertChild( new Environment() )
-    expect( E.toString() ).to.be( '{ {  } A }' )
+    expect( E.toString() ).to.be( '{ {  } A B }' )
     expect( E.canBeADeclaration() ).to.be( false )
     expect( E.declaration ).to.be( 'none' )
   } )
@@ -130,17 +130,17 @@ suite( 'Declarations', () => {
     expect( E.declaration ).to.be( 'none' )
   } )
 
-  test( 'Declarations cannot have declarations in their bodies', () => {
+  test( 'Declarations can have declarations in their bodies', () => {
     let E = LC.fromString( '{ A { X { Y Z } } }' )
     expect( E.canBeADeclaration() ).to.be( true )
     E.declaration = 'constant'
     expect( E.declaration ).to.be( 'constant' )
     E.child( 1 ).child( 1 ).declaration = 'constant'
-    expect( E.canBeADeclaration() ).to.be( false )
-    expect( E.declaration ).to.be( 'none' )
+    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.declaration ).to.be( 'constant' )
     E.declaration = 'variable'
-    expect( E.canBeADeclaration() ).to.be( false )
-    expect( E.declaration ).to.be( 'none' )
+    expect( E.canBeADeclaration() ).to.be( true )
+    expect( E.declaration ).to.be( 'variable' )
   } )
 
 } )
@@ -242,7 +242,7 @@ suite( 'Marking declarations', () => {
   } )
 
   test( 'markDeclarations() handles { Declare{ x{} } ~forall(x,P(x)) }', () => {
-    let E = LC.fromString( '{ Declare{ x{} } ~forall(x,P(x)) }' )
+    let E = LC.fromString( '{ Declare{ x { } } ~forall(x,P(x)) }' )
     let in1 = E.first
     let in2 = E.child( 1 )
     // check to make sure nothing has been marked with scope feedback yet:
@@ -258,7 +258,7 @@ suite( 'Marking declarations', () => {
     //  - outer env: implicit declaration of P and nothing failed
     //  - inner env: no implicit declarations, Declare x succeeded
     //  - inner stmt: the quantifier failed (because x was a constant)
-    expect( E.implicitDeclarations ).to.eql( [ 'P' ] )
+    expect( E.implicitDeclarations ).to.eql( [ 'P' , 'forall' ] )
     expect( E.declarationFailed() ).to.be( false )
     expect( in1.implicitDeclarations ).to.eql( [ ] )
     expect( in1.declaration ).to.be( 'constant' )
@@ -285,7 +285,7 @@ suite( 'Marking declarations', () => {
     //  - outer env: implicit declaration of P and nothing failed
     //  - inner env: no implicit declarations, Declare x succeeded
     //  - inner stmt: the quantifier is OK (because y is not a constant)
-    expect( E.implicitDeclarations ).to.eql( [ 'P' ] )
+    expect( E.implicitDeclarations ).to.eql( [ 'P' , 'forall' ] )
     expect( E.declarationFailed() ).to.be( false )
     expect( in1.implicitDeclarations ).to.eql( [ ] )
     expect( in1.declaration ).to.be( 'constant' )
@@ -433,7 +433,7 @@ suite( 'Formulas', () => {
     F.markDeclarations()
     expect( F ).to.be.an( Environment )
     expect( F.isAFormula ).to.be( true )
-    expect( F.formulaMetavariables() ).to.eql( [ 'P' ] )
+    expect( F.formulaMetavariables() ).to.eql( [ 'P' , 'forall' ] )
   } )
 
   test( 'The formula [ ~forall(x,P(x,y)) Q ] has metavariables P,y,Q', () => {
@@ -441,7 +441,7 @@ suite( 'Formulas', () => {
     F.markDeclarations()
     expect( F ).to.be.an( Environment )
     expect( F.isAFormula ).to.be( true )
-    expect( F.formulaMetavariables() ).to.eql( [ 'P', 'y', 'Q' ] )
+    expect( F.formulaMetavariables() ).to.eql( [ 'P', 'y', 'forall', 'Q' ] )
   } )
 
   test( 'Variable declarations don\'t impact formula metavariables', () => {
@@ -451,7 +451,7 @@ suite( 'Formulas', () => {
     E.markDeclarations()
     expect( dec.successfullyDeclares( 'P' ) )
     expect( F.isAFormula ).to.be( true )
-    expect( F.formulaMetavariables() ).to.eql( [ 'P', 'y', 'Q' ] )
+    expect( F.formulaMetavariables() ).to.eql( [ 'P', 'y', 'forall', 'Q' ] )
   } )
 
   test( 'Constant declarations do impact formula metavariables', () => {
@@ -461,7 +461,7 @@ suite( 'Formulas', () => {
     E.markDeclarations()
     expect( dec.successfullyDeclares( 'P' ) )
     expect( F.isAFormula ).to.be( true )
-    expect( F.formulaMetavariables() ).to.eql( [ 'y', 'Q' ] )
+    expect( F.formulaMetavariables() ).to.eql( [ 'y', 'forall', 'Q' ] )
   } )
 
 } )
@@ -587,12 +587,8 @@ suite( 'Identifier scopes', () => {
        +' of a declaration or {  }.', () => {
     let D = LC.fromString('Declare{ x P(x,y) }')
     let L = LC.fromString('Let{ x P(x,y) }')
-    let D1 = LC.fromString('Declare{ x }')
-    let L1 = LC.fromString('Let{ x }')
     expect( D.value().toString() ).to.equal( 'P(x,y)' )
     expect( L.value().toString() ).to.equal( 'P(x,y)' )
-    expect( D1.value().toString() ).to.equal( 'x' )
-    expect( L1.value().toString() ).to.equal( 'x' )
     let A = LC.fromString('A')
     let E = LC.fromString('{ A }')
     expect( A.value() ).to.be(A)

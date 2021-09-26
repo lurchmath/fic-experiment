@@ -183,21 +183,21 @@ suite( 'Auxiliary functions supporting derivation', () => {
     expect( match.lookup( 'X' ).equals( LC.fromString( 'a' ) ) ).to.be( true )
     expect( match.lookup( 'Y' ).equals( LC.fromString( 'g(b)' ) ) ).to.be( true )
     // Use that solution to instantiate plus(Y,X,Y)
-    let newPattern = LC.fromString( 'plus(Y,X,Y)' )
+    let newPattern = LC.fromString( 'Plus(Y,X,Y)' )
     newPattern.first.isAMetavariable = true
     newPattern.child( 1 ).isAMetavariable = true
     newPattern.child( 2 ).isAMetavariable = true
     let newExpression = match.apply( newPattern )
     // Verify that we get plus(g(b),a,g(b))
-    expect( `${newExpression}` ).to.be( 'plus(g(b),a,g(b))' )
+    expect( `${newExpression}` ).to.be( 'Plus(g(b),a,g(b))' )
 
     // Test 2
     //
     // Apply the same solution to plus(Y,X,Y) *with no metavars in it*
     // (that is, this time around, X and Y are not metavariables)
-    newPattern = LC.fromString( 'plus(Y,X,Y)' )
+    newPattern = LC.fromString( 'Plus(Y,X,Y)' )
     newExpression = match.apply( newPattern )
-    expect( `${newExpression}` ).to.be( 'plus(Y,X,Y)' )
+    expect( `${newExpression}` ).to.be( 'Plus(Y,X,Y)' )
 
     // Test 3
     //

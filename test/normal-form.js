@@ -125,8 +125,8 @@ suite( 'Normal Form', () => {
             .to.be(true)
     expect( compare('{ x Let{ y z P(y,z) } H(x,y,z) }',
                     '{ x { Let{ y z P(y,z) } H(x,y,z) } }') ).to.be(true)
-    expect( compare('{ Declare{ x P } w Let{ y } { x y z} }',
-                    '{ Declare{ x P } { w { Let{ y } { x { y z } } } } }') )
+    expect( compare('{ Declare{ x P } w Let{ y z } { x y z} }',
+                    '{ Declare{ x P } { w { Let{ y z } { x { y z } } } } }') )
                     .to.be(true)
   } )
 
