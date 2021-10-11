@@ -16,8 +16,10 @@
 //
 ///////////////////////////////////////////////////////////////////////////////
 
-const repl = require('repl').start()
-const rpl = repl.context
+console.log(`\nWelcome to \x1B[36m𝕃𝕠𝕕𝕖\x1B[39m - the Lurch Node app\n(type help() for help)`)
+
+const repl  = require('repl').start({ignoreUndefined: true})
+const rpl   = repl.context
 
 function mixIn ( moduleName , context) {
   let imported = require( moduleName )
@@ -34,7 +36,8 @@ const dependencies = [
   './environment.js',
   './deduction.js',
   './matching.js',
-  '../dependencies/LSAT.js'
+  '../dependencies/LSAT.js',
+  '../dependencies/lode.js'
 ]
 
 function initializeLurch ( context ) {

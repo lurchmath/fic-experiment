@@ -129,8 +129,6 @@ class Environment extends LC {
     // no ancestor constrains us, so we can obey the setting command:
     return this.setAttribute( 'formula', value )
   }
-  get isEmpty () { return this.children().length === 0 }
-  get isEE () { return this.hasAttribute('EE') && this.getAttribute('EE') }
 
   // What do Environments look like, for printing/debugging purposes?
   // The optional argument options should be an object with named booleans
@@ -157,6 +155,7 @@ class Environment extends LC {
     let colorize = ( x, col , font ) =>
       ( options && options.Color ) ?
         ( ( font ) ? chalk[col][font](x) : chalk[col](x) ) : x
+
     let decColor = 'yellow',
         envColor = 'whiteBright'
     let colon    = colorize(':','whiteBright','bold'),
@@ -169,6 +168,21 @@ class Environment extends LC {
         closeDec = colorize('}',decColor),
         correct  = colorize('✓','yellowBright'),
         wrong    = colorize('✗','redBright')
+
+    // Separate styling for EEs
+    if (this.inEE) {
+      let EEcolor = 'blue'
+      colon    = colorize(':',EEcolor)
+      lsqr     = colorize('[',EEcolor)
+      lset     = colorize('{',EEcolor)
+      letStr   = colorize('Let{',EEcolor)
+      decStr   = colorize('Declare{',EEcolor)
+      rsqr     = colorize(']',EEcolor)
+      rset     = colorize('}',EEcolor)
+      closeDec = colorize('}',EEcolor)
+      correct  = colorize('✓',EEcolor)
+      wrong    = colorize('✗',EEcolor)
+    }
 
     // initialize
     let result = ''

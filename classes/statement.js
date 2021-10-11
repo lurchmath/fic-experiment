@@ -91,6 +91,8 @@ class Statement extends LC {
     let nicename = s => {
       return (shortnames.hasOwnProperty(s)) ? shortnames[s] : s
     }
+    let idname = (options && !options.Skolem && this.hasAttribute('username') ) ?
+                  this.getAttribute('username') : this.identifier
 
     // decide whether strings are colored or not
     let colorize = ( x, col , font ) =>
@@ -99,11 +101,28 @@ class Statement extends LC {
     let stateColor = 'green'
     let colon   = colorize(':','whiteBright','bold'),
         tilde   = colorize('~',stateColor),
-        iname   = colorize(nicename(this.identifier),stateColor),
+        iname   = colorize(nicename(idname),stateColor),
         correct = colorize('✓','yellowBright'),
+        star    = colorize('★','yellowBright'),
         wrong   = colorize('✗','redBright'),
         lparen  = colorize('(',stateColor),
-        rparen  = colorize(')',stateColor)
+        rparen  = colorize(')',stateColor),
+        comma   = colorize(',',stateColor)
+
+    // Separate styling for EEs
+    if (this.inEE) {
+      let EEcolor = 'blue'
+      colon    = colorize(':',EEcolor)
+      tilde    = colorize('~',EEcolor)
+      iname    = colorize(nicename(idname),EEcolor)
+      correct  = colorize('✓',EEcolor)
+      star     = colorize('★',EEcolor)
+      wrong    = colorize('✗',EEcolor)
+      lparen   = colorize('(',EEcolor)
+      rparen   = colorize(')',EEcolor)
+      comma    = colorize(',',EEcolor)
+    }
+
 
     let result = ''
     if ( this.isAGiven ) result += colon
@@ -132,7 +151,7 @@ class Statement extends LC {
     }
     if ( this.children().length > 0 )
       result += lparen
-              + this.children().map( child => child.toString(options) ).join( ',' )
+              + this.children().map( child => child.toString(options) ).join( comma )
               + rparen
 
     // options.FIC determines if we show illegal identifier

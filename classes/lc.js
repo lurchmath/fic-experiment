@@ -186,20 +186,69 @@ class LC extends Structure {
     return ans
   }
 
+  // check if this is an EE
+  get isEE () { return this.hasAttribute('EE') && this.getAttribute('EE') }
+  // check if this is the descendant of an EE
+  // (even if it is inside a compound Statement)
+  get inEE () {
+    let here = this
+    // check if this is an EE
+    if ( here.isEE ) { return true }
+    // otherwise check its ancestors
+    while ( here.parent() ) {
+      here=here.parent()
+      if ( here.isEE ) { return true }
+    }
+    return false
+  }
+
   // returns an array containing all constants in the LC.  Here, a constant
   // is something declared by a constant declaration that is not inside the
   // declaration itself (see isAnActualConstant() )
-  constants ( ) { return this.descendantsSatisfying( x => x.isAnActualConstant())}
+  constants ( ignoreEmpty ) { return this.descendantsSatisfying(
+    x => x.isAnActualConstant( ignoreEmpty )
+  )}
 
   // Skolemize all constant names.  Currently this just appends '_n" where n
   // is the ID of the constant declaration that declares the constant.
   // Eventually this might be replaced with something better that prevents
   // accidental name conflics if the user e.g. happens to enter c_3 as a
   // variable name.
+  //
+  // Note that Declarations with the same constants and bodies get the same ID
+  // and Declarations that have no body do not get their constants Skolemized,
+  // because they are just declaring constants that have no particular
+  // properties associated with them to prevent them from being used as bound
+  // variables.
   skolemize ( ) {
-    this.constants().forEach( x =>
-       x.identifier += '_'+x.scope().getAttribute('ID')
-    )
+    this.constants(true).forEach( x => {
+      x.setAttribute('username', x.identifier )
+      x.identifier += '_'+x.scope().getAttribute('ID')
+    })
+  }
+
+  // We assign a unique ID to all of the constant declarations
+  // (but identical declarations with the same propositional form
+  // share the same ID).
+  markIDs ( ) {
+    let constDecs = this.descendantsSatisfying( x => {
+      return x.isAnActualDeclaration() && x.declaration === 'constant'
+    } )
+    // keep track of duplicates
+    let cat = {}
+    let ID = 0
+    constDecs.forEach( x => {
+      // get the prop form as a claim
+      let prop = x.propositionalForm()
+      // Remove leading ;'s if present since the ID will be the same either way
+      prop = ( prop[0]===':' ) ? prop.slice(1) : prop
+      if (cat.hasOwnProperty(prop)) {
+        x.setAttribute( 'ID' , cat[prop] )
+      } else {
+        cat[prop]=ID
+        x.setAttribute('ID',ID++)
+      }
+    })
   }
 
   // Add the relevant existential elimination axioms for each constant declaration
@@ -209,22 +258,40 @@ class LC extends Structure {
   //
   // The copies of the declarations in the EEs are flagged with the attribute
   // 'EE'=true.
+  //
+  //  While technically not EEs, we also add these for Let{} declarations
+  //  to make their bodies available outside of the declaration itself.
+  //  Duplicate EEs are omitted.
+  //
   addEEs ( ) {
     // only works on environments
     if (this.isAnActualEnvironment) {
-      // get the list of constant declarations
-      this.descendantsSatisfying(
-        x => x.isAnActualDeclaration() && x.declaration === 'constant'
-      // for each declaration do the following
-      ).forEach( x => {
-         let EE = new Environment()
-         EE.isAGiven = true
-         // This should copy the ID attribute too, which is what we want.
-         EE.push(x.givenCopy())
-         let body = x.last.claimCopy()
-         EE.push(body)
-         EE.setAttribute('EE',true)
-         this.unshift( EE )
+      // get the list of all declarations
+      let allDecs = this.descendantsSatisfying( x => x.isAnActualDeclaration() )
+      // keep track of duplicates
+      let cat = {}
+      // check each duplicate to see if it needs an EE
+      allDecs.forEach( x => {
+        if (!x.last.isEmpty) {
+          // see if we already have this EE
+          let prop = x.propositionalForm()
+          // remove leading : if it is there since the EEs are the same
+          prop = ( prop[0]===':' ) ? prop.slice(1) : prop
+          if (!cat.hasOwnProperty(prop)) {
+            // build the EE
+            let EE = new Environment()
+            EE.isAGiven = true
+            // This should copy the ID attribute too, which is what we want.
+            EE.push(x.givenCopy())
+            let body = x.last.claimCopy()
+            EE.push(body)
+            EE.setAttribute('EE',true)
+            // add the EE at the start of the environment as the first child
+            this.unshift( EE )
+            // and add it to our temporary catalog to prevent further duplication
+            cat[prop] = EE
+          }
+        }
       })
     }
   }
@@ -259,11 +326,16 @@ class LC extends Structure {
   isAnActualQuantifier () { return this instanceof Statement &&
                                    this.isAQuantifier }
   // check if this LC is a actual constant
-  isAnActualConstant () { return this instanceof Statement &&
-                          this.scope().isAnActualDeclaration() &&
-                          this.scope().declaration === 'constant' &&
-                          !this.scope().isAncestorOf(this)
-                        }
+  // if ignoreEmpty is true, ignore constants declared by declarations with
+  // an empty body
+  isAnActualConstant ( ignoreEmpty ) {
+     if (!(this instanceof Statement)) return false
+     let scope = this.scope()
+     return scope.isAnActualDeclaration() &&
+            scope.declaration === 'constant' &&
+            !scope.isAncestorOf(this) &&
+            !( ignoreEmpty && scope.last.isEmpty )
+  }
 
   // For FIC validation we only need the declaration's last argument LC.
   // We call this its 'value'. Everything else is its own value.
@@ -635,7 +707,7 @@ class LC extends Structure {
       '>'  : 'greaterthan'  , '≤' : 'leq'       , '→' : 'to'       ,
       '≥'  : 'geq'          , '∈' : 'member'    , '+' : 'plus'     ,
       '⋅'  : 'cdot'         , '∃' : 'exists'    , '⊥' : 'false'    ,
-      '∃!' : 'existsunique' , '0' : 'zero'      , '1'  : 'one'  ,
+      '∃!' : 'existsunique' , '0' : 'zero'      , '1' : 'one'      ,
       '→←' : 'contradiction', '◼' : 'qed'
     }
     const comment = /^\/\/[^\n]*\n|^\/\/[^\n]*$/
@@ -743,9 +815,12 @@ class LC extends Structure {
         }
         stack.push( args[0] )
         /////////////////////////////////////////
-        // Adding body doubles
-        // if (args[0].isAnActualDeclaration())
-        //    stack.push( args[0].last.givenCopy() )
+        // Adding body doubles for Let's
+        // if ( args[0].isAnActualDeclaration() &&
+        //      args[0].declaration === 'variable' &&
+        //      args[0].isAGiven ) {
+        //      stack.push( args[0].last.givenCopy() )
+        // }
         /////////////////////////////////////////
         // console.log( '\tstack: ' + stack.map( x => x.toString() ).join( '; ' ) )
         munge( 1 )
@@ -1078,24 +1153,20 @@ class LC extends Structure {
 
   // prettyprint an LC with various options (see toString())
 
-  show ( options={FIC:true,Bound:true,Indent:true,Color:true,EEs:false} ,
+  show ( options = { FIC:true, Bound:true, Indent:true, Color:true,
+                     EEs:false, Skolem:false } ,
          ...args ) {
+    // allow multiple option arguments to be combined into one
     let allopts = { ...options }
     for (let n=0;n<args.length;n++) allopts = { ...allopts , ...(args[n]) }
+    // see if we have to validate it to give the appropriate feedback
+    if ( ( allopts.Skolem || allopts.EEs ) && !this.isMarked ) this.markAll()
+    // print the result
     console.log(this.toString( allopts ))
   }
 
-  // We assign a unique ID to all of the constant declarations
-  markIDs ( ) {
-    let constDecs = this.descendantsSatisfying( x => {
-      return x.isAnActualDeclaration() && x.declaration === 'constant'
-    } )
-    let ID = 0
-    constDecs.forEach( x => x.setAttribute('ID',ID++) )
-  }
-
   // check if this is already marked
-  isMarked ( ) {
+  get isMarked ( ) {
     return this.hasAttribute('marked') && this.getAttribute('marked')
   }
 
@@ -1111,7 +1182,7 @@ class LC extends Structure {
   // Note: these have to be run in this order for it to work correctly
   markAll () {
     // do nothing if it's already marked
-    if ( this.isMarked() ) return
+    if ( this.isMarked ) return
     this.markIDs()
     this.addEEs()
     this.markDeclarations()
@@ -1136,7 +1207,7 @@ class LC extends Structure {
   // and then convert those to cnfs.
   //
   // This routine assumes you have run this.markAll() already.
-  propositionalForm ( options = { ID: 'free' } ) {
+  propositionalForm ( options ) {
      if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
        return this.toString( options )
      }
@@ -1393,7 +1464,7 @@ makecnf = ( ...clauses ) => clauses.map( x => new Set(x) )
 // Syntactic sugar
 lc = (s) => {
   let L = LC.fromString(s)
-  L.markAll()
+  // L.markAll()
   return L
 }
 
