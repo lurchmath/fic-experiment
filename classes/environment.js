@@ -24,7 +24,12 @@ class Environment extends LC {
   // claim Statements inside claims inside claims inside X, and so on,
   // indefinitely.  For declarations that are claims, the entire declaration
   // is considered to be an 'atomic' conclusion.
-  conclusions () {
+  //
+  // Similarly, a conclusion-environment is a claim Environment inside X, plus
+  // claim environments inside claim environments inside X, and so on.  The
+  // optional argument includeEnv determines whether such environments should
+  // be included on the list of environments that are returned.
+  conclusions ( includeEnv ) {
     let result = [ ]
     this.LCchildren().map( child => {
       if ( child.isAGiven ) return
@@ -32,6 +37,7 @@ class Environment extends LC {
         result.push( child )
       } else if ( child.isAnActualEnvironment() )
         result = result.concat( child.conclusions() )
+        if (includeEnv) result.push( child )
     } )
     return result
   }
@@ -142,7 +148,10 @@ class Environment extends LC {
   //                   and Declarations
   //  * Indent:true  - format the output with indentations and newlines
   //  * Color:true   - use color for syntax highlighting of output
+  //  * Conc         - show validation for conclusions
+  //  * Env          - show validation for conclusion environments
   //  * EEs:true     - print EEs that were added for constant declarations
+  //  * Skolem:true  - print the Skolemized names for declared constants
   //  * indentLevel  - keeps track of the current level of indentation
   //  * tabsize      - the number of spaces in one indentation level
 
@@ -166,8 +175,11 @@ class Environment extends LC {
         rsqr     = colorize(']',envColor),
         rset     = colorize('}',envColor),
         closeDec = colorize('}',decColor),
-        correct  = colorize('✓','yellowBright'),
-        wrong    = colorize('✗','redBright')
+        boundYes = colorize('✓','yellowBright'),
+        concYes  = colorize('✔︎','yellowBright'),
+        envYes   = colorize('★','yellowBright'),
+        concNo   = colorize('✗','redBright'),
+        envNo    = colorize('✘','redBright')
 
     // Separate styling for EEs
     if (this.inEE) {
@@ -180,8 +192,11 @@ class Environment extends LC {
       rsqr     = colorize(']',EEcolor)
       rset     = colorize('}',EEcolor)
       closeDec = colorize('}',EEcolor)
-      correct  = colorize('✓',EEcolor)
-      wrong    = colorize('✗',EEcolor)
+      boundYes = colorize('✓',EEcolor)
+      concYes  = colorize('✔︎',EEcolor)
+      envYes   = colorize('★',EEcolor)
+      concNo   = colorize('✗',EEcolor)
+      envNo    = colorize('✘',EEcolor)
     }
 
     // initialize
@@ -223,9 +238,14 @@ class Environment extends LC {
         }
         // then close the declaration
           result+= closeDec
+                + ( ( options && options.Conc && this.isValidated ) ?
+                  ( (this.isValid) ? concYes : concNo ) : '' )
 
       // empty environments are formatted inline
-      } else if ( this.isEmpty ) {  return lset+' '+rset
+      } else if ( this.isEmpty ) {
+        return lset+' '+rset
+               + ( ( options && options.Env && this.isValidated ) ?
+                   ( (this.isValid) ? envYes : envNo ) : '' )
 
       // Ordinary environments are printed as indented subproofs
       } else {
@@ -241,8 +261,8 @@ class Environment extends LC {
         options.indentLevel--
         result+= tab()
               + ( this.isAFormula ? rsqr : rset )
-              + ( ( options && options.FIC && this.isValidated ) ?
-                ( (this.isValid) ? correct : wrong ) : '' )
+              + ( ( options && options.Env && this.isValidated ) ?
+                ( (this.isValid) ? envYes : envNo ) : '' )
       }
 
     // if indentations not requested, print it as a flat string
@@ -259,8 +279,8 @@ class Environment extends LC {
                         .join( ' ' )
             + ' '
             + ( this.isAFormula  ? rsqr        : rset )
-            + ( ( options && options.FIC && this.isValidated ) ?
-                ( (this.isValid) ? correct : wrong ) : '' )
+            + ( ( options && options.Env && this.isValidated ) ?
+                ( (this.isValid) ? envYes : envNo ) : '' )
 
     }
 

@@ -65,6 +65,7 @@ class Statement extends LC {
   //  * Indent:true  - format the output with indentations and newlines
   //  * Color:true   - use color for syntax highlighting of output
   //  * EEs:true     - print EEs that were added for constant declarations
+  //  * Skolem:true  - print the Skolemized names for declared constants
   //  * indentLevel  - keeps track of the current level of indentation
   //  * tabsize      - the number of spaces in one indentation level
 
@@ -102,8 +103,9 @@ class Statement extends LC {
     let colon   = colorize(':','whiteBright','bold'),
         tilde   = colorize('~',stateColor),
         iname   = colorize(nicename(idname),stateColor),
-        correct = colorize('✓','yellowBright'),
-        star    = colorize('★','yellowBright'),
+        boundYes = colorize('✓','yellowBright'),
+        concYes  = colorize('✔︎','yellowBright'),
+        envYes   = colorize('★','yellowBright'),
         wrong   = colorize('✗','redBright'),
         lparen  = colorize('(',stateColor),
         rparen  = colorize(')',stateColor),
@@ -115,14 +117,14 @@ class Statement extends LC {
       colon    = colorize(':',EEcolor)
       tilde    = colorize('~',EEcolor)
       iname    = colorize(nicename(idname),EEcolor)
-      correct  = colorize('✓',EEcolor)
-      star     = colorize('★',EEcolor)
+      boundYes = colorize('✓',EEcolor)
+      concYes  = colorize('✔︎',EEcolor)
+      envYes   = colorize('★',EEcolor)
       wrong    = colorize('✗',EEcolor)
       lparen   = colorize('(',EEcolor)
       rparen   = colorize(')',EEcolor)
       comma    = colorize(',',EEcolor)
     }
-
 
     let result = ''
     if ( this.isAGiven ) result += colon
@@ -136,7 +138,7 @@ class Statement extends LC {
          (this.indexInParent() !== this.parent().children().length-1)
        ) {
       result += ( this.parent().successfullyBinds(this.identifier) ) ?
-         correct : wrong
+         boundYes : wrong
     }
 
     // options.Bound also determines if we show illegal identifier
@@ -146,7 +148,7 @@ class Statement extends LC {
          this.parent().isAnActualDeclaration() &&
          this.indexInParent() !== this.parent().children().length-1
        ) {
-      ( this.parent().successfullyDeclares(this.identifier) ) ? result+=correct :
+      ( this.parent().successfullyDeclares(this.identifier) ) ? result+=boundYes :
       result+=wrong
     }
     if ( this.children().length > 0 )
@@ -154,10 +156,9 @@ class Statement extends LC {
               + this.children().map( child => child.toString(options) ).join( comma )
               + rparen
 
-    // options.FIC determines if we show illegal identifier
-    // declarations.
-    if ( options && options.FIC && this.isValidated )
-       if (this.isValid) { result += correct } else { result += wrong }
+    // options.FIC determines if we show validation for conclusions
+    if ( options && options.Conc && this.isValidated )
+       if (this.isValid) { result += concYes } else { result += wrong }
 
     return result
   }

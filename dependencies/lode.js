@@ -11,15 +11,18 @@ const chalk = require( 'chalk' )
 let print = console.log
 
 // You can add the following five as args to .show()
-let FIC         = { FIC: true }
+// Show defaults to .show(Color,Indent) to prevent it from marking or
+// Validating when you just want to view the LC, not alter it.
+let Conc        = { Conc: true }
+let Env         = { Env: true }
 let Bound       = { Bound: true }
 let Color       = { Color: true }
 let Indent      = { Indent: true }
 let EEs         = { EEs: true }
 let Skolem      = { Skolem: true }
-// Show hides EEs by default, so .show(All) shows everything
-let All         = { FIC:true, Bound:true, Color:true, Indent:true,
-                    EEs:true, Skolem: true }
+let Nice        = { Conc:true, Env:true, Bound:true, Color:true, Indent:true }
+let All         = { Conc:true, Env:true, Bound:true, Color:true,
+                    Indent:true, EEs:true, Skolem: true }
 let None        = { }
 
 let colorize = ( x, col , font ) => {
@@ -47,12 +50,14 @@ X.show( options )
   - prints a formatted version of the LC X.
 
     Options can be zero or more of the following in any order (no quotes needed).
-    The default for no arguments is show(Indent,Color,Bound,FIC).
+    The default for no arguments is .show(Indent,Color,Bound,SAT,Env).
 
       Indent : nests and indents the environment heirarchy
       Color  : use syntax highlighting
       Bound  : show validation for bound variables
-      FIC    : show validation of conclusions
+      Conc   : show validation of conclusions
+      Env    : show validation of conclusion-environments
+      Nice   : show everyting above
       EEs    : show inserted EEs
       Skolem : show Skolemized constant names
       All    : show everything above
@@ -75,12 +80,14 @@ X.Validate( showtimes )
   }
 }
 
-module.exports.FIC      = FIC
+module.exports.Conc     = Conc
+module.exports.Env      = Env
 module.exports.Bound    = Bound
 module.exports.Color    = Color
 module.exports.Indent   = Indent
 module.exports.EEs      = EEs
 module.exports.Skolem   = Skolem
+module.exports.Nice     = Nice
 module.exports.All      = All
 module.exports.None     = None
 module.exports.colorize = colorize

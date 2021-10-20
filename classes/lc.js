@@ -3,6 +3,7 @@ const { OM } = require( '../dependencies/openmath.js' )
 const { satSolve } = require( '../dependencies/LSAT.js' )
 const util = require('util')
 const chalk = require('chalk')
+const print = console.log
 
 const verbose = true
 let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
@@ -340,9 +341,16 @@ class LC extends Structure {
   // For FIC validation we only need the declaration's last argument LC.
   // We call this its 'value'. Everything else is its own value.
   value () { return this.isAnActualDeclaration() ? this.last : this }
-  get isValidated () { return !!this.getAttribute( 'validation' ) }
-  get isValid () {
+
+  // FIC validation uses lower case 'v' names
+  get isvalidated () { return !!this.getAttribute( 'validation' ) }
+  get isvalid () {
     return this.getAttribute( 'validation' ).status
+  }
+  // SAT validation uses upper case 'V' names
+  get isValidated () { return this.hasAttribute( 'Validation' ) }
+  get isValid () {
+    return this.getAttribute( 'Validation' )
   }
 
   // avoid recursing into compound statements and declarations when
@@ -473,7 +481,7 @@ class LC extends Structure {
 
   // We can ask whether a given LC is a conclusion in one of its ancestors.
   isAConclusionIn ( ancestor ) {
-    if ( !( this.isAnActualStatement() ) ) return false
+    // if ( !( this.isAnActualStatement() ) ) return false
     if ( this.isAGiven ) return false
     let walk = this.parent()
     while ( walk && walk != ancestor ) {
@@ -1053,13 +1061,18 @@ class LC extends Structure {
   //
   // andFast is easy... just concat them.
   // this does not check for duplicates
-  static andFast = (A,B) => { return A.concat(B) }
+  static andFast = (A,B) => {
+    // debug(`Computing AND of`)
+    // debug(A,B)
+    return A.concat(B) }
 
   // for orFast we want to use switch variables to reduce the number of terms
   // produced from the product |A||B| to the sum |A|+|B|.  This
   // reduces it from exponential growth to quadratic
   // The third argument is the name to use for a switch variable if needed.
   static orFast = (A,B,switchVar) => {
+    // debug(`Computing OR of`)
+    // debug(A,B)
     // if one of the cnfs is empty, just concat them
     if ( A.length===0 || B.length===0 ) {
       return A.concat(B)
@@ -1111,6 +1124,25 @@ class LC extends Structure {
      }
      return false
   }
+  // check if an LC is an ancestor of another one
+  isDescendantOf (x) {
+     return x.hasDescendantSatisfying( d => d==this )
+  }
+  // check if either this LC or one of it's ancestors is accessible to target
+  hasAncestorAccessibleTo ( target ) {
+    let here = this
+    // check if this is an EE
+    if ( here.isAccessibleTo( target ) ) { return true }
+    // otherwise check its ancestors
+    while ( here.parent() ) {
+      here = here.parent()
+      if ( here.isAccessibleTo( target ) ) { return true }
+    }
+    return false
+  }
+  // check if this LC should be considered to be a given for target
+  // (syntactic sugar)
+  isAGivenFor ( target ) { return this.isAccessibleTo(target) || this.isAGiven }
 
   // After markingDeclarations we can scan the whole thing to mark the scopes
   // of all identifiers throughout the LC (even in compound statements). We
@@ -1153,14 +1185,16 @@ class LC extends Structure {
 
   // prettyprint an LC with various options (see toString())
 
-  show ( options = { FIC:true, Bound:true, Indent:true, Color:true,
+  show ( options = { Conc:false, Env: false, Bound:true, Indent:true, Color:true,
                      EEs:false, Skolem:false } ,
          ...args ) {
     // allow multiple option arguments to be combined into one
     let allopts = { ...options }
     for (let n=0;n<args.length;n++) allopts = { ...allopts , ...(args[n]) }
-    // see if we have to validate it to give the appropriate feedback
+    // see if we have to markAll it to give the appropriate feedback
     if ( ( allopts.Skolem || allopts.EEs ) && !this.isMarked ) this.markAll()
+    // see if we have to Validate it to give the appropriate feedback
+    if ( ( allopts.Conc || allopts.Env ) && !this.isValidated ) this.Validate()
     // print the result
     console.log(this.toString( allopts ))
   }
@@ -1226,23 +1260,31 @@ class LC extends Structure {
   // they declare have propositional form that is their name only) and a second
   // one for the body of a declartion to be converted to cnf and be treated like
   // any other non-declaration LC.
-  cnf (switchVar = 'Z0',toggleGiven = false) {
+  //
+  // If the optional argument 'target' is present, validate just that conclusion
+  // or environment (which also must be a 'conclusion'). Thus target has to be a
+  // sub-LC of this LC and a conclusion or conclusion-environment.
+  cnf (switchVar = 'Z0',toggleGiven = false, target = this ) {
 
     let debug = (msg) => console.log(msg)
-    // debug(`Computing cnf of ${this+''}`)
-    // for Statements or Declarations it's just their propositional form
+    // debug(`Computing cnf of ${this+''} with target ${target+''}`)
+
+    ///////////////////////////////////////////////////////////
+    // FOR NOW WE DO THESE CASES SEPARATELY UNTIL IT'S DEBUGGED
+    ///////////////////////////////////////////////////////////
+
+    // the original way first:
+    if ( !target.parent() ) {
+    /////////////////////////////////////////////////////////////////////
+    // Process Statements
+    //
+
+    // For Statements or Declarations it's just their propositional form
     // (or its negation) wrapped appropriately
     if (this.isAnActualStatement() || this.isAnActualDeclaration() ) {
       let str = (toggleGiven) ? LC.negateFast(this.propositionalForm( )) :
-                                this.propositionalForm( )
+                                      this.propositionalForm( )
       return [ new Set( [ str ] ) ]
-
-    // for Declarations, it's their propositional form, P
-    // } else if (this.isAnActualDeclaration()) {
-    //   let P = (toggleGiven) ?
-    //       LC.negateFast(this.propositionalForm({ID:'free'})) :
-    //       this.propositionalForm({ID:'free'})
-    //   return [ new Set( [ P ] ) ]
 
     // environments are where all the action is
     } else if (this.isAnActualEnvironment()) {
@@ -1294,18 +1336,6 @@ class LC extends Structure {
       while (kids.length>0) {
          let A = kids.pop()
          switchVar = LC.nextSwitchVar(switchVar)
-         // if A is a Declaration, first add its body as a given (depricated)
-         // if (A.isAnActualDeclaration()) {
-         //   if (!toggle) {
-         //     currentcnf = LC.orFast(A.last.cnf(switchVar,toggle,{ID:'body'}),
-         //                            currentcnf,switchVar)
-         //   } else {
-         //     currentcnf = LC.andFast(A.last.cnf(switchVar,toggle,{ID:'body'}),
-         //                            currentcnf,switchVar)
-         //   }
-         // }
-         // then whether A was a Declaration or not, process it as usual
-         // switchVar = LC.nextSwitchVar(switchVar)
          if (A.isAGiven !== toggle) {
            currentcnf = LC.orFast(A.cnf(switchVar,toggle),currentcnf,switchVar)
          } else {
@@ -1316,14 +1346,131 @@ class LC extends Structure {
       return currentcnf
 
     }
+
+  // there is a target
+  } else {
+    // debug(`Computing cnf of `)
+    // debug(this.show({ Color:true }))
+    // debug(`with target`)
+    // debug(target.show({ Color:true }))
+
+    /////////////////////////////////////////////////////////////////////
+    // Process Statements
+    //
+
+    // For Statements or Declarations it's just their propositional form
+    // (or its negation) wrapped appropriately
+    //
+    // If a statement is not supposed to be included in the cnf of a particular
+    // target this routine should not be asked for its cnf when processing an
+    // environment. Additionally, any statement that is accessible to the target
+    // must be treated as if it were a given the target is not accessible to
+    // itself). So we have to check these cases:
+    //  1. this is not accessible to the target,
+    //     in which case we negate it iff toggleGiven is true
+    //  2. this is accessible to the target and not equal to the target, in
+    //     in which case we negate it iff toggleGiven is equal to this.isAGiven
+    //
+    if (this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+      // debug('It is a statement or declaration')
+      let accessible = this.isAccessibleTo(target)
+      let str = ( ( !accessible && toggleGiven ) ||
+                  (  accessible && ( this.isAGiven===toggleGiven ) ) )
+         ? LC.negateFast(this.propositionalForm( )) : this.propositionalForm( )
+
+      return [ new Set( [ str ] ) ]
+
+    // environments are where all the action is
+    } else if (this.isAnActualEnvironment()) {
+
+      /////////////////////////////////////////////////////////////////////
+      // Process Environments
+      //
+
+      // get the kids
+      let kids = this.LCchildren()
+
+      // A generic environment will have the form
+      // { :A1 :A2 ... B1 B2 ... :C1 :C2 ... etc }
+      // but this is equivalent to the fullyParenthesized form
+      // so we can just process it by popping off one argument at a time
+      // from the right, converting that to a cnf, and continuing until
+      // all the children are processed.
+
+      let currentcnf = [ ]
+
+      // determine if we negate the children
+      let toggle = ( this.isAGivenFor( target ) ) ? !toggleGiven : toggleGiven
+
+      // IMPORTANT: I got burned by this the first time around.  In order to use
+      // switch variables to improve efficiency, we MUST check if the environment
+      // is a given first, and deal with that leading negation first rather than
+      // converting the children first and then negating the whole thing.  Switch
+      // variables don't work correctly in that scenario.
+
+      // Note: since cnfs tend to be messier than the original LC, it is generally
+      // messier to work with cnfs than with LC's.  So for Given Environments,
+      // we negate the LC children first, and then compute AND or OR of their
+      // cnfs, rather than computing the cnfs first, and then negating those
+      // before ORing them.
+
+      // First, toss out any trailing Givens or claims that have empty
+      // cnf until we either run out of kids or find the first one that is
+      // nontrivial inside of an environment
+      while (kids.length>0 && currentcnf.length === 0) {
+        // if it's a given, or has no ancestor accessible to the target
+        // and is not an environment containing the target, or
+        // a descendant of the target, ignore it
+        if ( kids[kids.length-1].isAGiven ||
+             !( kids[kids.length-1].hasAncestorAccessibleTo( target ) ||
+                kids[kids.length-1].isAncestorOf( target ) ||
+                target.isAncestorOf(kids[kids.length-1]))
+           ) {
+          // debug(`Discarding as irrelevant:`)
+          // debug(kids[kids.length-1].show({ Color:true }))
+          kids.pop()
+        // if it's not a given, see if it's trivial
+        } else {
+          // note: if this is non-empty, it has to either be the target or
+          // an ancestor of the target, since the target or it's ancestor
+          // will be reached before any accessible of the target that does
+          // not contain it is reached.  Thus, this will return the partial-cnf
+          // containing the cnf of the target.
+          // debug(`Computing cnf of this:`)
+          // debug(kids[kids.length-1].show({ Color:true }))
+          // debug(`with target`)
+          // debug(target.show({ Color:true }))
+          currentcnf = kids.pop().cnf(switchVar,toggle,target)
+        }
+      }
+      // then starting from the right, pop off the last argument, convert it
+      // to a cnf, and combine it appropriately with the cnf computed so far
+      while (kids.length>0) {
+         let A = kids.pop()
+         switchVar = LC.nextSwitchVar(switchVar)
+         // if it is accessible to the target, or a given, treat it as a given
+         if ( A.isAGivenFor( target ) !== toggle) {
+           currentcnf = LC.orFast(A.cnf(switchVar,toggle,target),currentcnf,switchVar)
+         } else {
+           currentcnf = LC.andFast(A.cnf(switchVar,toggle,target),currentcnf)
+         }
+      }
+
+      return currentcnf
+
+    }
+  }
   }
 
   // produce the cnf in the format required by satSolve
   // if toggle is true, negate it (since you want to show the negation is not
   // satisfiable)
-  satcnf (toggle = false) {
+  satcnf ( toggle = false , target ) {
+
     let s = x => x.replace(/:/g,'')
-    let c = this.cnf(undefined,toggle)
+    let c = this.cnf(undefined,toggle,target)
+    // debug(`The cnf produced is`)
+    // debug(c)
     let cat = new Set()
     c.map( x => {
       x.forEach( z => {
@@ -1336,24 +1483,65 @@ class LC extends Structure {
     return c.map(x=>Array.from(x)).map(x=>x.map(N))
   }
 
-  Validate (showtimes) {
-    let debug = (msg) => { if (showtimes) console.log(msg) }
+  // Validate - using SAT
+  //
+  // targetlist - an optional array of LC's to validate. They must be subLC's
+  //              of the one being Validated.
+  // showtimes  - set to true for benchmarking info
+  //
+  Validate ( targetlist = [ this ], showtimes ) {
+      let debug = (msg) => { if (showtimes) console.log(msg) }
 
       let start= new Date
       debug(`Starting validation... `)
+
     // We run this here just in case.  Running it twice should be idempotent.
     this.markAll()
-      let t0=new Date
-      debug(`Compute all scopes: ${(t0-start)/1000} seconds`)
-    let c = this.satcnf(true)
-    if (c.length === 0) return true
-    let n = LC.numvars(c)
-      let t1=new Date
-      debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
-    let ans=!satSolve(n,c)
-    let t2=new Date
-      debug(`Run SAT: ${(t2-t1)/1000} seconds`)
-    return ans
+
+      let ts=new Date
+      debug(`Compute all scopes: ${(ts-start)/1000} seconds`)
+
+    let globalans = true
+
+    targetlist.forEach( X => {
+
+       let t0=new Date
+
+      // debug(`Validating target ${this.toString()} `)
+      // debug(`Computing satsnf:`)
+
+      let c = this.satcnf( true, X )
+
+      // debug(`resulting satsnf:`)
+      // debug(c)
+
+      // if the target has an empty cnf, just call it true
+      if (c.length === 0) {
+        X.setAttribute('Validation',true)
+      } else {
+
+        let n = LC.numvars(c)
+
+          let t1=new Date
+          debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
+
+        let ans=!satSolve(n,c)
+
+        globalans = globalans && ans
+
+          let t2=new Date
+          debug(`Run SAT: ${(t2-t1)/1000} seconds`)
+
+        X.setAttribute('Validation',ans)
+
+      }
+    } )
+
+      let finish = new Date
+      debug(`\nTotal Validation time: ${(finish-start)/1000} seconds`)
+
+    return globalans
+
   }
 
   // show the catalog of unique statement names contained in this LC
