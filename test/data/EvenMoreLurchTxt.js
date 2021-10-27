@@ -534,6 +534,19 @@
          P Q
        }
 
+      // alt or minus
+      :{ :Declare{ c ¬(P(c)) } { :or(P(c),Q(c)) :¬(P(c)) Q(c) } }
+
+
+      // exists minus
+      :{ :~∃(y,¬(P(y))) Declare{ c ¬(P(c)) } }
+
+      // forall minus
+      :{ :Declare{ c ¬(P(c)) } { :~∀(x,or(P(x),Q(x))) or(P(c),Q(c))} }
+
+      // exists plus
+      :{ :Declare{ c ¬(P(c)) } { :Q(c) ~∃(x,Q(x)) } }
+
      ////////////////////
 
   // Theorem 1 (excluded middle): P or not P
@@ -651,4 +664,21 @@
 
   // Theorem: (∀x, P(x) or Q(x)) and (∃y,¬P(y)) ⇒ (∃z, Q(z))
   // ⇒(and( ~∀(x,or(P(x),Q(x))) , ~∃(y,¬(P(y))) ) , ∃(z,Q(z)) )
+
+  {
+    // instantiations
+
+    // Theorem
+    { :~∀(x,or(P(x),Q(x))) :~∃(y,¬(P(y))) ~∃(x,Q(x)) }
+
+    // 'Proof'
+    { :~∀(x,or(P(x),Q(x)))
+      :~∃(y,¬(P(y)))
+      Declare{ c ¬(P(c)) }
+      or(P(c),Q(c))
+      Q(c)
+      ~∃(x,Q(x))
+    }
+  }
+
 }
