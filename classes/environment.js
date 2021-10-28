@@ -30,7 +30,7 @@ class Environment extends LC {
   // optional argument includeEnv determines whether such environments should
   // be included on the list of environments that are returned.
   conclusions ( includeEnv ) {
-    let result = [ ]
+    let result = (includeEnv) ? [ this ] : [ ]
     this.LCchildren().map( child => {
       if ( child.isAGiven ) return
       if ( child.isAnActualDeclaration() || child.isAnActualStatement() ) {

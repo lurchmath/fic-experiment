@@ -1193,8 +1193,12 @@ class LC extends Structure {
     for (let n=0;n<args.length;n++) allopts = { ...allopts , ...(args[n]) }
     // see if we have to markAll it to give the appropriate feedback
     if ( ( allopts.Skolem || allopts.EEs ) && !this.isMarked ) this.markAll()
+
+    // We used to Validate if .show askes for Conc or Env, but we don't know
+    // what the target should be anymore, so we no longer do this.
     // see if we have to Validate it to give the appropriate feedback
-    if ( ( allopts.Conc || allopts.Env ) && !this.isValidated ) this.Validate()
+    // if ( ( allopts.Conc || allopts.Env ) && !this.isValidated ) this.Validate()
+
     // print the result
     console.log(this.toString( allopts ))
   }
@@ -1495,6 +1499,13 @@ class LC extends Structure {
       let start= new Date
       debug(`Starting validation... `)
 
+    // for now, restrict this to top level environments only
+    if ( !this.isAnActualEnvironment() || this.parent() ) {
+       console.log('Only top level environments (with optional targets) can be validated.')
+       return undefined
+    }
+
+
     // We run this here just in case.  Running it twice should be idempotent.
     this.markAll()
 
@@ -1542,6 +1553,11 @@ class LC extends Structure {
 
     return globalans
 
+  }
+
+  // syntactic sugar
+  ValidateAll ( showtimes ) {
+     return this.Validate(this.conclusions(true) , showtimes)
   }
 
   // show the catalog of unique statement names contained in this LC
