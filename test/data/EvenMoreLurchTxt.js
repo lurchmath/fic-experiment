@@ -681,4 +681,202 @@
     }
   }
 
+  // Modern Algebra Proof
+  {
+    // define global constants
+    // :Declare{ divides gcd = ⋅ + 1 ∈ Z { } }
+
+    // Instantiations
+    //
+    // If we want to instantiate a formula using declared constants, we need to
+    // declare them first with the same declaration so it is being instantiated
+    // with the same propositional variable after Skolemization
+    // (this is why propositionally identical declarations get the same ID)
+
+    // Instantiation of Bezout's Lemma
+    :{ :=(gcd(a,b),1) Declare{ s t =(+(⋅(s,a),⋅(t,b)),1) } }
+    // Instantiation of Definition of divides (-)
+    :{ :divides(a,⋅(b,c)) Declare{ k =(⋅(b,c),⋅(k,a)) } }
+    // The next two instantiate with particular constants
+    :{ :Declare{ s t =(+(⋅(s,a),⋅(t,b)),1) }
+       :Declare{ k =(⋅(b,c),⋅(k,a)) }
+       // Instantiation of a CAS/baby algebra rule
+       { :=(+(⋅(s,a),⋅(t,b)),1) :=(⋅(b,c),⋅(k,a)) =(c,⋅(+(⋅(s,c),⋅(t,k)),a)) }
+       // Instantiation of Definition of divides (+)
+       { :=(c,⋅( +(⋅(s,c),⋅(t,k)),a)) divides(a,c) }
+     }
+
+     // Thm: if a divides bc and a,b are relatively prime, then a divides c.
+     //
+     // Notice that we can put this theorem before it's proof and still have
+     // it validate, because the proof is really a stronger theorem that is
+     // provides the instantiation hints, but once the instantiations are present
+     // both theorems follow from them.
+     { :Let{ a b c { ∈(a,b,c,Z) } }
+       :divides(a,⋅(b,c))
+       :=(gcd(a,b),1)
+       divides(a,c)
+     }
+
+    // Proof:
+    {
+      :Let{ a b c { ∈(a,b,c,Z) } }
+      :divides(a,⋅(b,c))
+      :=(gcd(a,b),1)
+
+      Declare{ s t =(+(⋅(s,a),⋅(t,b)),1) }
+      Declare{ k =(⋅(b,c),⋅(k,a)) }
+
+      =(c,⋅(+(⋅(s,c),⋅(t,k)),a))
+
+      divides(a,c)
+    }
+
+  }
+
+  // Alpha substitution proofs
+  {
+    // Instantiations
+    //
+    :{ :{ :Let{ x {} } P(x) } ~∀(y,P(y)) }       // forall+
+    :{ :~∀(x,P(x)) P(x) }                        // forall-
+    :{ :~∃(x,P(x)) Declare{ c P(c) } }           // exists-
+    :{ :{ :Declare{ c P(c) } P(c) } ~∃(y,P(y)) } //exists+
+
+    // Thm (alpha subs) (∀x,P(x)) ⇒ (∀y,P(y))
+    //
+    { :~∀(x,P(x))  ~∀(y,P(y)) }
+
+    // Proof
+    { :~∀(x,P(x))
+        { :Let{ x {} }
+           P(x)
+        }
+      ~∀(y,P(y))
+    }
+
+    // Thm (alpha subs) (∀x,P(x)) ⇒ (∀y,P(y))
+    //
+    { :~∃(x,P(x))  ~∃(y,P(y)) }
+
+    // Proof
+    { :~∃(x,P(x))
+      Declare{ c P(c) }
+      ~∃(y,P(y))
+    }
+
+  }
+
+  // Another Quantifier Thm
+  //
+  {
+    // Instantiations
+    :{ :~∃(x,P(x)) Declare{ c P(c) } }        // ∃-
+    :{ :Declare{ c P(c) }                     // combining a bunch of these
+       { :∀(x, ⇔(P(x),Q(x))) ⇔(P(c),Q(c)) }  // ∀-
+       { :⇔(P(c),Q(c)) ⇒(P(c),Q(c)) }        // ⇔-
+       { :⇒(P(c),Q(c)) Q(c) }                // ⇒-
+       { :Q(c) ~∃(x,Q(x)) }                  // ∃+
+     }
+
+    // Thm: Thm (∀x, P(x) ⇔ Q(x)) ⇒ ((∃x, P(x)) ⇒ (∃x, Q(x)))
+    { :∀(x, ⇔(P(x),Q(x)))  { :~∃(x,P(x)) ~∃(x,Q(x)) }  }
+
+    // Proof
+    {
+      :∀(x, ⇔(P(x),Q(x)))
+      { :~∃(x,P(x))
+        Declare{ c P(c) }
+        ⇔(P(c),Q(c))
+        ⇒(P(c),Q(c))
+        Q(c)
+        ~∃(x,Q(x))
+      }
+    }
+
+  }
+
+  // Another quantifier proof - less than, for example
+  //
+  {
+    // Instantiations
+    //
+    :{ :{ :Let{ x y { } } ¬(and(P(x, y),P(y, x))) }
+       ~∀(x,~∀(y,¬(and(P(x, y),P(y, x))))) } // ∀+, twice
+    :{ :{ :and( P(x,y) , P(y,x) ) →← }  ¬(and( P(x, y),P(y, x) )) } // ¬-
+    :{ :~∀(x,¬(P(x, x))) ¬(P(x,x)) }  // ∀-
+    :{ :~∀(x,~∀(y,~∀(z,⇒( and(P(x,y),P(y,z)),P(x,z)))))
+        ⇒( and( P(x,y),P(y,x) ) , P(x,x) ) }  // ∀- triple
+    :{ :⇒( and( P(x,y),P(y,x) ) , P(x,x) ) :and( P(x,y),P(y,x) ) P(x,x) } // ⇒-
+    :{ :P(x,x) :¬(P(x,x)) →← } // →←+
+
+    // Thm (∀x,¬P(x, x)) and (∀x, ∀y, ∀z, P(x, y) and P(y, z) ⇒ P(x, z)) ⇒ (∀x, ∀y,¬(P(x, y) and P(y, x)))
+    //
+    {
+      :~∀(x,¬(P(x, x)))  :~∀(x,~∀(y,~∀(z,⇒( and(P(x, y),P(y, z)),P(x, z)))))
+      ~∀(x,~∀(y,¬(and(P(x, y),P(y, x)))))
+    }
+
+    {
+      :~∀(x,¬(P(x, x)))
+      :~∀(x,~∀(y,~∀(z,⇒( and(P(x,y),P(y,z)),P(x,z)))))
+      { :Let{ x y { } }
+        { :and( P(x,y),P(y,x) )
+          ¬(P(x,x))
+          ⇒( and( P(x,y),P(y,x) ) , P(x,x) )
+          P(x,x)
+          →←
+        }
+        ¬(and( P(x, y),P(y, x) ))
+      }
+      ~∀(x,~∀(y,¬(and(P(x, y),P(y, x)))))
+    }
+  }
+
+  // The Division Algorithm Theorem - very complex formula
+  { // Global constants
+    :Declare{ Posint five { } }
+
+    // Instantiation of the Div Alg Thm
+    :{ :Posint(a) :Posint(five)
+       Declare{ q r
+         { =(a,+(⋅(five,q),r))
+           ≤(0,r)
+           <(r,five)
+           {
+             :=(a,+(⋅(five,s),t))
+             :≤(0,t)
+             :<(t,five)
+             =(s,q)
+             =(t,r)
+           }
+         }
+       }
+    }
+
+    // A proof using it
+    {
+      :Posint(a) :Posint(five)
+      Declare{ q r
+        { =(a,+(⋅(five,q),r))
+          ≤(0,r)
+          <(r,five)
+          {
+            :=(a,+(⋅(five,s),t))
+            :≤(0,t)
+            :<(t,five)
+            =(s,q)
+            =(t,r)
+          }
+        }
+      }
+      =(a,+(⋅(five,q),r))
+      { :=(a,+(⋅(five,s),t))
+        :≤(0,t)
+        :<(t,five)
+        =(t,r)
+      }
+    }
+  }
+
 }

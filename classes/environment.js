@@ -30,15 +30,21 @@ class Environment extends LC {
   // optional argument includeEnv determines whether such environments should
   // be included on the list of environments that are returned.
   conclusions ( includeEnv ) {
-    let result = (includeEnv) ? [ this ] : [ ]
+    let result = [ ]
     this.LCchildren().map( child => {
       if ( child.isAGiven ) return
+      // it's a claim and either a statement or declaration
       if ( child.isAnActualDeclaration() || child.isAnActualStatement() ) {
         result.push( child )
-      } else if ( child.isAnActualEnvironment() )
-        result = result.concat( child.conclusions() )
-        if (includeEnv) result.push( child )
+      // the child is an environment
+      } else if ( child.isAnActualEnvironment() ) {
+        // compute it's conclusions and add them to the list
+        result = result.concat( child.conclusions( includeEnv ) )
+      }
     } )
+    // if it's non-trivial, add this to the list
+    if (result.length>0 && includeEnv ) result.push( this )
+
     return result
   }
   // An Environment can be a constant or variable declaration iff
@@ -203,7 +209,7 @@ class Environment extends LC {
     let result = ''
 
     // options.Indent determines if we should indent and add newlines
-    if (options && options.Indent ) {
+    if ( options && options.Indent ) {
       // indentLevel and tabsize are also optional options
       if (!options.hasOwnProperty('indentLevel')) options.indentLevel = 0
       if (!options.hasOwnProperty('tabsize')) options.tabsize = 2
@@ -240,6 +246,8 @@ class Environment extends LC {
           result+= closeDec
                 + ( ( options && options.Conc && this.isValidated ) ?
                   ( (this.isValid) ? concYes : concNo ) : '' )
+                + ( ( options && options.Conc && this.isvalidated ) ?
+                    ( (this.isvalid) ? ' '+concYes : ' '+concNo ) : '' )
 
       // empty environments are formatted inline
       } else if ( this.isEmpty ) {
@@ -250,9 +258,9 @@ class Environment extends LC {
       // Ordinary environments are printed as indented subproofs
       } else {
         options.indentLevel++
+        let lf = ( options && options.Compact ) ? ' ' : '\n'+tab()
         result+= ( this.isAFormula  ? lsqr  : lset )
-              +  '\n'
-              +  tab()
+              +  lf
               +  this.children().map(
                    child => child.toString( options ) )
                             .filter( Boolean )  // filter out empty strings
@@ -281,6 +289,8 @@ class Environment extends LC {
             + ( this.isAFormula  ? rsqr        : rset )
             + ( ( options && options.Env && this.isValidated ) ?
                 ( (this.isValid) ? envYes : envNo ) : '' )
+            + ( ( options && options.Conc && this.isvalidated ) ?
+                ( (this.isvalid) ? ' '+concYes : ' '+concNo ) : '' )
 
     }
 

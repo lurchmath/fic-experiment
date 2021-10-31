@@ -20,7 +20,7 @@ let Color       = { Color: true }
 let Indent      = { Indent: true }
 let EEs         = { EEs: true }
 let Skolem      = { Skolem: true }
-let Nice        = { Conc:true, Env:true, Bound:true, Color:true, Indent:true }
+let Compact     = { Compact:true }
 let All         = { Conc:true, Env:true, Bound:true, Color:true,
                     Indent:true, EEs:true, Skolem: true }
 let None        = { }
@@ -50,18 +50,19 @@ X.show( options )
   - prints a formatted version of the LC X.
 
     Options can be zero or more of the following in any order (no quotes needed).
-    The default for no arguments is .show(Indent,Color,Bound,SAT,Env).
+    The default for no arguments is .show(Indent,Color,Bound,Conc,Env).
 
-      Indent : nests and indents the environment heirarchy
-      Color  : use syntax highlighting
-      Bound  : show validation for bound variables
-      Conc   : show validation of conclusions
-      Env    : show validation of conclusion-environments
-      Nice   : show everyting above
-      EEs    : show inserted EEs
-      Skolem : show Skolemized constant names
-      All    : show everything above
-      None   : just show a flat monochromatic string.
+      Indent  : nests and indents the environment heirarchy
+      Color   : use syntax highlighting
+      Bound   : show validation for bound variables
+      Conc    : show validation of conclusions
+      Env     : show validation of conclusion-environments
+
+      Compact : suppress line breaks after opening { in Indent mode
+      EEs     : show inserted EEs
+      Skolem  : show Skolemized constant names
+      All     : show everything above
+      None    : just show a flat monochromatic string.
      `,
     Validate: `
 X.Validate( showtimes )
@@ -87,7 +88,7 @@ module.exports.Color    = Color
 module.exports.Indent   = Indent
 module.exports.EEs      = EEs
 module.exports.Skolem   = Skolem
-module.exports.Nice     = Nice
+module.exports.Compact  = Compact
 module.exports.All      = All
 module.exports.None     = None
 module.exports.colorize = colorize

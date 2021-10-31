@@ -100,16 +100,16 @@ class Statement extends LC {
       ( options && options.Color ) ?
         ( ( font ) ? chalk[col][font](x) : chalk[col](x) ) : x
     let stateColor = 'green'
-    let colon   = colorize(':','whiteBright','bold'),
-        tilde   = colorize('~',stateColor),
-        iname   = colorize(nicename(idname),stateColor),
+    let colon    = colorize(':','whiteBright','bold'),
+        tilde    = colorize('~',stateColor),
+        iname    = colorize(nicename(idname),stateColor),
         boundYes = colorize('✓','yellowBright'),
         concYes  = colorize('✔︎','yellowBright'),
         envYes   = colorize('★','yellowBright'),
-        wrong   = colorize('✗','redBright'),
-        lparen  = colorize('(',stateColor),
-        rparen  = colorize(')',stateColor),
-        comma   = colorize(',',stateColor)
+        wrong    = colorize('✗','redBright'),
+        lparen   = colorize('(',stateColor),
+        rparen   = colorize(')',stateColor),
+        comma    = colorize(',',stateColor)
 
     // Separate styling for EEs
     if (this.inEE) {
@@ -156,9 +156,14 @@ class Statement extends LC {
               + this.children().map( child => child.toString(options) ).join( comma )
               + rparen
 
-    // options.FIC determines if we show validation for conclusions
+    // options.Conc determines if we show validation for conclusions
     if ( options && options.Conc && this.isValidated )
        if (this.isValid) { result += concYes } else { result += wrong }
+    // options.Conc determines if we show validation for conclusions
+    // we put a space before the icon to distinguish FIC from SAT
+    // Note: you can have both.   
+    if ( options && options.Conc && this.isvalidated )
+       if (this.isvalid) { result += ' '+concYes } else { result += ' '+wrong }
 
     return result
   }

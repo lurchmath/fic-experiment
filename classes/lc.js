@@ -352,7 +352,7 @@ class LC extends Structure {
   get isValid () {
     return this.getAttribute( 'Validation' )
   }
-
+  
   // avoid recursing into compound statements and declarations when
   // traversing the LC tree.
   LCchildren () {
@@ -480,15 +480,11 @@ class LC extends Structure {
   }
 
   // We can ask whether a given LC is a conclusion in one of its ancestors.
-  isAConclusionIn ( ancestor ) {
-    // if ( !( this.isAnActualStatement() ) ) return false
-    if ( this.isAGiven ) return false
-    let walk = this.parent()
-    while ( walk && walk != ancestor ) {
-      if ( walk.isAGiven ) return false
-      walk = walk.parent()
-    }
-    return true
+  // This is just a utility for syntactic sugar.  It isn't efficient.
+  // If it becomes heavily relied on (it's not yet) we should rewrite it to
+  // optimize it instead of doing the brute force thing below.
+  isAConclusionIn ( ancestor , includeEnv ) {
+    return ancestor.conclusions(includeEnv).includes(this)
   }
 
   // An LC is said to be atomic if it has no children.
@@ -536,102 +532,6 @@ class LC extends Structure {
     ////////////////////
 
     return result
-  }
-
-  // The Flat Form of an LC is intended to minimize the total number of
-  // environments to make FIC recursion more efficient.
-  //
-  // Note that _flatForm() returns an array of LC's.  These can then be wrapped
-  // in a single environment to get the actual flatForm of the LC. Thus it will
-  // never return a statement, and should only be called on documents.
-
-  // TODO: this is not debugged yet.  For one thing it should not destroy the
-  // original LC
-  flatForm () {
-    // this does all of the work. lc is an LC. It returns an array of LCs.
-    // which are the flatforms of the children
-    let _flatForm = function ( _lc ) {
-      let lc = _lc.copy()
-      // console.log(`Calling _flatForm on ${lc}`)
-      // console.log(`(is it an LC?) ${lc instanceof LC}`)
-      // if the LC is an empty environment return an empty array.
-      if ( lc.isEmpty ) { return [ ] }
-      // if the LC is a statement, just return it in an array.
-      if ( lc.isAnActualStatement() ) { return [ lc ] }
-      // if lc is an environment - this is where all the work is done.
-      // first flatten its LCchildren
-      lc.LCmapArrays( _flatForm )
-      // console.log(`Here it is with flattened kids: ${lc}`)
-      // We want to now do three things:
-      //
-      //   (a) remove any givens from the end of the environment
-      //   (b) pull out any claims from the beginning of the environment
-      //   (c) if the last child is an environment, unwrap it
-      //
-      //  Note that after doing (c) we cannot produce more cases of (a) and (b)
-      //  because the last child is already in flat Form, so if it is an
-      //  environment, it has to either be empty or start with a given and end
-      //  with a claim.  Thus we can do these in order.
-      //
-      // (a) remove any givens from the end of the environment:
-      // console.log(`delete trailing givens from: ${lc.toString()}`)
-      while ( lc.last && lc.last.isAGiven ) { lc.pop() }
-      // console.log(`which results in: ${lc.toString()}`)
-      //
-      // (b) pull out any claims from the beginning of the environment
-      let presults = [ ]
-      // console.log(`Pull out claims from the beginning of: ${lc.toString()}`)
-      while ( lc.first && lc.first.isAClaim ) {
-         // console.log(`Pulling out the claim ${lc.first.toString()}`)
-         presults.push( lc.shift() )
-         // console.log(`  to obtain this ${lc.toString()}`)
-         // console.log(`  with this array: ${presults.map(x=>x.toString())}`)
-      }
-      // (c) if the the last child is an environment, unwrap it
-      // console.log(`pop terminal environments from ${lc.toString()}`)
-      if ( lc.last && lc.last.isAnActualEnvironment() ) {
-         let lastkid = lc.last
-         lc.pop()
-         lastkid.children().forEach( x => lc.push(x) )
-      }
-      // console.log(`  which produces this ${lc.toString()}`)
-      // if lc is empty at this point, just delete it from the results
-      if ( lc.isEmpty ) {
-        // console.log(`we removed everything so delete ${lc.toString()}`)
-        // console.log(`  and return this array: ${presults.map(x=>x.toString())}`)
-        return presults
-      } else {
-        // console.log(`return whatever is left: ${lc.toString()}`)
-        // console.log(`  tacked on to the end of this array: ${presults.map(x=>x.toString())}`)
-        return [ ...presults , lc ]
-      }
-    }  // end of _flatForm
-
-    // OK now we can use that function to return an actual LC instead of an
-    // array. But we should save the LC attributes in case we mess it up.
-    let savedAttributes = new Environment()
-    this.copyLCattributes( savedAttributes )
-    let ff = _flatForm( this )
-    // console.log(`_flatForm returned [${ff}]`)
-    // console.log(`  an array of length ${ff.length}`)
-    // If the array does not contain a single environment, it had to
-    // occur because we pulled out claims.
-    // So wrap it back up, restoring the original attributes, and removing
-    // the environment wrapper from the last entry, if present.
-    if ( ff.length !== 1 || !ff[0].isAnActualEnvironment() ) {
-      let ans = new Environment( ...ff )
-      ans.copyLCattributes( savedAttributes )
-      if ( ans.last && ans.last.isAnActualEnvironment() ) {
-         let lastkid = ans.last
-         ans.pop()
-         lastkid.children().forEach( x => ans.push(x) )
-      }
-      // console.log(`returning ans: ${ff[0].toString()}`)
-      return ans
-    }
-    // Otherwise just return it.
-    // console.log(`returning ans: ${ff[0].toString()}`)
-    return ff[0]
   }
 
   // The FIC normal form of an LC has a lengthy definition.  We repeat it in
@@ -995,6 +895,57 @@ class LC extends Structure {
   }
 
   /////////////////////////////////////////////////////////////////////
+  // Dumb Fast FIC
+  //
+  // The .validate() command is extremely complex and slow because it incorporates
+  // matching and propositional validation recursively together. SAT Validation
+  // below doesn't do Matching.  So we want to see how well it would work if
+  // we do a fast FIC validation with no matching. This version is dumb - it does
+  // it without any speed up tricks.  But it should be a lot faster than
+  // .validate() so we can do benchmarking and decide if it's worth optimizing.
+
+
+  // we need a utility first.  We say an LC is harmless if
+  // (a) it's a statement or declaration (not an actual environment)
+  // (b) it's a claim environment all of whose children are harmless
+  get isHarmless () {
+    if (this.isAnActualEnvironment() ) {
+      if (this.isAGiven) { // by definition, it's not harmless
+        return false
+      } else {  // it's a claim environment, check the children
+        return this.children().every( X => X.isHarmless )
+      }
+    }
+    // it's a statement or declaration
+    return true
+  }
+
+  dumbFIC () {
+
+    // SAT is fast, and classically false implies intuitionistically false, so we
+    // check that first.  Note that has to be a top level
+    // environment
+    let SAT = this.Validate()
+    if (!SAT) return SAT
+
+    // Base Case: if it's harmless, just return whatever SAT says
+    if (this.isHarmless) { return SAT }
+
+    // test each non-harmless child in order, drilling into claim environments as
+    // necessary
+    let n=this.children().length
+    for (i=0;i<n;i++) {
+      let kid = this.child(i)
+      if (!kid.isHarmless) {
+        if(kid.isAGiven) {
+        }
+      }
+    }
+    // couldn't find a proof
+    return false
+  }
+
+  /////////////////////////////////////////////////////////////////////
   //
   // SAT validation
   //
@@ -1185,7 +1136,7 @@ class LC extends Structure {
 
   // prettyprint an LC with various options (see toString())
 
-  show ( options = { Conc:false, Env: false, Bound:true, Indent:true, Color:true,
+  show ( options = { Conc:true, Env: true, Bound:true, Indent:true, Color:true,
                      EEs:false, Skolem:false } ,
          ...args ) {
     // allow multiple option arguments to be combined into one
@@ -1534,22 +1485,24 @@ class LC extends Structure {
         let n = LC.numvars(c)
 
           let t1=new Date
-          debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
-
+          if (targetlist.length===1) {
+            debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
+          }
         let ans=!satSolve(n,c)
 
         globalans = globalans && ans
 
           let t2=new Date
-          debug(`Run SAT: ${(t2-t1)/1000} seconds`)
-
+          if (targetlist.length===1) {
+            debug(`Run SAT: ${(t2-t1)/1000} seconds`)
+          }
         X.setAttribute('Validation',ans)
 
       }
     } )
 
       let finish = new Date
-      debug(`\nTotal Validation time: ${(finish-start)/1000} seconds`)
+      debug(`\nValidated ${targetlist.length} LCs in ${(finish-start)/1000} seconds`)
 
     return globalans
 
