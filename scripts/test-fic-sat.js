@@ -2,41 +2,11 @@
 const { satSolve } = require( '../dependencies/LSAT.js' )
 const all = require( '../classes/all.js' )
 const LC = all.LC
-const Environment = all.Environment
-const Statement = all.Statement
 
 // Debugging tools...will be deleted later after the debugging phase.
-let dbgON = true
-const dbgLCs = lcs => lcs.map( x => x.toString() ).join( ', ' )
-const dbg = ( ...args ) => { if ( dbgON ) console.log( ...args ) }
-
-// To have some way to represent the propositional constant "true"
-const constantTrue = LC.fromString( 'True' )
-
-// Is it atomic, in the sense that validation cares about, that is, it's not an
-// environment?
-const isAtomic = lc => lc.isAnActualStatement() || lc.isAnActualDeclaration()
-// What is the name of this LC for the purposes of a name catalog?
-const catalogName = at => at.toString().replace( /:/g, '' )
-// Give me the LC without its "given" flag (or just give me the LC as is, if it
-// doesn't have a given flag).
-const asClaim = lc => {
-    if ( lc.isAClaim ) return lc
-    const other = lc.copy()
-    other.isAClaim = true
-    return other
-}
-// Give me a copy of the LC with a "given" flag set to true.  Unlike the
-// previous function, this makes a copy either way.
-const givenCopy = lc => {
-    const result = lc.copy()
-    result.isAGiven = true
-    return result
-}
-
-// Apply SAT to a CNF without needing to say how many variables it has.
-// This will compute it for you.
-const easySat = cnf => satSolve( Math.max( ...cnf.flat().map( Math.abs ) ), cnf )
+// let dbgON = true
+// const dbgLCs = lcs => lcs.map( x => x.toString() ).join( ', ' )
+// const dbg = ( ...args ) => { if ( dbgON ) console.log( ...args ) }
 
 // Look up a string in a list of strings.
 // If it's there, get its index in response.
@@ -50,12 +20,6 @@ const catalogNumber = ( name, catalog ) => {
     }
     return index + 1
 }
-// Curried form of a function that concats two arrays but preserves uniqueness.
-const arrayUnion = array1 => array2 =>
-    Array.from( new Set( array1.concat( array2 ) ) )
-// Curried form of array append, returning new array
-const arrayAppend = element => array => array.concat( [ element ] )
-
 // We store CNFs as arrays, that is, f.ex., (x1 v...v xn)^(y1 v...v ym) becomes
 // [[x1,...,xn],[y1,...,ym]].  To compute cnf1^cnf2 is therefore trivial; just
 // concat the arrays.  However, to compute cnf1 v cnf2 is not trivial, because
@@ -63,21 +27,23 @@ const arrayAppend = element => array => array.concat( [ element ] )
 // lead to exponential growth in the number of terms.  So we write a function
 // that does it linearly instead with the technique of switch variables and
 // equisatisfiability, a well-known technique not documented here.
-const disjoin = ( cnf1, cnf2, catalog ) => {
+const disjoinCNFs = ( cnf1, cnf2, catalog ) => {
     if ( cnf1.length == 1 )
-        return cnf2.map( arrayUnion( cnf1[0] ) )
+        return cnf2.map( conjunct =>
+            Array.from( new Set( cnf1[0].concat( conjunct ) ) ) )
     if ( cnf2.length == 1 )
-        return cnf1.map( arrayUnion( cnf2[0] ) )
+        return cnf1.map( conjunct =>
+            Array.from( new Set( cnf2[0].concat( conjunct ) ) ) )
     if ( cnf1.length == 2 && cnf2.length == 2 )
         return [ cnf1[0].concat( cnf2[0] ), cnf1[1].concat( cnf2[0] ),
                  cnf1[0].concat( cnf2[1] ), cnf1[1].concat( cnf2[1] ) ]
     const maxSwitchVar = catalog.filter( x => /^switch[0-9]+$/.test( x ) )
                                 .map( x => parseInt( x.substring( 6 ) ) )
                                 .reduce( Math.max, -1 )
-    const switchVar = `switch${maxSwitchVar+1}`
-    index = catalogNumber( switchVar, catalog ) // will be old catalog.length
-    return [ ...cnf1.map( arrayAppend( switchVar ) ),
-             ...cnf2.map( arrayAppend( -switchVar ) ) ]
+    const newSwitchVar = `switch${maxSwitchVar+1}`
+    index = catalogNumber( newSwitchVar, catalog ) // will be old catalog.length
+    return [ ...cnf1.map( conjunct => conjunct.concat( [ newSwitchVar ] ) ),
+             ...cnf2.map( conjunct => conjunct.concat( [ -newSwitchVar ] ) ) ]
 }
 
 // Construct a new atomic object, representing the proposition "true."
@@ -115,7 +81,7 @@ const condObj = ( A, B ) => {
     return {
         text : `[${A.text},${B.text}]`,
         parity : B.parity,
-        cnf : B.parity ? disjoin( A.cnf, B.cnf, A.catalog ) : A.cnf.concat( B.cnf ),
+        cnf : B.parity ? disjoinCNFs( A.cnf, B.cnf, A.catalog ) : A.cnf.concat( B.cnf ),
         catalog : A.catalog,
         children : [ A, B ]
     }
@@ -159,8 +125,8 @@ const checkSequent = ( ...objs ) => {
 const prepare = ( lc, parity = false, index = 0, catalog = [ ] ) => {
 
     // Base case 1: atomic
-    if ( isAtomic( lc ) )
-        return [ propObj( catalogName( lc ), parity, catalog ) ]
+    if ( lc.isAnActualStatement() || lc.isAnActualDeclaration() )
+        return [ propObj( lc.toString().replace( /:/g, '' ), parity, catalog ) ]
 
     // To proceed, we need to know where the final *claim* child is indexed.
     const chi = lc.children()
@@ -202,70 +168,28 @@ const prepare = ( lc, parity = false, index = 0, catalog = [ ] ) => {
     } )
 }
 
-// Debugging helpers for testing:
-const showPreparation = ( obj, indent = 0 ) => {
-    let indentText = ''
-    while ( indentText.length < indent * 4 ) indentText += ' '
-    console.log( `${indentText}${obj.text} has CNF${obj.parity?"+":"-"} = ${JSON.stringify(obj.cnf)}` )
-    obj.children.forEach( child => showPreparation( child, indent + 1 ) )
-}
-const showPreparations = lc => {
-    console.log( `Preparation of ${lc.toString()} yields:` )
-    console.log( '[' )
-    prepare( lc ).forEach( p => showPreparation(p,1) )
-    console.log( ']' )
-}
+// // Debugging helpers for testing:
+// const showPreparation = ( obj, indent = 0 ) => {
+//     let indentText = ''
+//     while ( indentText.length < indent * 4 ) indentText += ' '
+//     console.log( `${indentText}${obj.text} has CNF${obj.parity?"+":"-"} = ${JSON.stringify(obj.cnf)}` )
+//     obj.children.forEach( child => showPreparation( child, indent + 1 ) )
+// }
+// const showPreparations = lc => {
+//     console.log( `Preparation of ${lc.toString()} yields:` )
+//     console.log( '[' )
+//     prepare( lc ).forEach( p => showPreparation(p,1) )
+//     console.log( ']' )
+// }
 // showPreparations( LC.fromString(
 //     '{ :a b :{ :c b } d }'
 // ) )
-const checkSameValidity = text => {
-    const lc = LC.fromString( text )
-    const satResult = lc.Validate()
-    // console.log( 'SAT says', lc.toString(),
-    //              'is', satResult ? 'valid' : 'invalid' )
-    // showPreparations( lc )
-    console.log( JSON.stringify( prepare( lc ), null, 4 ) )
-    const myResult = prepare( lc ).every( clause => {
-        const result = checkObj( clause )
-        console.log( '    Negation of', clause.text,
-                     'has CNF', clause.cnf,
-                     '=>', !result ? 'satisfiable' : 'not satisfiable' )
-        // console.log( '\tThat is, the clause is',
-        //              result ? 'not a tautology' : 'a tautology' )
-        return result
-    } )
-    // console.log( 'All clauses together are', myResult ? 'valid' : 'invalid' )
-    console.log( satResult == myResult ? '    PASS' : '>>> FAIL', '---', text,
-                 '---', 'Validate:', satResult, 'Direct SAT:', myResult )
-    console.log()
-}
-// [
-//     '{ :a b :{ :c b } d }',
-//     '{ :a :b a }',
-//     '{ :a :b b }',
-//     '{ :a :b a b }',
-//     '{ :a :b c }',
-//     '{ :a :b a b c }',
-//     '{ :{ :a b } :{ :b c } { :a c } }',
-//     '{ :{ :{ :p q } p } p }'
-// ].forEach( checkSameValidity )
-
-// TO DO
-// -----
-// 4. Update the two FIC routines below to be able to use these new structures,
-//    calling satSolve() directly rather than through Validate().
-// 5. Update the speed comparison.
-// 6. Remove vestigial code.
-
-// NOTE!!  The prepare() function above is not actually used for validation yet.
-// The following tools are used instead.  We will be changing that soon.
 
 const fic = ( premises, conclusion ) => {
     const catalog = [ ]
     premises = premises.map( p => prepare( p, true, 0, catalog ) ).flat()
     conclusions = prepare( conclusion, false, 0, catalog )
-    // dbg( 'FIC:', dbgLCs( premises ), '|-', dbgLCs( conclusions ) )
-    dbg( 'FIC:', premises.map( p => p.text ), '|-', conclusions.map( c => c.text ) )
+    // dbg( 'FIC:', premises.map( p => p.text ), '|-', conclusions.map( c => c.text ) )
     const atomics = premises.filter( isPropObj )
     const arrows = premises.filter( isCondObj )
     // conclusions.forEach( concl =>
@@ -356,12 +280,12 @@ const simpleFic = (
 
 // From here on down is just debugging/testing tools.
 
-const show = text => {
-    const x = LC.fromString( text )
-    console.log( 'x =', x.toString() )
-    // console.log( 'arrowForms(x) =', dbgLCs( arrowForms( x ) ) )
-    console.log( fic( [], x ) )
-}
+// const show = text => {
+//     const x = LC.fromString( text )
+//     console.log( 'x =', x.toString() )
+//     // console.log( 'arrowForms(x) =', dbgLCs( arrowForms( x ) ) )
+//     console.log( fic( [], x ) )
+// }
 
 const many = [
     LC.fromString( '{ :{ :a b :{ :c d e } f g } { :a :d :e g } }' ), true,
