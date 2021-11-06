@@ -38,47 +38,6 @@ const givenCopy = lc => {
 // This will compute it for you.
 const easySat = cnf => satSolve( Math.max( ...cnf.flat().map( Math.abs ) ), cnf )
 
-// A sentence set is stored, for speedy membership testing, like this:
-// {
-//     n : {
-//         m : [ /* all LCs with n nodes and depth m */ ],
-//         ...
-//     },
-//     ...
-// }
-// The goal is to be able to test membership without having to do full tests of
-// equality with very many different candidates.  So we sort the candidates by
-// two simple metrics, to minimize the number of equality comparisons.
-const depthOfLC = lc => isAtomic( lc ) ? 1 :
-    1 + Math.max( ...lc.children().map( depthOfLC ) )
-const nodesInLC = lc => isAtomic( lc ) ? 1 :
-    1 + lc.children().map( nodesInLC ).reduce( (a,b)=>a+b, 0 )
-const emptySentenceSet = () => { }
-const addToSentenceSet = ( set, sentence ) => {
-    const numNodes = nodesInLC( sentence )
-    if ( !set.hasOwnProperty( numNodes ) ) set[numNodes] = { }
-    const sameNumNodes = set[numNodes]
-    const depth = depthOfLC( sentence )
-    if ( !sameNumNodes.hasOwnProperty( depth ) ) sameNumNodes[depth] = [ ]
-    const sameTwoMetrics = sameNumNodes[depth]
-    if ( sameTwoMetrics.some( other => other.equals( sentence ) ) ) return
-    sameTwoMetrics.push( sentence )
-}
-const sentenceSetContains = ( set, sentence ) => {
-    const numNodes = nodesInLC( sentence )
-    if ( !set.hasOwnProperty( numNodes ) ) return false
-    const sameNumNodes = set[numNodes]
-    const depth = depthOfLC( sentence )
-    if ( !sameNumNodes.hasOwnProperty( depth ) ) return false
-    const sameTwoMetrics = sameNumNodes[depth]
-    return sameTwoMetrics.some( other => other.equals( sentence ) )
-}
-const extendSentenceSet = ( A, B ) => { // modifies A in place to be A union B
-    for ( let numNodes in B )
-        if ( B.hasOwnProperty( numNodes ) )
-            B[numNodes].map( sentence => addToSentenceSet( A, sentence ) )
-}
-
 // Look up a string in a list of strings.
 // If it's there, get its index in response.
 // If it's not there, append it to the list (modifying the list in place), and
@@ -91,25 +50,12 @@ const catalogNumber = ( name, catalog ) => {
     }
     return index + 1
 }
-
-// Take an LC as input, plus some extra data, and return the same LC, with the
-// extra data embedded in an attribute.
-// withCNF(lc,true,cnf) == The cnf data is stored as the conjunctive normal form
-//                         representation of the LC.
-// withCNF(lc,false,cnf) == The cnf data is stored as the conjunctive normal
-//                          form representation of the NEGATION of the LC.
-const withCNF = ( lc, positive, cnf ) => {
-    lc.setAttribute( positive ? 'CNF+' : 'CNF-', cnf )
-    return lc
-}
-// Inverse of the previous, as follows: readCNF(withCNF(x,y,z),y) == z
-const readCNF = ( lc, positive ) => lc.getAttribute( positive ? 'CNF+' : 'CNF-' )
-
 // Curried form of a function that concats two arrays but preserves uniqueness.
 const arrayUnion = array1 => array2 =>
     Array.from( new Set( array1.concat( array2 ) ) )
 // Curried form of array append, returning new array
 const arrayAppend = element => array => array.concat( [ element ] )
+
 // We store CNFs as arrays, that is, f.ex., (x1 v...v xn)^(y1 v...v ym) becomes
 // [[x1,...,xn],[y1,...,ym]].  To compute cnf1^cnf2 is therefore trivial; just
 // concat the arrays.  However, to compute cnf1 v cnf2 is not trivial, because
@@ -134,87 +80,139 @@ const disjoin = ( cnf1, cnf2, catalog ) => {
              ...cnf2.map( arrayAppend( -switchVar ) ) ]
 }
 
-// Prepare an LC for FIC.
-// NOTE!!  This routine will modify the given LC, so pass a copy you don't need!
-// This does several things:
-// 1. The result will be an array of new LCs.
-// 2. Each entry in the array will be an LC of the form
-//    { :A1 { :A2 { :A3 { ... { :A4 B } } ... } } }
-// 3. The original LC is IPL-equivalent to the conjunction of this array.
-// 4. Each node in each of those trees will be decorated with either the CNF+ or
-//    CNF- attribute.
-//    * The CNF+ attribute is a CNF array ready for passing to satSolve to ask
-//      if the LC is satisfiable.
-//    * The CNF- attribute is the same, but it asks if the negation of the LC is
-//      satisfiable.
-const prepare = ( lc, positive = true, catalog = [ ] ) => {
-    // If it's atomic, mark it with a CNF that says this one variable must hold,
-    // or not hold, depending on the `positive` parameter.
-    if ( isAtomic( lc ) ) {
-        const index = catalogNumber( catalogName( lc ), catalog )
-                    * ( positive ? 1 : -1 )
-        return [ withCNF( lc, positive, [ [ index ] ] ) ]
+// Construct a new atomic object, representing the proposition "true."
+// parity : whether this sits in positive or negative position in the overall
+//   sequent that will later be evaluated for satisfiability
+// catalog : the catalog in which to index any variables in this expression's
+//   context
+const trueObj = ( parity, catalog ) => {
+    return {
+        text : 'True',
+        parity : parity,
+        cnf : parity ? [ ] : [ [ ] ],
+        catalog : catalog,
+        children : [ ]
     }
-    // Compute the list of children and remove any trailing givens.
-    const chi = lc.children()
-    while ( chi.length > 0 && chi[chi.length-1].isAGiven ) chi.pop()
-    // If there are no children, then this is an empty environment, which should
-    // be treated as true (if positive) or false (if negative).
-    if ( chi.length == 0 )
-        return [
-            positive ? withCNF( constantTrue.copy(), true, [ ] )
-                     : withCNF( constantTrue.copy(), false, [ [ 1 ], [ -1 ] ] )
-        ]
-    // If there is one child, then just process it as if it were not wrapped in
-    // this environment.
-    if ( chi.length == 1 ) return prepare( chi[0], positive, catalog )
-    // So know we know that there are at least two children.
+}
+// Construct a new atomic object, representing the proposition "A."
+// A : string name of LC identifier
+// parity, catalog : same as above
+const propObj = ( A, parity, catalog ) => {
+    return {
+        text : A,
+        parity : parity,
+        cnf : [ [ catalogNumber( A, catalog ) * ( parity ? 1 : -1 ) ] ],
+        catalog : catalog,
+        children : [ ]
+    }
+}
+// Construct a new conditional object, representing "A implies B."
+// A, B : other conditional or propositional objects, as constructed by condObj
+//   or propObj
+const condObj = ( A, B ) => {
+    if ( A.parity == B.parity )
+        throw 'Cannot make a conditional with the same parity in both children'
+    return {
+        text : `[${A.text},${B.text}]`,
+        parity : B.parity,
+        cnf : B.parity ? disjoin( A.cnf, B.cnf, A.catalog ) : A.cnf.concat( B.cnf ),
+        catalog : A.catalog,
+        children : [ A, B ]
+    }
+}
+// How to tell if a propositional/conditional object is one or the other?
+const isPropObj = obj => obj.children.length == 0
+const isCondObj = obj => obj.children.length > 0
+// How to tell if a propositional/conditional object is on a list?
+// Or to add it if it's not?
+const includesObj = ( array, obj ) => array.some( x => x.text == obj.text )
+const withObj = ( array, obj, append = true ) =>
+    includesObj( array, obj ) ? array :
+    append                    ? array.concat( [ obj ] )
+                              : [ obj ].concat( array )
+// Check a propositional/conditional object for whether it is a tautology.
+// This can only be done if the object's stored parity is negative,
+// because then we can ask whether its CNF is satisfiable:
+// unsatisfiable negated CNF == always satisfied positive CNF == tautology
+const checkObj = obj => {
+    if ( obj.parity )
+        throw 'Cannot check if an object with positive parity is a tautology'
+    return !satSolve( obj.catalog.length, obj.cnf )
+}
+// Check a sequent of propositional/conditional objects for whether it holds.
+// This can be done on P_1,...,P_n,C iff the P_i all have parity true and the C
+// has parity false, for a similar reason as in the previous function.
+const checkSequent = ( ...objs ) => {
+    const C = objs.pop()
+    if ( C.parity || objs.some( P => !P.parity ) )
+        throw 'Invalid parity/parities in the sequent to check'
+    const cnf = objs.map( P => P.cnf )
+                    .reduce( (a,b) => a.concat( b ), [ ] )
+                    .concat( C.cnf )
+    return !satSolve( C.catalog.length, cnf )
+}
 
-    // Case 1: chi[0] is a claim, so the env is interpreted as chi[0] ^ ...
-    // In this case, we are not trying to unite the recursive results,
-    // but leaving them as multiple separate LCs.  Consequently, we do not
-    // need to compute a big CNF for all of them together.
-    if ( chi[0].isAClaim ) {
-        const recur = prepare( lc.shift(), positive, catalog )
-        const rest = prepare( lc, positive, catalog )
-        return recur.concat( rest )
+// Prepare an LC for FIC.
+// 1. The result will be an array of new conditional objects, as defined above.
+// 2. Each conditional object will have the form [A1,[A2,[A3,[...,[An,B]...]]]]
+// 3. The original LC is IPL-equivalent to the conjunction of this array.
+const prepare = ( lc, parity = false, index = 0, catalog = [ ] ) => {
+
+    // Base case 1: atomic
+    if ( isAtomic( lc ) )
+        return [ propObj( catalogName( lc ), parity, catalog ) ]
+
+    // To proceed, we need to know where the final *claim* child is indexed.
+    const chi = lc.children()
+    let lastClaimIndex = chi.length - 1
+    while ( lastClaimIndex >= 0 && chi[lastClaimIndex].isAGiven )
+        lastClaimIndex--
+
+    // Base case 2: no claims left
+    if ( index > lastClaimIndex )
+        return [ trueObj( parity, catalog ) ]
+
+    // Inductive case 1: one claim left
+    if ( index == lastClaimIndex )
+        return prepare( chi[index], parity, 0, catalog )
+
+    // Inductive case 2: conjunction
+    // chi[index] is a claim, so the env from chi[index] onwards is interpreted
+    // as chi[index] ^ the rest.
+    // No need to form any new CNFs because we are just concatenating arrays of
+    // conditionals, not forming a containing expression for them.
+    if ( chi[index].isAClaim ) {
+        const first = prepare( chi[index], parity, 0, catalog )
+        const rest = prepare( lc, parity, index+1, catalog )
+        return first.concat( rest )
     }
-    // Case 2: chi[0] is a given, so the env is interpreted as chi[0] -> ...
-    // In this case, we will be creating multiple arrows, one chi[0] -> X for
-    // each X in the recursive results for the other children.
-    const recur = prepare( lc.shift(), !positive, catalog )
-    const rest = prepare( lc, positive, catalog )
+
+    // Inductive case 3: conditional
+    // chi[index] is a given, so the env from chi[index] onwards is interpreted
+    // as chi[0] -> the rest.
+    // For each result R in the recursive computation of the rest, form a new
+    // result chi[0] -> R, except with chi[0] turned into a chain of arrows
+    // based on a recursive call.
+    const first = prepare( chi[index], !parity, 0, catalog )
+    const rest = prepare( lc, parity, index+1, catalog )
     return rest.map( conclusion => {
-        // We must construct recur[0] -> ... -> recur[n-1] -> conclusion.
-        // The hard part is decorating each subtree with the appropriate CNF.
-        for ( let i = recur.length - 1 ; i >= 0 ; i-- ) {
-            const premise = recur[i].copy()
-            const premCNF = readCNF( premise, !positive )
-            premise.isAGiven = true
-            const concCNF = readCNF( conclusion, positive )
-            const cnf = positive ? disjoin( premCNF, concCNF, catalog )
-                                 : premCNF.concat( concCNF )
-            // console.log( premCNF, `+${positive}+`, concCNF, '=', cnf )
-            conclusion = withCNF(
-                new Environment( premise, conclusion ), positive, cnf )
-        }
+        for ( let i = first.length - 1 ; i >= 0 ; i-- )
+            conclusion = condObj( first[i], conclusion )
         return conclusion
     } )
 }
 
 // Debugging helpers for testing:
-const showPreparation = ( lc, indent = 0 ) => {
-    const cnf = readCNF(lc,true) || readCNF(lc,false)
-    const key = readCNF(lc,true) ? 'CNF+' : 'CNF-'
+const showPreparation = ( obj, indent = 0 ) => {
     let indentText = ''
     while ( indentText.length < indent * 4 ) indentText += ' '
-    console.log( `${indentText}${lc.toString()} has ${key} = ${JSON.stringify(cnf)}` )
-    lc.children().forEach( child => showPreparation( child, indent + 1 ) )
+    console.log( `${indentText}${obj.text} has CNF${obj.parity?"+":"-"} = ${JSON.stringify(obj.cnf)}` )
+    obj.children.forEach( child => showPreparation( child, indent + 1 ) )
 }
 const showPreparations = lc => {
     console.log( `Preparation of ${lc.toString()} yields:` )
     console.log( '[' )
-    prepare( lc.copy(), false ).forEach( p => showPreparation(p,1) )
+    prepare( lc ).forEach( p => showPreparation(p,1) )
     console.log( ']' )
 }
 // showPreparations( LC.fromString(
@@ -226,11 +224,12 @@ const checkSameValidity = text => {
     // console.log( 'SAT says', lc.toString(),
     //              'is', satResult ? 'valid' : 'invalid' )
     // showPreparations( lc )
-    const myResult = !prepare( lc.copy(), false ).some( clause => {
-        const result = easySat( readCNF( clause, false ) )
-        console.log( '    Negation of', clause.toString(),
-                     'has CNF', readCNF( clause, false ),
-                     '=>', result ? 'satisfiable' : 'not satisfiable' )
+    console.log( JSON.stringify( prepare( lc ), null, 4 ) )
+    const myResult = prepare( lc ).every( clause => {
+        const result = checkObj( clause )
+        console.log( '    Negation of', clause.text,
+                     'has CNF', clause.cnf,
+                     '=>', !result ? 'satisfiable' : 'not satisfiable' )
         // console.log( '\tThat is, the clause is',
         //              result ? 'not a tautology' : 'a tautology' )
         return result
@@ -240,22 +239,19 @@ const checkSameValidity = text => {
                  '---', 'Validate:', satResult, 'Direct SAT:', myResult )
     console.log()
 }
-[
-    '{ :a b :{ :c b } d }',
-    '{ :a :b a }',
-    '{ :a :b b }',
-    '{ :a :b a b }',
-    '{ :a :b c }',
-    '{ :a :b a b c }',
-    '{ :{ :a b } :{ :b c } { :a c } }',
-    '{ :{ :{ :p q } p } p }'
-].forEach( checkSameValidity )
+// [
+//     '{ :a b :{ :c b } d }',
+//     '{ :a :b a }',
+//     '{ :a :b b }',
+//     '{ :a :b a b }',
+//     '{ :a :b c }',
+//     '{ :a :b a b c }',
+//     '{ :{ :a b } :{ :b c } { :a c } }',
+//     '{ :{ :{ :p q } p } p }'
+// ].forEach( checkSameValidity )
 
 // TO DO
 // -----
-// 3. No longer use { :A B } with a CNF attribute, instead using objects, as in
-//    { expr:[A,B], str:"[A,B]", cnf:[...] }.  This will require altering many
-//    of the routines above.
 // 4. Update the two FIC routines below to be able to use these new structures,
 //    calling satSolve() directly rather than through Validate().
 // 5. Update the speed comparison.
@@ -264,123 +260,97 @@ const checkSameValidity = text => {
 // NOTE!!  The prepare() function above is not actually used for validation yet.
 // The following tools are used instead.  We will be changing that soon.
 
-const arrowForms = lc => {
-    if ( isAtomic( lc ) ) return [ lc ]
-    const chi = lc.children()
-    if ( chi.length == 0 ) return [ constantTrue ]
-    const recur = arrowForms( chi[0] )
-    if ( chi.length == 1 ) return recur
-    const rest = arrowForms( new Environment( ...chi.slice( 1 ).map( c => c.copy() ) ) )
-    if ( chi[0].isAClaim ) return recur.concat( rest )
-    recur.forEach( x => x.isAGiven = true )
-    const wrap = ( outsides, inside ) =>
-        outsides.length == 0 ? inside :
-        wrap( outsides.slice( 0, outsides.length-1 ),
-            new Environment( outsides[outsides.length-1].copy(), inside ) )
-    return rest.map( f => wrap( recur, f ) )
-}
-
 const fic = ( premises, conclusion ) => {
-    premises = premises.map( arrowForms ).flat()
-    conclusions = arrowForms( conclusion )
+    const catalog = [ ]
+    premises = premises.map( p => prepare( p, true, 0, catalog ) ).flat()
+    conclusions = prepare( conclusion, false, 0, catalog )
     // dbg( 'FIC:', dbgLCs( premises ), '|-', dbgLCs( conclusions ) )
-    const atomics = premises.filter( isAtomic ).map( catalogName )
-    const arrows = premises.filter( x => !isAtomic( x ) )
-    // console.log()
+    dbg( 'FIC:', premises.map( p => p.text ), '|-', conclusions.map( c => c.text ) )
+    const atomics = premises.filter( isPropObj )
+    const arrows = premises.filter( isCondObj )
     // conclusions.forEach( concl =>
-    //     dbg( 'FIC:', atomics,',',dbgLCs(arrows), '|-', dbgLCs([concl]) ) )
-    return conclusions.every( C =>
-        simpleFic( atomics, arrows, C, arrows.length, true ) )
+    //     dbg( 'FIC:', atomics.map( a => a.text ), arrows.map( a => a.text ),
+    //         '|-', concl.text ) )
+    return conclusions.every( C => simpleFic( atomics, arrows, C ) )
 }
 
-const simpleFic = ( atomics, arrows, C, stop, useSAT, known/*, indent*/ ) => {
-    // if ( typeof indent === 'undefined' ) indent = 0
+const simpleFic = (
+    atomics, arrows, C,
+    stop = arrows.length, useSAT = true, known = new Set()
+    //, indent = 0
+) => {
     // if ( indent > 10 ) throw 'uh-oh'
-    // let tab = ''; while ( tab.length < 4*indent ) tab += '    '
-    // dbg( tab, 'simpleFIC:', atomics.length?atomics+',':'',
-        // dbgLCs( arrows ), '|-', C.toString(), `  @${stop}` )
+    // let tab = ''; while ( tab.length < 4*indent ) tab += ' '
+    // dbg( tab, 'FIC:', atomics.map( a => a.text ), arrows.map( a => a.text ),
+    //     '|-', C.text, `  @${stop}` )
 
     // don't bother with FIC if SAT says no...
     // ...unless the caller told us not to do this check.
     // (Recursive calls that already know the check will pass may tell us to
     // skip it to save time.)
     if ( useSAT ) {
-        const atomicLCs = atomics.map( a => {
-            const result = new Statement()
-            result.identifier = a
-            result.isAGiven = true
-            return result
-        } )
-        const toSat = new Environment(
-            ...atomicLCs, ...arrows.map( givenCopy ), C.copy() )
-        if ( !toSat.Validate() ) {
+        if ( !checkSequent( ...atomics, ...arrows, C ) ) {
             // dbg( tab, 'SAT SAID STOP!' )
             return false
         }
     }
 
     // If the conclusion is already known, just stop now.
-    if ( known && sentenceSetContains( known, C ) ) {
-        // dbg( tab, 'already proven elsewhere:', C.toString() )
+    if ( known.has( C.text ) ) {
+        // dbg( tab, 'already proven elsewhere:', C.text )
         return true
     }
 
     // apply the GR rule as many times as needed to achieve an atomic RHS
-    // const needsReducing = ( C instanceof Environment )
-    while ( C instanceof Environment ) {
-        const A = C.children()[0] // A in { :A B }
-        const B = C.children()[1] // B in { :A B }
-        if ( isAtomic( A ) ) {
-            const cA = catalogName( A )
-            if ( !atomics.includes( cA ) ) atomics.push( cA )
+    while ( isCondObj( C ) ) {
+        const A = C.children[0]
+        if ( isPropObj( A ) ) {
+            atomics = withObj( atomics, A )
         } else {
-            arrows.unshift( A )
+            arrows = withObj( arrows, A, false ) // false == prepend, not append
             stop++
         }
-        C = B
+        C = C.children[1]
     }
 
-    // if ( needsReducing )
-    //     dbg( tab, 'reduced:', atomics.length?atomics+',':'',
-    //         dbgLCs( arrows ), '|-', C.toString(), `  @${stop}` )
+    // dbg( tab, 'reduced:', atomics.map( a => a.text ), arrows.map( a => a.text ),
+    //     '|-', C.text, `  @${stop}` )
 
     // C is now atomic.  if the S rule applies, done
-    if ( atomics.includes( catalogName( C ) ) ) {
+    if ( includesObj( atomics, C ) ) {
         // dbg( tab, 'yes--S' )
         return true
     }
 
-    // recursive applications of GL rule, not yet smartly
-    const provenInRecursion = emptySentenceSet()
+    // recursive applications of GL rule
+    const provenInRecursion = new Set()
     for ( let i = 0 ; i < arrows.length ; i++ ) {
         if ( i >= stop ) break
-        const Ai = asClaim( arrows[i].children()[0] ) // Ai in { :Ai Bi }
-        const Bi = arrows[i].children()[1] // Bi in { :Ai Bi }
-        // dbg( tab, `consider ${i}. `, arrows[i].toString() )
-        const provenInThisRecursion = emptySentenceSet()
+        // dbg( tab, `consider ${i}. `, arrows[i].text )
+        const Ai = arrows[i].children[0] // Ai in Ai->Bi
+        const Bi = arrows[i].children[1] // Bi in Ai->Bi
+        const provenInThisRecursion = new Set()
         if ( !simpleFic( atomics, arrows.without( i ), Ai, i, true,
-                         provenInThisRecursion, /*, indent+1*/ ) ) {
-            extendSentenceSet( provenInRecursion, provenInThisRecursion )
+                         provenInThisRecursion/*, indent+1*/ ) ) {
+            Array.from( provenInThisRecursion ).forEach(
+                proven => provenInRecursion.add( proven ) )
             continue
         }
         // dbg( tab, 'can prove LHS, so now try using the RHS:' )
         let arCopy = arrows.without( i )
-        if ( isAtomic( Bi ) ) {
-            const cBi = catalogName( Bi )
-            const atCopy = atomics.includes( cBi ) ? atomics : atomics.concat( [ cBi ] )
-            const withRHS = simpleFic( atCopy, arCopy, C, arrows.length, false,
-                                       provenInRecursion, /*, indent+1*/ )
-            return withRHS // if ( withRHS ) return true
+        if ( isPropObj( Bi ) ) {
+            return simpleFic(
+                withObj( atomics, Bi ), arCopy, C,
+                arrows.length, false, provenInRecursion/*, indent+1*/ )
         } else {
-            arCopy.push( Bi )
-            const withRHS = simpleFic( atomics, arCopy, C, arrows.length, false,
-                                       provenInRecursion, /*, indent+1*/ )
-            return withRHS // if ( withRHS ) return true
+            return simpleFic(
+                atomics, withObj( arCopy, Bi ), C,
+                arrows.length, false, provenInRecursion/*, indent+1*/ )
         }
     }
 
-    // dbg( tab, 'failed to prove:', atomics.length?atomics+',':'',
-    //     dbgLCs( arrows ), '|-', C.toString(), `  @${stop}` )
+    // dbg( tab, 'failed to prove:', atomics.map( a => a.text ),
+    //     arrows.map( a => a.text ), '|-', C.text, `  @${stop}` )
     return false
 }
 
@@ -419,4 +389,5 @@ const compare = repeats => {
     console.log( `\tTook ${satTime}ms` )
     console.log( `Ratio: ${ficTime/satTime}` )
 }
-// compare( 1000 )
+dbgON = false
+compare( 10000 )
