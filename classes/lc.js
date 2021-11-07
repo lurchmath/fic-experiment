@@ -1467,7 +1467,7 @@ class LC extends Structure {
 
     targetlist.forEach( X => {
 
-       let t0=new Date
+      let t0=new Date
 
       // debug(`Validating target ${this.toString()} `)
       // debug(`Computing satsnf:`)
@@ -1484,25 +1484,25 @@ class LC extends Structure {
 
         let n = LC.numvars(c)
 
-          let t1=new Date
-          if (targetlist.length===1) {
-            debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
-          }
+        let t1=new Date
+        if (targetlist.length===1) {
+          debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
+        }
         let ans=!satSolve(n,c)
 
         globalans = globalans && ans
 
-          let t2=new Date
-          if (targetlist.length===1) {
-            debug(`Run SAT: ${(t2-t1)/1000} seconds`)
-          }
+        let t2=new Date
+        if (targetlist.length===1) {
+          debug(`Run SAT: ${(t2-t1)/1000} seconds`)
+        }
         X.setAttribute('Validation',ans)
 
       }
     } )
 
-      let finish = new Date
-      debug(`\nValidated ${targetlist.length} LCs in ${(finish-start)/1000} seconds`)
+    let finish = new Date
+    debug(`\nValidated ${targetlist.length} LCs in ${(finish-start)/1000} seconds`)
 
     return globalans
 
@@ -1515,27 +1515,27 @@ class LC extends Structure {
 
   // show the catalog of unique statement names contained in this LC
   catalog () {
-      ////////////////////
-      let recursive = TimerStart('catalog')
-      ////////////////////
+    ////////////////////
+    let recursive = TimerStart('catalog')
+    ////////////////////
 
-      let s=this.toString().replace(/:/g,'')
-      // if its a statement, catalog it
-      if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
-        ////////////////////
-        TimerStop('catalog',recursive)
-        ////////////////////
-        return [ s ]
-      // otherwise if it's an environment. Catalog its children in one big catalog
-      } else {
-        let A = this.LCchildren().map(x=>x.catalog()).flat()
-        let ans = new Set(A)  // remove duplicates
-        ////////////////////
-        TimerStop('catalog',recursive)
-        ////////////////////
-        return Array.from(ans)
-      }
+    let s=this.toString().replace(/:/g,'')
+    // if its a statement, catalog it
+    if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
+      ////////////////////
+      TimerStop('catalog',recursive)
+      ////////////////////
+      return [ s ]
+    // otherwise if it's an environment. Catalog its children in one big catalog
+    } else {
+      let A = this.LCchildren().map(x=>x.catalog()).flat()
+      let ans = new Set(A)  // remove duplicates
+      ////////////////////
+      TimerStop('catalog',recursive)
+      ////////////////////
+      return Array.from(ans)
     }
+  }
 
   // This is the WRONG way to do this but it's ok for our purposes for now
   // We should really upgrade toCNF to use a CNF class object, not recompute the
@@ -1545,13 +1545,13 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
-  FICValidate () {
+  IPLValidate () {
     const prepped = PreppedPropForm.createFrom( this, false )
     return prepped.every( conclusion =>
-      LC.FICValidationHelper( [], [], conclusion ) )
+      LC.IPLValidationHelper( [], [], conclusion ) )
   }
 
-  static FICValidationHelper (
+  static IPLValidationHelper (
     atomics, arrows, C,
     stop = arrows.length, useSAT = true, known = new Set()
     //, indent = 0
@@ -1607,7 +1607,7 @@ class LC extends Structure {
       const Ai = arrows[i].children[0] // Ai in Ai->Bi
       const Bi = arrows[i].children[1] // Bi in Ai->Bi
       const provenInThisRecursion = new Set()
-      if ( !LC.FICValidationHelper( atomics, arrows.without( i ), Ai, i, true,
+      if ( !LC.IPLValidationHelper( atomics, arrows.without( i ), Ai, i, true,
                           provenInThisRecursion/*, indent+1*/ ) ) {
         Array.from( provenInThisRecursion ).forEach(
           proven => provenInRecursion.add( proven ) )
@@ -1616,11 +1616,11 @@ class LC extends Structure {
       // dbg( tab, 'can prove LHS, so now try using the RHS:' )
       let arCopy = arrows.without( i )
       if ( Bi.isAtomic() ) {
-        return LC.FICValidationHelper(
+        return LC.IPLValidationHelper(
           Bi.addedTo( atomics ), arCopy, C,
           arrows.length, false, provenInRecursion/*, indent+1*/ )
       } else {
-        return LC.FICValidationHelper(
+        return LC.IPLValidationHelper(
           atomics, Bi.addedTo( arCopy ), C,
           arrows.length, false, provenInRecursion/*, indent+1*/ )
       }

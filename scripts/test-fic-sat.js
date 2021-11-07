@@ -19,7 +19,7 @@ const time = ( validator, repeats ) => {
 }
 const compare = repeats => {
     console.log( `Running ${repeats} FIC calls...` )
-    const ficTime = time( x => x.FICValidate(), repeats )
+    const ficTime = time( x => x.IPLValidate(), repeats )
     console.log( `\tTook ${ficTime}ms` )
     console.log( `Running ${repeats} SAT calls...` )
     const satTime = time( x => x.Validate(), repeats )
