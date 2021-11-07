@@ -1460,8 +1460,8 @@ class LC extends Structure {
     // We run this here just in case.  Running it twice should be idempotent.
     this.markAll()
 
-      let ts=new Date
-      debug(`Compute all scopes: ${(ts-start)/1000} seconds`)
+    let ts=new Date
+    debug(`Compute all scopes: ${(ts-start)/1000} seconds`)
 
     let globalans = true
 
@@ -1545,10 +1545,24 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
-  IPLValidate () {
+  IPLValidate ( andAddAttributes = true ) {
     const prepped = PreppedPropForm.createFrom( this, false )
-    return prepped.every( conclusion =>
-      LC.IPLValidationHelper( [], [], conclusion ) )
+    // if we want to add attributes, validate every conclusion no matter what:
+    if ( andAddAttributes ) {
+      let result = true
+      prepped.forEach( conclusion => {
+        const answer = LC.IPLValidationHelper( [], [], conclusion )
+        let rhs = conclusion
+        while ( rhs.isConditional() ) rhs = rhs.children[1]
+        if ( rhs.original )
+          rhs.original.setAttribute( 'Validation', answer )
+        result = result && answer
+      } )
+      return result
+    } else { // or if we just want an answer, we can return as soon as we get it
+      return prepped.every( conclusion =>
+        LC.IPLValidationHelper( [], [], conclusion ) )
+    }
   }
 
   static IPLValidationHelper (
@@ -1666,7 +1680,7 @@ class PreppedPropForm {
   // Three ways to construct:
   // new PreppedPropForm(parity,catalog) == constant true
   // new PreppedPropForm(parity,catalog,A) == propositional letter
-  //   (A must be a string containing its name)
+  //   (A must be an atomic LC--that is, a sentence or declaration)
   // new PreppedPropForm(A,B) == conditional expression
   //   (A and B must both be PreppedPropForm instances)
   constructor ( ...args ) {
@@ -1679,12 +1693,13 @@ class PreppedPropForm {
         this.cnf = this.parity ? [ ] : [ [ ] ]
         this.children = [ ]
       } else {
-        // propositional letter
-        this.text = args[2]
+        // atomic LC
+        this.text = args[2].toString().replace( /:/g, '' )
         this.parity = args[0]
         this.catalog = args[1]
         this.cnf = [ [ this.catalogNumber( this.text, this.catalog )
                       * ( this.parity ? 1 : -1 ) ] ]
+        this.original = args[2]
         this.children = [ ]
       }
     } else {
@@ -1776,8 +1791,7 @@ class PreppedPropForm {
 
     // Base case 1: atomic
     if ( lc.isAnActualStatement() || lc.isAnActualDeclaration() )
-      return [ new PreppedPropForm( parity, catalog,
-        lc.toString().replace( /:/g, '' ) ) ]
+      return [ new PreppedPropForm( parity, catalog, lc ) ]
 
     // To proceed, we need to know where the final *claim* child is indexed.
     const chi = lc.children()
