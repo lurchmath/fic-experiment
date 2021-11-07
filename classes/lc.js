@@ -330,8 +330,10 @@ class LC extends Structure {
   // if ignoreEmpty is true, ignore constants declared by declarations with
   // an empty body
   isAnActualConstant ( ignoreEmpty ) {
+     // debug(`Checking ${this+''}`)
      if (!(this instanceof Statement)) return false
      let scope = this.scope()
+     // debug(`it has scope ${scope+''}`)
      return scope.isAnActualDeclaration() &&
             scope.declaration === 'constant' &&
             !scope.isAncestorOf(this) &&
@@ -352,7 +354,7 @@ class LC extends Structure {
   get isValid () {
     return this.getAttribute( 'Validation' )
   }
-  
+
   // avoid recursing into compound statements and declarations when
   // traversing the LC tree.
   LCchildren () {

@@ -30,6 +30,12 @@ class Statement extends LC {
     this.setAttribute( 'identifier', value )
     return value
   }
+  // when an identifier is Skolemized it's original name is called its username
+  get username () { return this.getAttribute( 'username' ) }
+  set username ( value ) {
+    this.setAttribute( 'username', value )
+    return value
+  }
   // Statements may optionally have the "quantifier" flag set to true,
   // which you can get/set with the .isAQuantifier property:
   get isAQuantifier () { return this.getAttribute( 'quantifier' ) == true }
@@ -93,7 +99,7 @@ class Statement extends LC {
       return (shortnames.hasOwnProperty(s)) ? shortnames[s] : s
     }
     let idname = (options && !options.Skolem && this.hasAttribute('username') ) ?
-                  this.getAttribute('username') : this.identifier
+                  this.username : this.identifier
 
     // decide whether strings are colored or not
     let colorize = ( x, col , font ) =>
@@ -161,7 +167,7 @@ class Statement extends LC {
        if (this.isValid) { result += concYes } else { result += wrong }
     // options.Conc determines if we show validation for conclusions
     // we put a space before the icon to distinguish FIC from SAT
-    // Note: you can have both.   
+    // Note: you can have both.
     if ( options && options.Conc && this.isvalidated )
        if (this.isvalid) { result += ' '+concYes } else { result += ' '+wrong }
 
@@ -258,8 +264,13 @@ class Statement extends LC {
   scope () {
     // If I'm not an identifier, then I have no scope:
     if ( !this.identifier ) return undefined
-    // If I have a quantifier ancestor binding me, that's my scope:
-    let me = this.identifier
+    // If I have a quantifier ancestor binding me, that's my scope.
+    //
+    // Note: after Skolemization we still consider a skolemized identifier to
+    // be declared by its original Declaration, so we use the username instead
+    // of the
+    let me = ( this.hasAttribute( 'username' ) ) ?
+             this.username : this.identifier
     // console.log( 'Computing scope of: ' + me )
     let lastStatement = this
     let ancestor = this.parent()
