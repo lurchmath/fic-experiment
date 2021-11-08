@@ -1569,13 +1569,13 @@ class LC extends Structure {
 
   static IPLValidationHelper (
     atomics, arrows, C,
-    stop = arrows.length, useSAT = true, known = new Set()
+    useSAT = true, known = new Set()
     //, indent = 0
   ) {
     // if ( indent > 10 ) throw 'uh-oh'
     // let tab = ''; while ( tab.length < 4*indent ) tab += ' '
     // dbg( tab, 'FIC:', atomics.map( a => a.text ), arrows.map( a => a.text ),
-    //     '|-', C.text, `  @${stop}` )
+    //     '|-', C.text )
 
     // don't bother with FIC if SAT says no...
     // ...unless the caller told us not to do this check.
@@ -1600,14 +1600,13 @@ class LC extends Structure {
       if ( A.isAtomic() ) {
         atomics = A.addedTo( atomics )
       } else {
-        arrows = A.addedTo( arrows, false ) // false == prepend, not append
-        stop++
+        arrows = A.addedTo( arrows )
       }
       C = C.children[1]
     }
 
     // dbg( tab, 'reduced:', atomics.map( a => a.text ), arrows.map( a => a.text ),
-    //     '|-', C.text, `  @${stop}` )
+    //     '|-', C.text )
 
     // C is now atomic.  if the S rule applies, done
     if ( C.isIn( atomics ) ) {
@@ -1618,12 +1617,11 @@ class LC extends Structure {
     // recursive applications of GL rule
     const provenInRecursion = new Set()
     for ( let i = 0 ; i < arrows.length ; i++ ) {
-      if ( i >= stop ) break
       // dbg( tab, `consider ${i}. `, arrows[i].text )
       const Ai = arrows[i].children[0] // Ai in Ai->Bi
       const Bi = arrows[i].children[1] // Bi in Ai->Bi
       const provenInThisRecursion = new Set()
-      if ( !LC.IPLValidationHelper( atomics, arrows.without( i ), Ai, i, true,
+      if ( !LC.IPLValidationHelper( atomics, arrows.without( i ), Ai, true,
                           provenInThisRecursion/*, indent+1*/ ) ) {
         Array.from( provenInThisRecursion ).forEach(
           proven => provenInRecursion.add( proven ) )
@@ -1634,16 +1632,16 @@ class LC extends Structure {
       if ( Bi.isAtomic() ) {
         return LC.IPLValidationHelper(
           Bi.addedTo( atomics ), arCopy, C,
-          arrows.length, false, provenInRecursion/*, indent+1*/ )
+          false, provenInRecursion/*, indent+1*/ )
       } else {
         return LC.IPLValidationHelper(
           atomics, Bi.addedTo( arCopy ), C,
-          arrows.length, false, provenInRecursion/*, indent+1*/ )
+          false, provenInRecursion/*, indent+1*/ )
       }
     }
 
     // dbg( tab, 'failed to prove:', atomics.map( a => a.text ),
-    //     arrows.map( a => a.text ), '|-', C.text, `  @${stop}` )
+    //     arrows.map( a => a.text ), '|-', C.text )
     return false
   }
 
@@ -1759,11 +1757,8 @@ class PreppedPropForm {
   // Is an instance equal to this one in the given array?
   isIn ( array ) { return array.some( x => x.text == this.text ) }
   // The given array, with this object added, if needed.
-  // The append parameter says whether to put it on the front or the end.
-  addedTo ( array, append ) {
-    return this.isIn( array ) ? array :
-           append             ? array.concat( [ this ] )
-                              : [ this ].concat( array )
+  addedTo ( array ) {
+    return this.isIn( array ) ? array : array.concat( [ this ] )
   }
   // Check whether this is a tautology.  Works only if its parity is negative.
   // It's a tautology iff the CNF of its negation passes SAT.
