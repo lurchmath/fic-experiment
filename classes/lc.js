@@ -1547,24 +1547,33 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
-  IPLValidate ( andAddAttributes = true ) {
-    const prepped = PreppedPropForm.createFrom( this, false )
-    // if we want to add attributes, validate every conclusion no matter what:
-    if ( andAddAttributes ) {
-      let result = true
-      prepped.forEach( conclusion => {
-        const answer = LC.IPLValidationHelper( [], [], conclusion )
-        let rhs = conclusion
-        while ( rhs.isConditional() ) rhs = rhs.children[1]
-        if ( rhs.original )
-          rhs.original.setAttribute( 'Validation', answer )
-        result = result && answer
-      } )
-      return result
-    } else { // or if we just want an answer, we can return as soon as we get it
-      return prepped.every( conclusion =>
-        LC.IPLValidationHelper( [], [], conclusion ) )
+  IPLValidate ( targetList = [ this ] ) {
+    // compute PreppedPropForm for all targeted conclusions:
+    const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
+    // set up a data structure for storing results:
+    // it will be of the form [[target1,results...],[target2,results...],...]
+    // where each result is a boolean for one of the conclusions in that target.
+    let results = [ ]
+    const addResult = ( target, result ) => {
+      const index = results.findIndex( tuple => tuple[0] == target )
+      if ( index == -1 ) 
+        results.push( [ target, result ] )
+      else
+        results[index].push( result )
     }
+    // validate all conclusions and store their results in that data structure:
+    prepped.forEach( conclusion =>
+      conclusion.targets.forEach( target =>
+        addResult( target, LC.IPLValidationHelper( [], [], conclusion ) ) ) )
+    // mark each target with a result that's the conjunction of its conclusions:
+    let finalAnswer
+    results.forEach( tuple => {
+      const target = tuple[0]
+      const result = tuple.slice( 1 ).reduce( ( a, b ) => a && b, true )
+      target.setAttribute( 'Validation', result )
+      if ( target == this ) finalAnswer = result
+    } )
+    return finalAnswer
   }
 
   static IPLValidationHelper (
@@ -1692,6 +1701,7 @@ class PreppedPropForm {
         this.catalog = args[1]
         this.cnf = this.parity ? [ ] : [ [ ] ]
         this.children = [ ]
+        this.targets = [ ]
       } else {
         // atomic LC
         this.text = args[2].toString().replace( /:/g, '' )
@@ -1701,6 +1711,7 @@ class PreppedPropForm {
                       * ( this.parity ? 1 : -1 ) ] ]
         this.original = args[2]
         this.children = [ ]
+        this.targets = [ ]
       }
     } else {
       // conditional expression
@@ -1715,6 +1726,7 @@ class PreppedPropForm {
       this.cnf = this.parity ? args[0].disjoinedWith( args[1] ) :
                                args[0].cnf.concat( args[1].cnf )
       this.children = args
+      this.targets = [ ]
     }
   }
   // Disjoin the CNF of this instance with that of another, using switch
@@ -1781,14 +1793,51 @@ class PreppedPropForm {
                         .concat( this.cnf )
     return !satSolve( this.catalog.length, cnf )
   }
+  // String form for debugging
+  toString () {
+    return `${this.text} (CNF${this.parity?"+":"-"}:${JSON.stringify(this.cnf)})`
+        + ( this.target ? ` [target:${this.target.toString()}]` : '' )
+  }
   // Create an array of PreppedPropForm instances from a given LC.
   // The conjunction of the result is IPL-equivalent to the given LC.
+  // If targets is an array of LCs within this one, we consider only conclusions
+  // within that array.  If it contains the constant true, we consider all conclusions.
+  // Note: This function will manipulate the targets array, in-place.
   // The final argument is typically not used by clients, but just in recursion.
-  static createFrom ( lc, parity = false, catalog = [ ], index = 0 ) {
+  static createFrom ( lc, parity = false, catalog = [ ], targets = [ true ], index = 0 ) {
 
-    // Base case 1: atomic
-    if ( lc.isAnActualStatement() || lc.isAnActualDeclaration() )
-      return [ new PreppedPropForm( parity, catalog, lc ) ]
+    // Base case 1: If there are no targets to pursue, the result is an empty list.
+    if ( targets.length == 0 )
+      return [ ]
+    
+    // If this LC is a target, just process ALL conclusions,
+    // then mark all otherwise unmarked conclusions as having this LC as the target.
+    if ( targets.includes( lc ) ) {
+      targets = targets.map( x => x == lc ? true : x )
+      const result = PreppedPropForm.createFrom( lc, parity, catalog, targets, index )
+      result.forEach( ppf => ppf.targets.push( lc ) )
+      return result
+    }
+
+    // Base case 2: atomic -> return a single propositional letter, unless our
+    // targets list explicitly excludes it.
+    if ( lc.isAnActualStatement() || lc.isAnActualDeclaration() ) {
+      const index = targets.indexOf( lc )
+      if ( index > -1 ) {
+        // this atomic is on the target list, so return it, flagged as a target
+        targets.splice( index, 1 )
+        const result = new PreppedPropForm( parity, catalog, lc )
+        result.targets.push( lc )
+        return [ result ]
+      } else if ( targets.includes( true ) ) {
+        // this atomic is not on the target list, but we're supposed to return all
+        // conclusions, so we return it, but not flagged as a target
+        return [ new PreppedPropForm( parity, catalog, lc ) ]
+      } else {
+        // neither of the above is true, so return an empty list
+        return [ ]
+      }
+    }
 
     // To proceed, we need to know where the final *claim* child is indexed.
     const chi = lc.children()
@@ -1796,13 +1845,13 @@ class PreppedPropForm {
     while ( lastClaimIndex >= 0 && chi[lastClaimIndex].isAGiven )
       lastClaimIndex--
 
-    // Base case 2: no claims left
+    // Base case 3: no claims left -> return the constant "true"
     if ( index > lastClaimIndex )
       return [ new PreppedPropForm( parity, catalog ) ]
 
-    // Inductive case 1: one claim left
+    // Inductive case 1: one claim left -> recur on that one claim
     if ( index == lastClaimIndex )
-      return PreppedPropForm.createFrom( chi[index], parity, catalog, 0 )
+      return PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
 
     // Inductive case 2: conjunction
     // chi[index] is a claim, so the env from chi[index] onwards is interpreted
@@ -1810,8 +1859,17 @@ class PreppedPropForm {
     // No need to form any new CNFs because we are just concatenating arrays of
     // conditionals, not forming a containing expression for them.
     if ( chi[index].isAClaim ) {
-      const first = PreppedPropForm.createFrom( chi[index], parity, catalog, 0 )
-      const rest = PreppedPropForm.createFrom( lc, parity, catalog, index+1 )
+      // recur on the first child first (which may exhaust all the targets),
+      // but first keep a note of whether that child was itself a target:
+      const wasTarget = targets.includes( chi[index] )
+      if ( wasTarget ) targets = targets.filter( x => x != chi[index] )
+      const first = PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
+      // if those results came from a specific target, then mark them as such:
+      if ( wasTarget )
+        first.forEach( ppf => ppf.targets.push( chi[index] ) )
+      if ( targets.length == 0 ) return first // all targets found
+      // there are still more targets to find, so we recursively find them:
+      const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
       return first.concat( rest )
     }
 
@@ -1821,11 +1879,17 @@ class PreppedPropForm {
     // For each result R in the recursive computation of the rest, form a new
     // result chi[0] -> R, except with chi[0] turned into a chain of arrows
     // based on a recursive call.
-    const first = PreppedPropForm.createFrom( chi[index], !parity, catalog, 0 )
-    const rest = PreppedPropForm.createFrom( lc, parity, catalog, index+1 )
+    // Do the recursive call first, because this can save time as follows:
+    const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
+    if ( rest.length == 0 )
+      return [ ] // no sense computing premises for conclusions we don't have
+    // OK, there were some conclusions, so compute their premises:
+    const first = PreppedPropForm.createFrom( chi[index], !parity, catalog, [ true ], 0 )
     return rest.map( conclusion => {
-      for ( let i = first.length - 1 ; i >= 0 ; i-- )
+      for ( let i = first.length - 1 ; i >= 0 ; i-- ) {
         conclusion = new PreppedPropForm( first[i], conclusion )
+        conclusion.targets = conclusion.targets.concat( conclusion.children[1].targets )
+      }
       return conclusion
     } )
 
@@ -1904,6 +1968,7 @@ module.exports.Times = Times
 module.exports.StartTimes = StartTimes
 module.exports.TimerStart = TimerStart
 module.exports.TimerStop = TimerStop
+module.exports.PreppedPropForm = PreppedPropForm // exported only for debugging/testing
 
 const { Statement } = require( './statement.js' )
 const { Environment } = require( './environment.js' )
