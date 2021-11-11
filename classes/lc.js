@@ -1547,7 +1547,7 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
-  IPLValidate ( targetList = [ this ] ) {
+  GeneralValidate ( validator, targetList = [ this ] ) {
     // compute PreppedPropForm for all targeted conclusions:
     const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
     // set up a data structure for storing results:
@@ -1564,7 +1564,7 @@ class LC extends Structure {
     // validate all conclusions and store their results in that data structure:
     prepped.forEach( conclusion =>
       conclusion.targets.forEach( target =>
-        addResult( target, LC.IPLValidationHelper( [], [], conclusion ) ) ) )
+        addResult( target, validator( conclusion ) ) ) )
     // mark each target with a result that's the conjunction of its conclusions:
     let finalAnswer
     results.forEach( tuple => {
@@ -1574,6 +1574,16 @@ class LC extends Structure {
       if ( target == this ) finalAnswer = result
     } )
     return finalAnswer
+  }
+
+  CPLValidate ( targetList ) {
+    return this.GeneralValidate(
+      x => x.followsClassicallyFrom( /* nothing */ ), targetList )
+  }
+
+  IPLValidate ( targetList ) {
+    return this.GeneralValidate(
+      x => LC.IPLValidationHelper( [ ], [ ], x ), targetList )
   }
 
   static IPLValidationHelper (

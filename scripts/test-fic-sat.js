@@ -18,22 +18,25 @@ const time = ( validator, repeats ) => {
     return new Date - start
 }
 const compare = repeats => {
-    console.log( `Running ${repeats} FIC calls...` )
-    const ficTime = time( x => x.IPLValidate(), repeats )
-    console.log( `\tTook ${ficTime}ms` )
+    console.log( `Running ${repeats} IPL calls...` )
+    const time1 = time( x => x.IPLValidate(), repeats )
+    console.log( `\tTook ${time1}ms` )
+    // console.log( `Running ${repeats} CPL calls...` )
+    // const time1 = time( x => x.CPLValidate(), repeats )
+    // console.log( `\tTook ${time1}ms` )
     console.log( `Running ${repeats} SAT calls...` )
-    const satTime = time( x => x.Validate(), repeats )
-    console.log( `\tTook ${satTime}ms` )
-    console.log( `Ratio: ${ficTime/satTime}` )
+    const time2 = time( x => x.Validate(), repeats )
+    console.log( `\tTook ${time2}ms` )
+    console.log( `Ratio: ${time1/time2}` )
 }
-// compare( 10000 );
+compare( 10000 );
 
-[
-    '{ :{ :a b :{ :c d e } f g } { :a :d b g } }',
-    '{ :{ :{ :p q } p } p }'
-].forEach( text => {
-    const foo = LC.fromString( text )
-    foo.IPLValidate( [ foo, ...foo.conclusions() ] )
-    // foo.Validate( [ foo, ...foo.conclusions() ] )
-    foo.show()
-} )
+// [
+//     '{ :{ :a b :{ :c d e } f g } { :a :d b g } }',
+//     '{ :{ :{ :p q } p } p }'
+// ].forEach( text => {
+//     const foo = LC.fromString( text )
+//     foo.IPLValidate( [ foo, ...foo.conclusions() ] )
+//     // foo.Validate( [ foo, ...foo.conclusions() ] )
+//     foo.show()
+// } )
