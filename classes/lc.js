@@ -1592,6 +1592,12 @@ class LC extends Structure {
     // dbg( tab, 'FIC:', atomics.map( a => a.text ), arrows.map( a => a.text ),
     //     '|-', C.text )
 
+    // If the conclusion is literally the constant true, we're done.
+    if ( C.isConstantTrue() ) {
+      // dbg( tab, 'Conclusion == constant true' )
+      return true
+    }
+
     // don't bother with FIC if SAT says no...
     // ...unless the caller told us not to do this check.
     // (Recursive calls that already know the check will pass may tell us to
@@ -1707,7 +1713,7 @@ class PreppedPropForm {
     if ( args[0] === true || args[0] === false ) {
       if ( args.length == 2 ) {
         // constant true
-        this.text = 'True'
+        this.text = true // don't use a string, to disambiguate
         this.parity = args[0]
         this.catalog = args[1]
         this.cnf = this.parity ? [ ] : [ [ ] ]
@@ -1777,6 +1783,8 @@ class PreppedPropForm {
   isAtomic () { return this.children.length == 0 }
   // Is this conditional (the only non-atomic option)?
   isConditional () { return this.children.length > 0 }
+  // Is this the atomic propositional constant "True"?
+  isConstantTrue () { return this.text === true }
   // Is an instance equal to this one in the given array?
   isIn ( array ) { return array.some( x => x.text == this.text ) }
   // The given array, with this object added, if needed.
