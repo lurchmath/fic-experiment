@@ -1645,13 +1645,18 @@ class LC extends Structure {
       const Bi = arrows[i].children[1] // Bi in Ai->Bi
       const provenInThisRecursion = new Set()
       if ( !LC.IPLValidationHelper( atomics, arrows.without( i ), Ai, true,
-                          provenInThisRecursion/*, indent+1*/ ) ) {
+                                    provenInThisRecursion/*, indent+1*/ ) ) {
         Array.from( provenInThisRecursion ).forEach(
           proven => provenInRecursion.add( proven ) )
         continue
       }
       // dbg( tab, 'can prove LHS, so now try using the RHS:' )
       let arCopy = arrows.without( i )
+      // Note: No need to call SAT in either of the following recursions, because
+      // in both cases, the sequent we're deferring to in recursion is provable
+      // (in both IPL and CPL) iff the current sequent is.  Since we already
+      // know that the current one is CPL-provable, we know the one in the
+      // recursion is, so there's no need to waste time verifying that fact.
       if ( Bi.isAtomic() ) {
         return LC.IPLValidationHelper(
           Bi.addedTo( atomics ), arCopy, C,
