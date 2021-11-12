@@ -1551,26 +1551,17 @@ class LC extends Structure {
                     targetList = [ this ] ) {
     // compute PreppedPropForm for all targeted conclusions:
     const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
-    // set up a data structure for storing results:
-    // it will be of the form [[target1,results...],[target2,results...],...]
-    // where each result is a boolean for one of the conclusions in that target.
-    let results = [ ]
-    const addResult = ( target, result ) => {
-      const index = results.findIndex( tuple => tuple[0] == target )
-      if ( index == -1 ) 
-        results.push( [ target, result ] )
-      else
-        results[index].push( result )
+    // define a function that validates a PreppedPropForm instance, w/caching:
+    const checkPPF = ppf => {
+      if ( !ppf.hasOwnProperty( 'result' ) ) ppf.result = validator( ppf )
+      return ppf.result
     }
-    // validate all conclusions and store their results in that data structure:
-    prepped.forEach( conclusion =>
-      conclusion.targets.forEach( target =>
-        addResult( target, validator( conclusion ) ) ) )
-    // mark each target with a result that's the conjunction of its conclusions:
+    // validate the stuff needed to grade each target:
     let finalAnswer
-    results.forEach( tuple => {
-      const target = tuple.shift()
-      const result = tuple.every( a => a )
+    targetList.forEach( target => {
+      const result = prepped
+        .filter( ppf => ppf.targets.includes( target ) )
+        .every( checkPPF )
       target.setAttribute( attributeKey, result ? trueFlag : falseFlag )
       if ( target == this ) finalAnswer = result
     } )
