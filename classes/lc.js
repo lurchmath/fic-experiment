@@ -1570,7 +1570,7 @@ class LC extends Structure {
     let finalAnswer
     results.forEach( tuple => {
       const target = tuple.shift()
-      const result = tuple.reduce( ( a, b ) => a && b, true )
+      const result = tuple.every( a => a )
       target.setAttribute( attributeKey, result ? trueFlag : falseFlag )
       if ( target == this ) finalAnswer = result
     } )
