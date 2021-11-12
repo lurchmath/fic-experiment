@@ -29,14 +29,14 @@ const compare = repeats => {
     console.log( `\tTook ${time2}ms` )
     console.log( `Ratio: ${time1/time2}` )
 }
-compare( 10000 );
+// compare( 10000 );
 
-// [
-//     '{ :{ :a b :{ :c d e } f g } { :a :d b g } }',
-//     '{ :{ :{ :p q } p } p }'
-// ].forEach( text => {
-//     const foo = LC.fromString( text )
-//     foo.IPLValidate( [ foo, ...foo.conclusions() ] )
-//     // foo.Validate( [ foo, ...foo.conclusions() ] )
-//     foo.show()
-// } )
+[
+    '{ :{ :a b :{ :c d e } f g } { :a :d b g } }',
+    '{ :{ :{ :p q } p } p }'
+].forEach( text => {
+    const foo = LC.fromString( text )
+    foo.IPLValidate( [ foo, ...foo.conclusions() ] )
+    foo.CPLValidate( [ foo, ...foo.conclusions() ] )
+    foo.show()
+} )

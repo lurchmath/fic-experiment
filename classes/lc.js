@@ -8,9 +8,6 @@ const print = console.log
 const verbose = true
 let debug = ( ...args ) => { if (verbose) console.log( ...args ) }
 
-const right = { status: true, feedback: 'Good job!' }
-const wrong = { status: false, feedback: 'This doesn\'t follow.' }
-
 /////////////////////////////////////////////
 //
 // Global profiling utility
@@ -1550,7 +1547,8 @@ class LC extends Structure {
     return Math.max(Math.max(...cnf),Math.abs(Math.min(...cnf)))
   }
 
-  GeneralValidate ( validator, attributeKey, targetList = [ this ] ) {
+  GeneralValidate ( validator, attributeKey, trueFlag, falseFlag,
+                    targetList = [ this ] ) {
     // compute PreppedPropForm for all targeted conclusions:
     const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
     // set up a data structure for storing results:
@@ -1573,7 +1571,7 @@ class LC extends Structure {
     results.forEach( tuple => {
       const target = tuple[0]
       const result = tuple.slice( 1 ).reduce( ( a, b ) => a && b, true )
-      target.setAttribute( attributeKey, result ? right : wrong )
+      target.setAttribute( attributeKey, result ? trueFlag : falseFlag )
       if ( target == this ) finalAnswer = result
     } )
     return finalAnswer
@@ -1581,12 +1579,15 @@ class LC extends Structure {
 
   CPLValidate ( targetList ) {
     return this.GeneralValidate(
-      x => x.followsClassicallyFrom( /* nothing */ ), 'Validation', targetList )
+      x => x.isAClassicalTautology(), 'Validation', true, false, targetList )
   }
 
   IPLValidate ( targetList ) {
     return this.GeneralValidate(
-      x => LC.IPLValidationHelper( [ ], [ ], x ), 'validation', targetList )
+      x => LC.IPLValidationHelper( [ ], [ ], x ), 'validation',
+        { status: true, feedback: 'Good job!' },
+        { status: false, feedback: 'This doesn\'t follow.' },
+        targetList )
   }
 
   static IPLValidationHelper (
