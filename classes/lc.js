@@ -1550,6 +1550,7 @@ class LC extends Structure {
   GeneralValidate ( validator, attributeKey, trueFlag, falseFlag,
                     targetList = [ this ] ) {
     // compute PreppedPropForm for all targeted conclusions:
+    this.markAll()
     const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
     // define a function that validates a PreppedPropForm instance, w/caching:
     const checkPPF = ppf => {

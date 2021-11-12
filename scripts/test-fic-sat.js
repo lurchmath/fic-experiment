@@ -1,5 +1,8 @@
 
-const { LC, PreppedPropForm } = require( '../classes/all.js' )
+const { LC, lc, Environment } = require( '../classes/all.js' )
+const { EvenMoreLurchstr } = require( '../test/data/EvenMoreLurch.js' )
+const fixLineEndingsForUnix = EvenMoreLurchstr.replace( /\r\n/g, '\n' )
+const biggie = lc( fixLineEndingsForUnix )
 
 const many = [
     LC.fromString( '{ :{ :a b :{ :c d e } f g } { :a :d :e g } }' ), true,
