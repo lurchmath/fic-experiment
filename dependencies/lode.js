@@ -35,7 +35,7 @@ let help = ( command ) => {
 Type help(command) for help on the following commands.
 (The command string must be in quotes.)
 
-      lc  show  Validate
+      lc  show  Validate compute
     `,'grey'))
   } else {
     let topics = {
@@ -68,6 +68,18 @@ X.show( options )
 X.Validate( showtimes )
 
   - For any LC X, checks if X is valid via SAT and returns true or false.
+     `,
+    compute: `
+compute.run( mathstring )
+
+  - uses Algebrite to evaluate the math expression string.
+
+    Example: compute.run('1+1') returns '2'
+
+    See the Algebrite command reference for details.  You can access them by
+    pressing CMD+doubleclick on the following URL in the MacOS terminal in Lode:
+
+      http://algebrite.org/docs/latest-stable/reference.html
      `
     }
     if (topics.hasOwnProperty(command)) {

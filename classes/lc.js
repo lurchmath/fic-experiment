@@ -1551,13 +1551,15 @@ class LC extends Structure {
     const prepped = PreppedPropForm.createFrom( this, false )
     // if we want to add attributes, validate every conclusion no matter what:
     if ( andAddAttributes ) {
+      const right = { status: true, feedback: 'Good job!' }
+      const wrong = { status: false, feedback: 'This doesn\'t follow.' }
       let result = true
       prepped.forEach( conclusion => {
         const answer = LC.IPLValidationHelper( [], [], conclusion )
         let rhs = conclusion
         while ( rhs.isConditional() ) rhs = rhs.children[1]
         if ( rhs.original )
-          rhs.original.setAttribute( 'Validation', answer )
+          rhs.original.setAttribute( 'validation', answer ? right : wrong )
         result = result && answer
       } )
       return result
