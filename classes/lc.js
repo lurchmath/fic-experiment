@@ -1569,8 +1569,8 @@ class LC extends Structure {
     // mark each target with a result that's the conjunction of its conclusions:
     let finalAnswer
     results.forEach( tuple => {
-      const target = tuple[0]
-      const result = tuple.slice( 1 ).reduce( ( a, b ) => a && b, true )
+      const target = tuple.shift()
+      const result = tuple.reduce( ( a, b ) => a && b, true )
       target.setAttribute( attributeKey, result ? trueFlag : falseFlag )
       if ( target == this ) finalAnswer = result
     } )
