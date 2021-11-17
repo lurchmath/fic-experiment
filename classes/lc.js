@@ -1757,15 +1757,15 @@ class PreppedPropForm {
       return this.cnf.map( conjunct =>
         Array.from( new Set( other.cnf[0].concat( conjunct ) ) ) )
     if ( this.cnf.length == 2 && other.cnf.length == 2 )
-      return [ this.cnf[0].concat( other.cnf[0] ),
-               this.cnf[1].concat( other.cnf[0] ),
-               this.cnf[0].concat( other.cnf[1] ),
-               this.cnf[1].concat( other.cnf[1] ) ]
+      return [ Array.from( new Set( this.cnf[0].concat( other.cnf[0] ) ) ),
+               Array.from( new Set( this.cnf[1].concat( other.cnf[0] ) ) ),
+               Array.from( new Set( this.cnf[0].concat( other.cnf[1] ) ) ),
+               Array.from( new Set( this.cnf[1].concat( other.cnf[1] ) ) ) ]
     const maxSwitchVar = this.catalog.filter( x => /^switch[0-9]+$/.test( x ) )
                                      .map( x => parseInt( x.substring( 6 ) ) )
                                      .reduce( Math.max, -1 )
     const newSwitchVar = `switch${maxSwitchVar+1}`
-    index = this.catalogNumber( newSwitchVar, catalog )
+    index = this.catalogNumber( newSwitchVar, this.catalog )
     return [ ...this.cnf.map( conjunct => conjunct.concat( [ newSwitchVar ] ) ),
              ...other.cnf.map( conjunct => conjunct.concat( [ -newSwitchVar ] ) ) ]
   }
