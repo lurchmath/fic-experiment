@@ -1885,7 +1885,7 @@ class PreppedPropForm {
       // recur on the first child first (which may exhaust all the targets),
       // but first keep a note of whether that child was itself a target:
       const wasTarget = targets.includes( chi[index] )
-      if ( wasTarget ) targets = targets.filter( x => x != chi[index] )
+      if ( wasTarget ) targets = targets.map( x => x == lc ? true : x )
       const first = PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
       // if those results came from a specific target, then mark them as such:
       if ( wasTarget )
