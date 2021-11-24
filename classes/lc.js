@@ -1469,37 +1469,41 @@ class LC extends Structure {
 
     targetlist.forEach( X => {
 
-      let t0=new Date
+      // Don't validate targets that are givens
+      if (!X.isAGiven) {
 
-      // debug(`Validating target ${this.toString()} `)
-      // debug(`Computing satsnf:`)
+        let t0=new Date
 
-      let c = this.satcnf( true, X )
+        // debug(`Validating target ${this.toString()} `)
+        // debug(`Computing satsnf:`)
 
-      // debug(`resulting satsnf:`)
-      // debug(c)
+        let c = this.satcnf( true, X )
 
-      // if the target has an empty cnf, just call it true
-      if (c.length === 0) {
-        X.setAttribute('Validation',true)
-      } else {
+        // debug(`resulting satsnf:`)
+        // debug(c)
 
-        let n = LC.numvars(c)
+        // if the target has an empty cnf, just call it true
+        if (c.length === 0) {
+          X.setAttribute('Validation',true)
+        } else {
 
-        let t1=new Date
-        if (targetlist.length===1) {
-          debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
+          let n = LC.numvars(c)
+
+          let t1=new Date
+          if (targetlist.length===1) {
+            debug(`Convert to SAT cnf (fast): ${(t1-t0)/1000} seconds`)
+          }
+          let ans=!satSolve(n,c)
+
+          globalans = globalans && ans
+
+          let t2=new Date
+          if (targetlist.length===1) {
+            debug(`Run SAT: ${(t2-t1)/1000} seconds`)
+          }
+          X.setAttribute('Validation',ans)
+
         }
-        let ans=!satSolve(n,c)
-
-        globalans = globalans && ans
-
-        let t2=new Date
-        if (targetlist.length===1) {
-          debug(`Run SAT: ${(t2-t1)/1000} seconds`)
-        }
-        X.setAttribute('Validation',ans)
-
       }
     } )
 
@@ -1820,7 +1824,7 @@ class PreppedPropForm {
     // Base case 1: If there are no targets to pursue, the result is an empty list.
     if ( targets.length == 0 )
       return [ ]
-    
+
     // If this LC is a target, just process ALL conclusions,
     // then mark all otherwise unmarked conclusions as having this LC as the target.
     if ( targets.includes( lc ) ) {

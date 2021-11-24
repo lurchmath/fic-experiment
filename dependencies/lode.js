@@ -21,6 +21,7 @@ let Indent      = { Indent: true }
 let EEs         = { EEs: true }
 let Skolem      = { Skolem: true }
 let Compact     = { Compact:true }
+let Flat        = { Color:true, Conc:true, Env:true, Bound:true }
 let All         = { Conc:true, Env:true, Bound:true, Color:true,
                     Indent:true, EEs:true, Skolem: true }
 let None        = { }
@@ -63,6 +64,7 @@ X.show( options )
       Skolem  : show Skolemized constant names
       All     : show everything above
       None    : just show a flat monochromatic string.
+      Flat    : show a flat colored string with all validation icons
      `,
     Validate: `
 X.Validate( showtimes )
@@ -101,6 +103,7 @@ module.exports.Indent   = Indent
 module.exports.EEs      = EEs
 module.exports.Skolem   = Skolem
 module.exports.Compact  = Compact
+module.exports.Flat     = Flat
 module.exports.All      = All
 module.exports.None     = None
 module.exports.colorize = colorize

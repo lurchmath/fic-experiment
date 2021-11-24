@@ -109,7 +109,7 @@ class Statement extends LC {
     let colon    = colorize(':','whiteBright','bold'),
         tilde    = colorize('~',stateColor),
         iname    = colorize(nicename(idname),stateColor),
-        boundYes = colorize('✓','yellowBright'),
+        boundYes = colorize('•','yellowBright'),
         concYes  = colorize('✔︎','yellowBright'),
         envYes   = colorize('★','yellowBright'),
         wrong    = colorize('✗','redBright'),
