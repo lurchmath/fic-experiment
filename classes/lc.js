@@ -1562,13 +1562,13 @@ class LC extends Structure {
       return ppf.result
     }
     // validate the stuff needed to grade each target:
-    let finalAnswer
+    let finalAnswer = true
     targetList.forEach( target => {
       const result = prepped
         .filter( ppf => ppf.targets.includes( target ) )
         .every( checkPPF )
       target.setAttribute( attributeKey, result ? trueFlag : falseFlag )
-      if ( target == this ) finalAnswer = result
+      finalAnswer = finalAnswer && result
     } )
     return finalAnswer
   }
