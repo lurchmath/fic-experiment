@@ -1884,12 +1884,14 @@ class PreppedPropForm {
     if ( chi[index].isAClaim ) {
       // recur on the first child first (which may exhaust all the targets),
       // but first keep a note of whether that child was itself a target:
-      const wasTarget = targets.includes( chi[index] )
-      if ( wasTarget ) targets = targets.map( x => x == lc ? true : x )
+      const wasTarget = targets.indexOf( chi[index] )
+      if ( wasTarget > -1 ) targets = targets.map( x => x == lc ? true : x )
       const first = PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
       // if those results came from a specific target, then mark them as such:
-      if ( wasTarget )
+      if ( wasTarget > -1 ) {
+        targets = targets.without( wasTarget )
         first.forEach( ppf => ppf.targets.push( chi[index] ) )
+      }
       if ( targets.length == 0 ) return first // all targets found
       // there are still more targets to find, so we recursively find them:
       const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
