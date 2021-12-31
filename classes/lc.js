@@ -1751,8 +1751,8 @@ class PreppedPropForm {
   // new PreppedPropForm(parity,catalog) == constant true
   // new PreppedPropForm(parity,catalog,A) == propositional letter
   //   (A must be an atomic LC--that is, a sentence or declaration)
-  // new PreppedPropForm(A,B) == conditional expression
-  //   (A and B must both be PreppedPropForm instances)
+  // new PreppedPropForm(A1,...,An) == conditional expression, if n>1:
+  //   A1 -> A2 -> ... -> An (all must be PreppedPropForm instances)
   constructor ( ...args ) {
     if ( args[0] === true || args[0] === false ) {
       if ( args.length == 2 ) {
@@ -1776,6 +1776,10 @@ class PreppedPropForm {
       }
     } else {
       // conditional expression
+      if ( args.length < 2 )
+        throw 'Not enough PreppedPropForm instances to build a conditional'
+      if ( args.length > 2 )
+        args = [ args[0], new PreppedPropForm( ...args.slice( 1 ) ) ]
       if ( !( args[0] instanceof PreppedPropForm )
         || !( args[1] instanceof PreppedPropForm ) )
         throw 'Invalid argument types to PreppedPropForm constructor'
@@ -1784,34 +1788,34 @@ class PreppedPropForm {
       this.text = `[${args[0].text},${args[1].text}]`
       this.parity = args[1].parity
       this.catalog = args[0].catalog
-      this.cnf = this.parity ? args[0].disjoinedWith( args[1] ) :
-                               args[0].cnf.concat( args[1].cnf )
       this.children = args
       this.targets = [ ]
+      this.cnf = this.parity ? this.disjoin( args[0].cnf, args[1].cnf )
+                             : args[0].cnf.concat( args[1].cnf )
     }
   }
-  // Disjoin the CNF of this instance with that of another, using switch
-  // variables to do so efficiently.  Note: This returns just the new CNF,
-  // not a PreppedPropForm instance.
-  disjoinedWith ( other ) {
-    if ( this.cnf.length == 1 )
-      return other.cnf.map( conjunct =>
-        Array.from( new Set( this.cnf[0].concat( conjunct ) ) ) )
-    if ( other.cnf.length == 1 )
-      return this.cnf.map( conjunct =>
-        Array.from( new Set( other.cnf[0].concat( conjunct ) ) ) )
-    if ( this.cnf.length == 2 && other.cnf.length == 2 )
-      return [ Array.from( new Set( this.cnf[0].concat( other.cnf[0] ) ) ),
-               Array.from( new Set( this.cnf[1].concat( other.cnf[0] ) ) ),
-               Array.from( new Set( this.cnf[0].concat( other.cnf[1] ) ) ),
-               Array.from( new Set( this.cnf[1].concat( other.cnf[1] ) ) ) ]
+  // Disjoin two CNFs, using switch variables to do so efficiently.
+  // Use the catalog in this PreppedPropForm to do it, updating that catalog.
+  // This returns just the new CNF, not a PreppedPropForm instance.
+  disjoin ( cnf1, cnf2 ) {
+    if ( cnf1.length == 1 )
+      return cnf2.map( conjunct =>
+        Array.from( new Set( cnf1[0].concat( conjunct ) ) ) )
+    if ( cnf2.length == 1 )
+      return cnf1.map( conjunct =>
+        Array.from( new Set( cnf2[0].concat( conjunct ) ) ) )
+    if ( cnf1.length == 2 && cnf2.length == 2 )
+      return [ Array.from( new Set( cnf1[0].concat( cnf2[0] ) ) ),
+               Array.from( new Set( cnf1[1].concat( cnf2[0] ) ) ),
+               Array.from( new Set( cnf1[0].concat( cnf2[1] ) ) ),
+               Array.from( new Set( cnf1[1].concat( cnf2[1] ) ) ) ]
     const maxSwitchVar = this.catalog.filter( x => /^switch[0-9]+$/.test( x ) )
                                      .map( x => parseInt( x.substring( 6 ) ) )
                                      .reduce( Math.max, -1 )
     const newSwitchVar = `switch${maxSwitchVar+1}`
     index = this.catalogNumber( newSwitchVar, this.catalog )
-    return [ ...this.cnf.map( conjunct => conjunct.concat( [ newSwitchVar ] ) ),
-             ...other.cnf.map( conjunct => conjunct.concat( [ -newSwitchVar ] ) ) ]
+    return [ ...cnf1.map( conjunct => conjunct.concat( [ newSwitchVar ] ) ),
+             ...cnf2.map( conjunct => conjunct.concat( [ -newSwitchVar ] ) ) ]
   }
   // Get the catalog number for a given atomic propositional letter.
   // (If it's not already in our catalog, add it, then return the new number.)
