@@ -1616,7 +1616,7 @@ class LC extends Structure {
                     targetList = [ this ] ) {
     // compute PreppedPropForm for all targeted conclusions:
     this.markAll()
-    const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
+    const prepped = PreppedPropForm.fromTargets( this, targetList )
     // define a function that validates a PreppedPropForm instance, w/caching:
     const checkPPF = ppf => {
       if ( !ppf.hasOwnProperty( 'result' ) ) ppf.result = validator( ppf )
@@ -1886,103 +1886,89 @@ class PreppedPropForm {
     return `${this.text} (CNF${this.parity?"+":"-"}:${JSON.stringify(this.cnf)})`
         + ( this.target ? ` [target:${this.target.toString()}]` : '' )
   }
+  // Read/write/check cache data in an LC, used by several routines below.
+  static hasCache ( lc ) { return lc.hasOwnProperty( '_ppfcache' ) }
+  static writeCache ( lc, key, value ) {
+    if ( !PreppedPropForm.hasCache( lc ) ) lc._ppfcache = { }
+    return lc._ppfcache[key] = value
+  }
+  static extendCache ( lc, key, value ) {
+    return PreppedPropForm.writeCache( lc, key,
+      ( PreppedPropForm.readCache( lc, key ) || [ ] ).concat( [ value ] ) )
+  }
+  static readCache ( lc, key ) {
+    return PreppedPropForm.hasCache( lc ) ? lc._ppfcache[key] : undefined
+  }
+  static clearCache ( lc ) { delete lc._ppfcache }
   // Create an array of PreppedPropForm instances from a given LC.
-  // The conjunction of the result is IPL-equivalent to the given LC.
-  // If targets is an array of LCs within this one, we consider only conclusions
-  // within that array.  If it contains the constant true, we consider all conclusions.
-  // Note: This function will manipulate the targets array, in-place.
-  // The final argument is typically not used by clients, but just in recursion.
-  static createFrom ( lc, parity = false, catalog = [ ], targets = [ true ], index = 0 ) {
-
-    // Base case 1: If there are no targets to pursue, the result is an empty list.
-    if ( targets.length == 0 )
-      return [ ]
-
-    // If this LC is a target, just process ALL conclusions,
-    // then mark all otherwise unmarked conclusions as having this LC as the target.
-    if ( targets.includes( lc ) ) {
-      targets = targets.map( x => x == lc ? true : x )
-      const result = PreppedPropForm.createFrom( lc, parity, catalog, targets, index )
-      result.forEach( ppf => ppf.targets.push( lc ) )
-      return result
-    }
-
-    // Base case 2: atomic -> return a single propositional letter, unless our
-    // targets list explicitly excludes it.
-    if ( lc.isAtomicForValidation() ) {
-      const index = targets.indexOf( lc )
-      if ( index > -1 ) {
-        // this atomic is on the target list, so return it, flagged as a target
-        targets.splice( index, 1 )
-        const result = new PreppedPropForm( parity, catalog, lc )
-        result.targets.push( lc )
-        return [ result ]
-      } else if ( targets.includes( true ) ) {
-        // this atomic is not on the target list, but we're supposed to return all
-        // conclusions, so we return it, but not flagged as a target
-        return [ new PreppedPropForm( parity, catalog, lc ) ]
-      } else {
-        // neither of the above is true, so return an empty list
-        return [ ]
-      }
-    }
-
-    // To proceed, we need to know where the final *claim* child is indexed.
+  // The conjunction of the result is IPL-equivalent to the given LC
+  // (or to its negation if parity == false).
+  // If you plan to call this function multiple times and use the results in a
+  // consistent way together, they all need to share a single catalog array,
+  // passed in the third argument.
+  // This function modifies the LC and its descendants by adding cache attributes
+  // to them.  You probably want to clear those values when you're done with all
+  // the calls you plan to make to this routine.
+  static fromLC ( lc, parity = false, catalog = [ ] ) {
+    // Cache case: use cache when possible
+    const cached = PreppedPropForm.readCache( lc, parity )
+    if ( cached ) return cached
+    // Base case: atomic -> return a single propositional letter
+    if ( lc.isAtomicForValidation() )
+      return PreppedPropForm.writeCache( lc, parity,
+        [ new PreppedPropForm( parity, catalog, lc ) ] )
+    // Inductive case: For every claim child, create a PPF of it,
+    // implied by the chain of its earlier given siblings.
+    const result = [ ]
     const chi = lc.children()
-    let lastClaimIndex = chi.length - 1
-    while ( lastClaimIndex >= 0 && chi[lastClaimIndex].isAGiven )
-      lastClaimIndex--
-
-    // Base case 3: no claims left -> return the constant "true"
-    if ( index > lastClaimIndex )
-      return [ new PreppedPropForm( parity, catalog ) ]
-
-    // Inductive case 1: one claim left -> recur on that one claim
-    if ( index == lastClaimIndex )
-      return PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
-
-    // Inductive case 2: conjunction
-    // chi[index] is a claim, so the env from chi[index] onwards is interpreted
-    // as chi[index] ^ the rest.
-    // No need to form any new CNFs because we are just concatenating arrays of
-    // conditionals, not forming a containing expression for them.
-    if ( chi[index].isAClaim ) {
-      // recur on the first child first (which may exhaust all the targets),
-      // but first keep a note of whether that child was itself a target:
-      const wasTarget = targets.indexOf( chi[index] )
-      if ( wasTarget > -1 ) targets = targets.map( x => x == lc ? true : x )
-      const first = PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
-      // if those results came from a specific target, then mark them as such:
-      if ( wasTarget > -1 ) {
-        targets = targets.without( wasTarget )
-        first.forEach( ppf => ppf.targets.push( chi[index] ) )
+    for ( let i = 0 ; i < chi.length ; i++ ) {
+      if ( chi[i].isAClaim ) {
+        let next = PreppedPropForm.fromLC( chi[i], parity, catalog )
+        for ( let j = 0 ; j < i ; j++ )
+          if ( chi[j].isAGiven )
+            next = next.map( ppf => new PreppedPropForm(
+              ...PreppedPropForm.fromLC( chi[j], !parity, catalog ), ppf ) )
+        next.forEach( ppf => result.push( ppf ) )
       }
-      if ( targets.length == 0 ) return first // all targets found
-      // there are still more targets to find, so we recursively find them:
-      const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
-      return first.concat( rest )
     }
-
-    // Inductive case 3: conditional
-    // chi[index] is a given, so the env from chi[index] onwards is interpreted
-    // as chi[0] -> the rest.
-    // For each result R in the recursive computation of the rest, form a new
-    // result chi[0] -> R, except with chi[0] turned into a chain of arrows
-    // based on a recursive call.
-    // Do the recursive call first, because this can save time as follows:
-    const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
-    if ( rest.length == 0 )
-      return [ ] // no sense computing premises for conclusions we don't have
-    // OK, there were some conclusions, so compute their premises:
-    const first = PreppedPropForm.createFrom( chi[index], !parity, catalog, [ true ], 0 )
-    return rest.map( conclusion => {
-      for ( let i = first.length - 1 ; i >= 0 ; i-- ) {
-        conclusion = new PreppedPropForm( first[i], conclusion )
-        conclusion.targets = conclusion.targets.concat( conclusion.children[1].targets )
-      }
-      return conclusion
+    return PreppedPropForm.writeCache( lc, parity, result )
+  }
+  // Same as previous, but now you can specify a specific set of target
+  // conclusions (or conclusion environments) within a given ancestor are
+  // to be converted into PreppedPropForm instances.
+  // This means you will not need the catalog argument, because you can do all
+  // the related conversions in one function call, so a catalog is created
+  // internally for you.
+  static fromTargets ( ancestor, targetList ) {
+    // handle various function signature options
+    if ( targetList instanceof LC ) targetList = [ targetList ]
+    if ( !( targetList instanceof Array ) ) targetList = [ ancestor ]
+    // targets need to be atomic conclusions.
+    // if they're not conclusions, delete them.
+    // if they're not atomic, use all their conclusions instead.
+    const conclusions = targetList
+      .filter( target => target.hasOnlyClaimAncestors( ancestor ) )
+      .map( target =>
+        ( target.isAtomicForValidation() ? [ target ] : target.conclusions() )
+        .filter( conclusion => {
+          const firstEncounter = !PreppedPropForm.hasCache( conclusion )
+          PreppedPropForm.extendCache( conclusion, 'ancestors', target )
+          return firstEncounter
+        } ) )
+      .flat( 1 )
+    // convert each conclusion into a PPF, while using the ppfcache as much as possible
+    const catalog = [ ]
+    const result = conclusions.map( conclusion => {
+      const ppf = new PreppedPropForm( ...conclusion.contextIn( ancestor ).map(
+        ( antecedent, index, array ) =>
+          PreppedPropForm.fromLC( antecedent, index != array.length-1, catalog )
+      ).flat( 1 ) )
+      ppf.targets = PreppedPropForm.readCache( conclusion, 'ancestors' )
+      return ppf
     } )
-
+    // now clear the cache so as not to pollute objects' property namespaces, and we're done
+    conclusions.forEach( PreppedPropForm.clearCache )
+    return result
   }
 }
 
