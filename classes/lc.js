@@ -552,8 +552,8 @@ class LC extends Structure {
     let walk = this.parent()
     while ( walk && walk != ancestor && !walk.previousSibling() )
       walk = walk.parent()
-    prev = walk.previousSibling()
-    return walk && prev ? [ ...prev.contextIn( ancestor ), this ] : [ this ]
+    return ( walk && walk != ancestor ) ?
+      [ ...walk.previousSibling().contextIn( ancestor ), this ] : [ this ]
   }
 
   // The fully parenthesized form of an LC L = { L1 L2 ... Ln } is the form
