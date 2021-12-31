@@ -75,6 +75,27 @@ class LC extends Structure {
                                 'identifier', 'given', 'metavariable' ]
   }
 
+  // The address of an LC in an ancestor is an array of integers n1,...,nk
+  // such that the LC is ancestor.children()[n1].children()[n2]...up to nk.
+  // If the ancestor parameter is omitted, the top-level ancestor is used.
+  // Passing an LC that is not an ancestor is equivalent to omitting it.
+  // An LC's address within itself is [].
+  address ( inThis = null ) {
+    const parent = this.parent()
+    return !parent || this === inThis ? [ ] : [
+        ...parent.address( inThis ),
+        parent.children().indexOf( this )
+    ]
+  }
+  // The inverse of computing an address is looking one up, so that for
+  // any two LCs A and B, we have A.index(B.address(A)) == B.
+  index ( address = [ ] ) {
+    if ( address.length == 0 ) return this
+    const [ next, ...rest ] = address
+    const child = this.children()[next]
+    return child ? child.index( rest ) : undefined
+  }
+
   // LCs may contain only other LCs:
   insertChild ( child, beforeIndex = 0 ) {
     if ( child instanceof LC )
