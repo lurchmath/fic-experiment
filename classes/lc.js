@@ -330,14 +330,19 @@ class LC extends Structure {
   // if ignoreEmpty is true, ignore constants declared by declarations with
   // an empty body
   isAnActualConstant ( ignoreEmpty ) {
-     // debug(`Checking ${this+''}`)
-     if (!(this instanceof Statement)) return false
-     let scope = this.scope()
-     // debug(`it has scope ${scope+''}`)
-     return scope.isAnActualDeclaration() &&
-            scope.declaration === 'constant' &&
-            !scope.isAncestorOf(this) &&
-            !( ignoreEmpty && scope.last.isEmpty )
+    // debug(`Checking ${this+''}`)
+    if (!(this instanceof Statement)) return false
+    let scope = this.scope()
+    // debug(`it has scope ${scope+''}`)
+    return scope.isAnActualDeclaration() &&
+           scope.declaration === 'constant' &&
+           !scope.isAncestorOf(this) &&
+           !( ignoreEmpty && scope.last.isEmpty )
+  }
+  // Validation algorithms do not dive inside statements or declarations,
+  // so these are "atomic" from the point of view of validation.
+  isAtomicForValidation () {
+    return this.isAnActualStatement() || this.isAnActualDeclaration()
   }
 
   // For FIC validation we only need the declaration's last argument LC.
@@ -355,10 +360,10 @@ class LC extends Structure {
     return this.getAttribute( 'Validation' )
   }
 
-  // avoid recursing into compound statements and declarations when
+  // avoid recurring into compound statements and declarations when
   // traversing the LC tree.
   LCchildren () {
-    if ( this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+    if ( this.isAtomicForValidation() ) {
       return []
     } else {
       return this.children()
@@ -1199,7 +1204,7 @@ class LC extends Structure {
   //
   // This routine assumes you have run this.markAll() already.
   propositionalForm ( options ) {
-     if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
+     if (this.isAtomicForValidation()) {
        return this.toString( options )
      }
      // undefined if it's anything else.
@@ -1238,7 +1243,7 @@ class LC extends Structure {
 
     // For Statements or Declarations it's just their propositional form
     // (or its negation) wrapped appropriately
-    if (this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+    if (this.isAtomicForValidation() ) {
       let str = (toggleGiven) ? LC.negateFast(this.propositionalForm( )) :
                                       this.propositionalForm( )
       return [ new Set( [ str ] ) ]
@@ -1328,7 +1333,7 @@ class LC extends Structure {
     //  2. this is accessible to the target and not equal to the target, in
     //     in which case we negate it iff toggleGiven is equal to this.isAGiven
     //
-    if (this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+    if (this.isAtomicForValidation() ) {
       // debug('It is a statement or declaration')
       let accessible = this.isAccessibleTo(target)
       let str = ( ( !accessible && toggleGiven ) ||
@@ -1527,7 +1532,7 @@ class LC extends Structure {
 
     let s=this.toString().replace(/:/g,'')
     // if its a statement, catalog it
-    if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
+    if (this.isAtomicForValidation()) {
       ////////////////////
       TimerStop('catalog',recursive)
       ////////////////////
@@ -1844,7 +1849,7 @@ class PreppedPropForm {
 
     // Base case 2: atomic -> return a single propositional letter, unless our
     // targets list explicitly excludes it.
-    if ( lc.isAnActualStatement() || lc.isAnActualDeclaration() ) {
+    if ( lc.isAtomicForValidation() ) {
       const index = targets.indexOf( lc )
       if ( index > -1 ) {
         // this atomic is on the target list, so return it, flagged as a target
