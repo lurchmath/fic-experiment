@@ -493,12 +493,47 @@ class LC extends Structure {
   isAConclusionIn ( ancestor , includeEnv ) {
     return ancestor.conclusions(includeEnv).includes(this)
   }
+  // The above function is not the same as asking whether an LC has only
+  // claims all the way up its ancestor chain.  In fact, it's different in
+  // two ways:
+  // 1. This is more efficient, as documented above, if the LC in question is
+  //    a statement.
+  // 2. If the LC is not a statement, then this can be used to tell whether it
+  //    is a "conclusion environment."
+  // Note that the upToThis parameter is *exclusive*--if upToThis is a given,
+  // this function can still return true.  If that parameter is omitted, all
+  // ancestors are checked.
+  hasOnlyClaimAncestors ( upToThis ) {
+    if ( this == upToThis ) return true
+    const par = this.parent()
+    return this.isAClaim && ( !par || par.hasOnlyClaimAncestors( upToThis ) )
+  }
 
   // An LC is said to be atomic if it has no children.
   get isAtomic () { return this.children().length == 0 }
   // An LC is said to be emptu if it is an environment with no children.
   get isEmpty () { return this.isAnActualEnvironment() &&
                           this.children().length == 0 }
+  
+  // The context of an LC an array that includes all of its accessibles,
+  // in the usual tree order, followed by the LC itself.  That is, we can write
+  // it as [ ...L.allAccessibles(), L ], except that sometimes we wish to
+  // speak of only those accessibles that sit within a certain ancestor.
+  // Rather than compute all accessibles and then throw some away, we make the
+  // following more efficient routine that stops when it hits the given ancestor.
+  // Note that while the given LC is included in its context (as the last element),
+  // the stipulated ancestor is *not* included.  This function is equivelent to
+  // allAccessibles() if the ancestor is omitted.
+  contextIn ( ancestor ) {
+    if ( this == ancestor ) return [ ]
+    let prev = this.previousSibling()
+    if ( prev ) return [ ...prev.contextIn( ancestor ), this ]
+    let walk = this.parent()
+    while ( walk && walk != ancestor && !walk.previousSibling() )
+      walk = walk.parent()
+    prev = walk.previousSibling()
+    return walk && prev ? [ ...prev.contextIn( ancestor ), this ] : [ this ]
+  }
 
   // The fully parenthesized form of an LC L = { L1 L2 ... Ln } is the form
   // { L1 { L2 ... { Ln-1 Ln } ... } }.
@@ -1521,7 +1556,7 @@ class LC extends Structure {
 
   // syntactic sugar
   ValidateAll ( showtimes ) {
-     return this.Validate(this.conclusions(true) , showtimes)
+    return this.Validate(this.conclusions(true) , showtimes)
   }
 
   // show the catalog of unique statement names contained in this LC
