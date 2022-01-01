@@ -75,6 +75,27 @@ class LC extends Structure {
                                 'identifier', 'given', 'metavariable' ]
   }
 
+  // The address of an LC in an ancestor is an array of integers n1,...,nk
+  // such that the LC is ancestor.children()[n1].children()[n2]...up to nk.
+  // If the ancestor parameter is omitted, the top-level ancestor is used.
+  // Passing an LC that is not an ancestor is equivalent to omitting it.
+  // An LC's address within itself is [].
+  address ( inThis = null ) {
+    const parent = this.parent()
+    return !parent || this === inThis ? [ ] : [
+        ...parent.address( inThis ),
+        parent.children().indexOf( this )
+    ]
+  }
+  // The inverse of computing an address is looking one up, so that for
+  // any two LCs A and B, we have A.index(B.address(A)) == B.
+  index ( address = [ ] ) {
+    if ( address.length == 0 ) return this
+    const [ next, ...rest ] = address
+    const child = this.children()[next]
+    return child ? child.index( rest ) : undefined
+  }
+
   // LCs may contain only other LCs:
   insertChild ( child, beforeIndex = 0 ) {
     if ( child instanceof LC )
@@ -330,14 +351,19 @@ class LC extends Structure {
   // if ignoreEmpty is true, ignore constants declared by declarations with
   // an empty body
   isAnActualConstant ( ignoreEmpty ) {
-     // debug(`Checking ${this+''}`)
-     if (!(this instanceof Statement)) return false
-     let scope = this.scope()
-     // debug(`it has scope ${scope+''}`)
-     return scope.isAnActualDeclaration() &&
-            scope.declaration === 'constant' &&
-            !scope.isAncestorOf(this) &&
-            !( ignoreEmpty && scope.last.isEmpty )
+    // debug(`Checking ${this+''}`)
+    if (!(this instanceof Statement)) return false
+    let scope = this.scope()
+    // debug(`it has scope ${scope+''}`)
+    return scope.isAnActualDeclaration() &&
+           scope.declaration === 'constant' &&
+           !scope.isAncestorOf(this) &&
+           !( ignoreEmpty && scope.last.isEmpty )
+  }
+  // Validation algorithms do not dive inside statements or declarations,
+  // so these are "atomic" from the point of view of validation.
+  isAtomicForValidation () {
+    return this.isAnActualStatement() || this.isAnActualDeclaration()
   }
 
   // For FIC validation we only need the declaration's last argument LC.
@@ -355,10 +381,10 @@ class LC extends Structure {
     return this.getAttribute( 'Validation' )
   }
 
-  // avoid recursing into compound statements and declarations when
+  // avoid recurring into compound statements and declarations when
   // traversing the LC tree.
   LCchildren () {
-    if ( this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+    if ( this.isAtomicForValidation() ) {
       return []
     } else {
       return this.children()
@@ -488,12 +514,47 @@ class LC extends Structure {
   isAConclusionIn ( ancestor , includeEnv ) {
     return ancestor.conclusions(includeEnv).includes(this)
   }
+  // The above function is not the same as asking whether an LC has only
+  // claims all the way up its ancestor chain.  In fact, it's different in
+  // two ways:
+  // 1. This is more efficient, as documented above, if the LC in question is
+  //    a statement.
+  // 2. If the LC is not a statement, then this can be used to tell whether it
+  //    is a "conclusion environment."
+  // Note that the upToThis parameter is *exclusive*--if upToThis is a given,
+  // this function can still return true.  If that parameter is omitted, all
+  // ancestors are checked.
+  hasOnlyClaimAncestors ( upToThis ) {
+    if ( this == upToThis ) return true
+    const par = this.parent()
+    return this.isAClaim && ( !par || par.hasOnlyClaimAncestors( upToThis ) )
+  }
 
   // An LC is said to be atomic if it has no children.
   get isAtomic () { return this.children().length == 0 }
   // An LC is said to be emptu if it is an environment with no children.
   get isEmpty () { return this.isAnActualEnvironment() &&
                           this.children().length == 0 }
+  
+  // The context of an LC an array that includes all of its accessibles,
+  // in the usual tree order, followed by the LC itself.  That is, we can write
+  // it as [ ...L.allAccessibles(), L ], except that sometimes we wish to
+  // speak of only those accessibles that sit within a certain ancestor.
+  // Rather than compute all accessibles and then throw some away, we make the
+  // following more efficient routine that stops when it hits the given ancestor.
+  // Note that while the given LC is included in its context (as the last element),
+  // the stipulated ancestor is *not* included.  This function is equivelent to
+  // allAccessibles() if the ancestor is omitted.
+  contextIn ( ancestor ) {
+    if ( this == ancestor ) return [ ]
+    let prev = this.previousSibling()
+    if ( prev ) return [ ...prev.contextIn( ancestor ), this ]
+    let walk = this.parent()
+    while ( walk && walk != ancestor && !walk.previousSibling() )
+      walk = walk.parent()
+    return ( walk && walk != ancestor ) ?
+      [ ...walk.previousSibling().contextIn( ancestor ), this ] : [ this ]
+  }
 
   // The fully parenthesized form of an LC L = { L1 L2 ... Ln } is the form
   // { L1 { L2 ... { Ln-1 Ln } ... } }.
@@ -1199,7 +1260,7 @@ class LC extends Structure {
   //
   // This routine assumes you have run this.markAll() already.
   propositionalForm ( options ) {
-     if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
+     if (this.isAtomicForValidation()) {
        return this.toString( options )
      }
      // undefined if it's anything else.
@@ -1238,7 +1299,7 @@ class LC extends Structure {
 
     // For Statements or Declarations it's just their propositional form
     // (or its negation) wrapped appropriately
-    if (this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+    if (this.isAtomicForValidation() ) {
       let str = (toggleGiven) ? LC.negateFast(this.propositionalForm( )) :
                                       this.propositionalForm( )
       return [ new Set( [ str ] ) ]
@@ -1328,7 +1389,7 @@ class LC extends Structure {
     //  2. this is accessible to the target and not equal to the target, in
     //     in which case we negate it iff toggleGiven is equal to this.isAGiven
     //
-    if (this.isAnActualStatement() || this.isAnActualDeclaration() ) {
+    if (this.isAtomicForValidation() ) {
       // debug('It is a statement or declaration')
       let accessible = this.isAccessibleTo(target)
       let str = ( ( !accessible && toggleGiven ) ||
@@ -1516,7 +1577,7 @@ class LC extends Structure {
 
   // syntactic sugar
   ValidateAll ( showtimes ) {
-     return this.Validate(this.conclusions(true) , showtimes)
+    return this.Validate(this.conclusions(true) , showtimes)
   }
 
   // show the catalog of unique statement names contained in this LC
@@ -1527,7 +1588,7 @@ class LC extends Structure {
 
     let s=this.toString().replace(/:/g,'')
     // if its a statement, catalog it
-    if (this.isAnActualStatement() || this.isAnActualDeclaration()) {
+    if (this.isAtomicForValidation()) {
       ////////////////////
       TimerStop('catalog',recursive)
       ////////////////////
@@ -1555,7 +1616,7 @@ class LC extends Structure {
                     targetList = [ this ] ) {
     // compute PreppedPropForm for all targeted conclusions:
     this.markAll()
-    const prepped = PreppedPropForm.createFrom( this, false, [ ], targetList )
+    const prepped = PreppedPropForm.fromTargets( this, targetList )
     // define a function that validates a PreppedPropForm instance, w/caching:
     const checkPPF = ppf => {
       if ( !ppf.hasOwnProperty( 'result' ) ) ppf.result = validator( ppf )
@@ -1711,8 +1772,8 @@ class PreppedPropForm {
   // new PreppedPropForm(parity,catalog) == constant true
   // new PreppedPropForm(parity,catalog,A) == propositional letter
   //   (A must be an atomic LC--that is, a sentence or declaration)
-  // new PreppedPropForm(A,B) == conditional expression
-  //   (A and B must both be PreppedPropForm instances)
+  // new PreppedPropForm(A1,...,An) == conditional expression, if n>1:
+  //   A1 -> A2 -> ... -> An (all must be PreppedPropForm instances)
   constructor ( ...args ) {
     if ( args[0] === true || args[0] === false ) {
       if ( args.length == 2 ) {
@@ -1736,6 +1797,10 @@ class PreppedPropForm {
       }
     } else {
       // conditional expression
+      if ( args.length < 2 )
+        throw 'Not enough PreppedPropForm instances to build a conditional'
+      if ( args.length > 2 )
+        args = [ args[0], new PreppedPropForm( ...args.slice( 1 ) ) ]
       if ( !( args[0] instanceof PreppedPropForm )
         || !( args[1] instanceof PreppedPropForm ) )
         throw 'Invalid argument types to PreppedPropForm constructor'
@@ -1744,34 +1809,34 @@ class PreppedPropForm {
       this.text = `[${args[0].text},${args[1].text}]`
       this.parity = args[1].parity
       this.catalog = args[0].catalog
-      this.cnf = this.parity ? args[0].disjoinedWith( args[1] ) :
-                               args[0].cnf.concat( args[1].cnf )
       this.children = args
       this.targets = [ ]
+      this.cnf = this.parity ? this.disjoin( args[0].cnf, args[1].cnf )
+                             : args[0].cnf.concat( args[1].cnf )
     }
   }
-  // Disjoin the CNF of this instance with that of another, using switch
-  // variables to do so efficiently.  Note: This returns just the new CNF,
-  // not a PreppedPropForm instance.
-  disjoinedWith ( other ) {
-    if ( this.cnf.length == 1 )
-      return other.cnf.map( conjunct =>
-        Array.from( new Set( this.cnf[0].concat( conjunct ) ) ) )
-    if ( other.cnf.length == 1 )
-      return this.cnf.map( conjunct =>
-        Array.from( new Set( other.cnf[0].concat( conjunct ) ) ) )
-    if ( this.cnf.length == 2 && other.cnf.length == 2 )
-      return [ Array.from( new Set( this.cnf[0].concat( other.cnf[0] ) ) ),
-               Array.from( new Set( this.cnf[1].concat( other.cnf[0] ) ) ),
-               Array.from( new Set( this.cnf[0].concat( other.cnf[1] ) ) ),
-               Array.from( new Set( this.cnf[1].concat( other.cnf[1] ) ) ) ]
+  // Disjoin two CNFs, using switch variables to do so efficiently.
+  // Use the catalog in this PreppedPropForm to do it, updating that catalog.
+  // This returns just the new CNF, not a PreppedPropForm instance.
+  disjoin ( cnf1, cnf2 ) {
+    if ( cnf1.length == 1 )
+      return cnf2.map( conjunct =>
+        Array.from( new Set( cnf1[0].concat( conjunct ) ) ) )
+    if ( cnf2.length == 1 )
+      return cnf1.map( conjunct =>
+        Array.from( new Set( cnf2[0].concat( conjunct ) ) ) )
+    if ( cnf1.length == 2 && cnf2.length == 2 )
+      return [ Array.from( new Set( cnf1[0].concat( cnf2[0] ) ) ),
+               Array.from( new Set( cnf1[1].concat( cnf2[0] ) ) ),
+               Array.from( new Set( cnf1[0].concat( cnf2[1] ) ) ),
+               Array.from( new Set( cnf1[1].concat( cnf2[1] ) ) ) ]
     const maxSwitchVar = this.catalog.filter( x => /^switch[0-9]+$/.test( x ) )
                                      .map( x => parseInt( x.substring( 6 ) ) )
                                      .reduce( Math.max, -1 )
     const newSwitchVar = `switch${maxSwitchVar+1}`
     index = this.catalogNumber( newSwitchVar, this.catalog )
-    return [ ...this.cnf.map( conjunct => conjunct.concat( [ newSwitchVar ] ) ),
-             ...other.cnf.map( conjunct => conjunct.concat( [ -newSwitchVar ] ) ) ]
+    return [ ...cnf1.map( conjunct => conjunct.concat( [ newSwitchVar ] ) ),
+             ...cnf2.map( conjunct => conjunct.concat( [ -newSwitchVar ] ) ) ]
   }
   // Get the catalog number for a given atomic propositional letter.
   // (If it's not already in our catalog, add it, then return the new number.)
@@ -1821,101 +1886,89 @@ class PreppedPropForm {
     return `${this.text} (CNF${this.parity?"+":"-"}:${JSON.stringify(this.cnf)})`
         + ( this.target ? ` [target:${this.target.toString()}]` : '' )
   }
+  // Read/write/check cache data in an LC, used by several routines below.
+  static hasCache ( lc ) { return lc.hasOwnProperty( '_ppfcache' ) }
+  static writeCache ( lc, key, value ) {
+    if ( !PreppedPropForm.hasCache( lc ) ) lc._ppfcache = { }
+    return lc._ppfcache[key] = value
+  }
+  static extendCache ( lc, key, value ) {
+    return PreppedPropForm.writeCache( lc, key,
+      ( PreppedPropForm.readCache( lc, key ) || [ ] ).concat( [ value ] ) )
+  }
+  static readCache ( lc, key ) {
+    return PreppedPropForm.hasCache( lc ) ? lc._ppfcache[key] : undefined
+  }
+  static clearCache ( lc ) { delete lc._ppfcache }
   // Create an array of PreppedPropForm instances from a given LC.
-  // The conjunction of the result is IPL-equivalent to the given LC.
-  // If targets is an array of LCs within this one, we consider only conclusions
-  // within that array.  If it contains the constant true, we consider all conclusions.
-  // Note: This function will manipulate the targets array, in-place.
-  // The final argument is typically not used by clients, but just in recursion.
-  static createFrom ( lc, parity = false, catalog = [ ], targets = [ true ], index = 0 ) {
-
-    // Base case 1: If there are no targets to pursue, the result is an empty list.
-    if ( targets.length == 0 )
-      return [ ]
-
-    // If this LC is a target, just process ALL conclusions,
-    // then mark all otherwise unmarked conclusions as having this LC as the target.
-    if ( targets.includes( lc ) ) {
-      targets = targets.map( x => x == lc ? true : x )
-      const result = PreppedPropForm.createFrom( lc, parity, catalog, targets, index )
-      result.forEach( ppf => ppf.targets.push( lc ) )
-      return result
-    }
-
-    // Base case 2: atomic -> return a single propositional letter, unless our
-    // targets list explicitly excludes it.
-    if ( lc.isAnActualStatement() || lc.isAnActualDeclaration() ) {
-      const index = targets.indexOf( lc )
-      if ( index > -1 ) {
-        // this atomic is on the target list, so return it, flagged as a target
-        targets.splice( index, 1 )
-        const result = new PreppedPropForm( parity, catalog, lc )
-        result.targets.push( lc )
-        return [ result ]
-      } else if ( targets.includes( true ) ) {
-        // this atomic is not on the target list, but we're supposed to return all
-        // conclusions, so we return it, but not flagged as a target
-        return [ new PreppedPropForm( parity, catalog, lc ) ]
-      } else {
-        // neither of the above is true, so return an empty list
-        return [ ]
-      }
-    }
-
-    // To proceed, we need to know where the final *claim* child is indexed.
+  // The conjunction of the result is IPL-equivalent to the given LC
+  // (or to its negation if parity == false).
+  // If you plan to call this function multiple times and use the results in a
+  // consistent way together, they all need to share a single catalog array,
+  // passed in the third argument.
+  // This function modifies the LC and its descendants by adding cache attributes
+  // to them.  You probably want to clear those values when you're done with all
+  // the calls you plan to make to this routine.
+  static fromLC ( lc, parity = false, catalog = [ ] ) {
+    // Cache case: use cache when possible
+    const cached = PreppedPropForm.readCache( lc, parity )
+    if ( cached ) return cached
+    // Base case: atomic -> return a single propositional letter
+    if ( lc.isAtomicForValidation() )
+      return PreppedPropForm.writeCache( lc, parity,
+        [ new PreppedPropForm( parity, catalog, lc ) ] )
+    // Inductive case: For every claim child, create a PPF of it,
+    // implied by the chain of its earlier given siblings.
+    const result = [ ]
     const chi = lc.children()
-    let lastClaimIndex = chi.length - 1
-    while ( lastClaimIndex >= 0 && chi[lastClaimIndex].isAGiven )
-      lastClaimIndex--
-
-    // Base case 3: no claims left -> return the constant "true"
-    if ( index > lastClaimIndex )
-      return [ new PreppedPropForm( parity, catalog ) ]
-
-    // Inductive case 1: one claim left -> recur on that one claim
-    if ( index == lastClaimIndex )
-      return PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
-
-    // Inductive case 2: conjunction
-    // chi[index] is a claim, so the env from chi[index] onwards is interpreted
-    // as chi[index] ^ the rest.
-    // No need to form any new CNFs because we are just concatenating arrays of
-    // conditionals, not forming a containing expression for them.
-    if ( chi[index].isAClaim ) {
-      // recur on the first child first (which may exhaust all the targets),
-      // but first keep a note of whether that child was itself a target:
-      const wasTarget = targets.includes( chi[index] )
-      if ( wasTarget ) targets = targets.map( x => x == lc ? true : x )
-      const first = PreppedPropForm.createFrom( chi[index], parity, catalog, targets, 0 )
-      // if those results came from a specific target, then mark them as such:
-      if ( wasTarget )
-        first.forEach( ppf => ppf.targets.push( chi[index] ) )
-      if ( targets.length == 0 ) return first // all targets found
-      // there are still more targets to find, so we recursively find them:
-      const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
-      return first.concat( rest )
-    }
-
-    // Inductive case 3: conditional
-    // chi[index] is a given, so the env from chi[index] onwards is interpreted
-    // as chi[0] -> the rest.
-    // For each result R in the recursive computation of the rest, form a new
-    // result chi[0] -> R, except with chi[0] turned into a chain of arrows
-    // based on a recursive call.
-    // Do the recursive call first, because this can save time as follows:
-    const rest = PreppedPropForm.createFrom( lc, parity, catalog, targets, index+1 )
-    if ( rest.length == 0 )
-      return [ ] // no sense computing premises for conclusions we don't have
-    // OK, there were some conclusions, so compute their premises:
-    const first = PreppedPropForm.createFrom( chi[index], !parity, catalog, [ true ], 0 )
-    return rest.map( conclusion => {
-      for ( let i = first.length - 1 ; i >= 0 ; i-- ) {
-        conclusion = new PreppedPropForm( first[i], conclusion )
-        conclusion.targets = conclusion.targets.concat( conclusion.children[1].targets )
+    for ( let i = 0 ; i < chi.length ; i++ ) {
+      if ( chi[i].isAClaim ) {
+        let next = PreppedPropForm.fromLC( chi[i], parity, catalog )
+        for ( let j = 0 ; j < i ; j++ )
+          if ( chi[j].isAGiven )
+            next = next.map( ppf => new PreppedPropForm(
+              ...PreppedPropForm.fromLC( chi[j], !parity, catalog ), ppf ) )
+        next.forEach( ppf => result.push( ppf ) )
       }
-      return conclusion
+    }
+    return PreppedPropForm.writeCache( lc, parity, result )
+  }
+  // Same as previous, but now you can specify a specific set of target
+  // conclusions (or conclusion environments) within a given ancestor are
+  // to be converted into PreppedPropForm instances.
+  // This means you will not need the catalog argument, because you can do all
+  // the related conversions in one function call, so a catalog is created
+  // internally for you.
+  static fromTargets ( ancestor, targetList ) {
+    // handle various function signature options
+    if ( targetList instanceof LC ) targetList = [ targetList ]
+    if ( !( targetList instanceof Array ) ) targetList = [ ancestor ]
+    // targets need to be atomic conclusions.
+    // if they're not conclusions, delete them.
+    // if they're not atomic, use all their conclusions instead.
+    const conclusions = targetList
+      .filter( target => target.hasOnlyClaimAncestors( ancestor ) )
+      .map( target =>
+        ( target.isAtomicForValidation() ? [ target ] : target.conclusions() )
+        .filter( conclusion => {
+          const firstEncounter = !PreppedPropForm.hasCache( conclusion )
+          PreppedPropForm.extendCache( conclusion, 'ancestors', target )
+          return firstEncounter
+        } ) )
+      .flat( 1 )
+    // convert each conclusion into a PPF, while using the ppfcache as much as possible
+    const catalog = [ ]
+    const result = conclusions.map( conclusion => {
+      const ppf = new PreppedPropForm( ...conclusion.contextIn( ancestor ).map(
+        ( antecedent, index, array ) =>
+          PreppedPropForm.fromLC( antecedent, index != array.length-1, catalog )
+      ).flat( 1 ) )
+      ppf.targets = PreppedPropForm.readCache( conclusion, 'ancestors' )
+      return ppf
     } )
-
+    // now clear the cache so as not to pollute objects' property namespaces, and we're done
+    conclusions.forEach( PreppedPropForm.clearCache )
+    return result
   }
 }
 
