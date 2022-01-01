@@ -755,7 +755,7 @@
       ~∀(y,P(y))
     }
 
-    // Thm (alpha subs) (∀x,P(x)) ⇒ (∀y,P(y))
+    // Thm (alpha subs) (∃x,P(x)) ⇒ (∃y,P(y))
     //
     { :~∃(x,P(x))  ~∃(y,P(y)) }
 
