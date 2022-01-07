@@ -123,7 +123,7 @@ class Statement extends LC {
       colon    = colorize(':',EEcolor)
       tilde    = colorize('~',EEcolor)
       iname    = colorize(nicename(idname),EEcolor)
-      boundYes = colorize('✓',EEcolor)
+      boundYes = colorize('•',EEcolor)
       concYes  = colorize('✔︎',EEcolor)
       envYes   = colorize('★',EEcolor)
       wrong    = colorize('✗',EEcolor)

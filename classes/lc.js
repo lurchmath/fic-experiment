@@ -535,7 +535,7 @@ class LC extends Structure {
   // An LC is said to be emptu if it is an environment with no children.
   get isEmpty () { return this.isAnActualEnvironment() &&
                           this.children().length == 0 }
-  
+
   // The context of an LC an array that includes all of its accessibles,
   // in the usual tree order, followed by the LC itself.  That is, we can write
   // it as [ ...L.allAccessibles(), L ], except that sometimes we wish to
