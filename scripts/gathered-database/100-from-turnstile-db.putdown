@@ -1,0 +1,31 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    {
+        :(and _A_ _B_)
+        (and _B_ _A_)
+    }
+    {
+        :(and _C_ _D_)
+        _C_
+    }
+    (and x y)
+    y
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   { :and(_A_,_B_) and(_B_,_A_) }
+//   // premise #2:
+//   { :and(_C_,_D_) _C_ }
+//   // premise #3:
+//   and(x,y)
+//   // conclusion:
+//   y
+// }

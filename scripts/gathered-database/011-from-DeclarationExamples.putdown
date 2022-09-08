@@ -1,0 +1,25 @@
+---
+file: "classes/DeclarationExamples.js"
+name: dec4
+valid: false
+index: 12
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :A
+        [c const (B c)]
+        W
+    }
+    :A
+    (B c)
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Here we are checking that the B(c) cannot escape without the declaration.
+// { :{ :A Declare{ c B(c) } W }
+//   :A
+//   B(c)
+// }

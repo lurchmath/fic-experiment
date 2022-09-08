@@ -1,0 +1,20 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: "LI rule"
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    [_X_ _Y_ var (P _X_ _Y_)]
+    [a b var (P a b)]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Let{ _X_ _Y_ P(_X_,_Y_) }
+//   // conclusion:
+//   Let{ a b P(a,b) }
+// }

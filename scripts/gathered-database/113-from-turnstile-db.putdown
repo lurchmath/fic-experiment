@@ -1,0 +1,11 @@
+---
+file: "test/data/turnstile-db.js"
+result: false
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+undefined
+
+////// Original notation in old repo for this test:
+// undefined

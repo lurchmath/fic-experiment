@@ -89,6 +89,15 @@ const add = ( ...args ) => {
     } else {
         result = args.pop()
     }
+    metadata.original = [
+        ...args.slice( 0, args.length - 1 ).map(
+            ( x, i ) => `  // premise #${i+1}:\n  ${x}`
+        ),
+        `  // conclusion:\n  ${args[args.length - 1]}`
+    ].join( '\n' )
+    if ( metadata.original.substring( 0, 6 ) == '  // c' )
+        metadata.original = '// (no premises)\n' + metadata.original
+    metadata.original = `{\n${metadata.original}\n}`
     let conclusion = fix( args.pop() )
     let premises = args.map( fix )
     addTest(

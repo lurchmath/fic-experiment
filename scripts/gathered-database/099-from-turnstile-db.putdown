@@ -1,0 +1,35 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    (or a (and b c))
+    (not a)
+    {
+        :(or _X1_ _Y1_)
+        :(not _X1_)
+        _Y1_
+    }
+    {
+        :(and _X2_ _Y2_)
+        _X2_
+    }
+    b
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   or(a,and(b,c))
+//   // premise #2:
+//   not(a)
+//   // premise #3:
+//   { :or(_X1_,_Y1_) :not(_X1_) _Y1_ }
+//   // premise #4:
+//   { :and(_X2_,_Y2_) _X2_ }
+//   // conclusion:
+//   b
+// }

@@ -1,0 +1,37 @@
+---
+file: "scripts/init.js"
+name: dec1
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :{
+            :[x var null]
+            (P x)
+        }
+        Y
+        W
+    }
+    :{
+        :[x var null]
+        (P x)
+    }
+    W
+}
+
+////// Original notation in old repo for this test:
+// 
+//     {
+//      :{
+//        :{ :Let{ x null }
+//            P(x)
+//         }
+//         Y
+//         W
+//       }
+//       :{ :Let{ x null }
+//          P(x)
+//       }
+//       W
+//     }

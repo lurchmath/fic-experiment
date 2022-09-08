@@ -1,0 +1,31 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    {
+        :(imp _A_ _B_)
+        {
+            :_A_
+            _B_
+        }
+    }
+    (imp P Q)
+    P
+    Q
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   { :imp(_A_,_B_) { :_A_ _B_ } }
+//   // premise #2:
+//   imp(P,Q)
+//   // premise #3:
+//   P
+//   // conclusion:
+//   Q
+// }

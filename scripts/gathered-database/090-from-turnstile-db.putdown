@@ -1,0 +1,26 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: "GL rule"
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    {
+        :R
+        Q
+    }
+    R
+    Q
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   { :R Q }
+//   // premise #2:
+//   R
+//   // conclusion:
+//   Q
+// }

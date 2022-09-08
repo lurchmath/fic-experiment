@@ -1,0 +1,85 @@
+---
+file: "scripts/init.js"
+name: QuantProof
+---
+
+// Putdown notation for this test:
+{
+    :[forall exists leq const {
+        
+    }]
+    :{
+        :(exists y , (forall x , (leq y x)))
+        [c const (forall x , (leq c x))]
+    }
+    :{
+        :[c const (forall x , (leq c x))]
+        {
+            :(forall x , (leq c x))
+            (leq c z)
+        }
+        {
+            :(leq c z)
+            (exists y , (leq y z))
+        }
+    }
+    :{
+        :{
+            :[z var {
+                
+            }]
+            (exists y , (leq y z))
+        }
+        (forall x , (exists y , (leq y x)))
+    }
+    {
+        :(exists y , (forall x , (leq y x)))
+        {
+            :[z var {
+                
+            }]
+            [c const (forall x , (leq c x))]
+            (leq c z)
+            (exists y , (leq y z))
+        }
+        (forall x , (exists y , (leq y x)))
+    }
+    {
+        :(exists y , (forall x , (leq y x)))
+        (forall x , (exists y , (leq y x)))
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//   { // declare global constants
+//     :Declare{ ∀ ∃ ≤ { } }
+// 
+//     // Instantiations
+// 
+//     // Instantiation of ∃-
+//     :{ :~∃(y,~∀(x,≤(y,x))) Declare{ c ~∀(x,≤(c,x)) } }
+//     // Instantiations using c
+//     :{ :Declare{ c ~∀(x,≤(c,x)) }
+//        // Instantiation of ∀-
+//        { :~∀(x,≤(c,x)) ≤(c,z) }
+//        // Instantiation of ∃+
+//        { :≤(c,z) ~∃(y,≤(y,z)) }
+//      }
+//     // Instantiation of ∀+
+//     :{ :{ :Let{ z { } } ~∃(y,≤(y,z)) } ~∀(x,~∃(y,≤(y,x))) }
+// 
+//     // Proof:
+//     { :~∃(y,~∀(x,≤(y,x)))
+//       { :Let{ z { } }
+//         Declare{ c ~∀(x,≤(c,x)) }  // by ∃-
+//         ≤(c,z)                     // by ~∀-
+//         ~∃(y,≤(y,z))               // by ∃+
+//       }
+//       ~∀(x,~∃(y,≤(y,x)))            // by ~∀+
+//     }
+// 
+//     // Theorem: (~∃y,~∀x,y≤x)⇒(~∀x,~∃y,y≤x)
+//     { :~∃(y,~∀(x,≤(y,x)))  ~∀(x,~∃(y,≤(y,x))) }
+// 
+//   }

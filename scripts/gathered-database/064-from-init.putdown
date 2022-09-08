@@ -1,0 +1,14 @@
+---
+file: "scripts/init.js"
+name: a
+---
+
+// Putdown notation for this test:
+{
+    {
+        :A
+    }
+}
+
+////// Original notation in old repo for this test:
+// { { :A } }

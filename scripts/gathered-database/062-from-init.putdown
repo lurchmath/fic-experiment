@@ -1,0 +1,41 @@
+---
+file: "scripts/init.js"
+name: impR
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :{
+            :A
+            B
+        }
+        C
+    }
+    :{
+        :{
+            :A
+            B
+        }
+        :D
+        E
+    }
+    {
+        :{
+            :A
+            B
+        }
+        :{
+            :C
+            D
+        }
+        E
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//    { :{ :{ :A B } C }
+//      :{ :{ :A B } :D E }
+//       { :{ :A B } :{ :C D } E }
+//    }

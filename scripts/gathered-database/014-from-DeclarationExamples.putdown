@@ -1,0 +1,21 @@
+---
+file: "classes/DeclarationExamples.js"
+name: implicitbug1
+valid: true
+index: 15
+---
+
+// Putdown notation for this test:
+{
+    :{
+        [c const x]
+    }
+    [c const x]
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Similar to dec3 and imp above.
+// // Sometimes I made simpler examples to isolate a particular bug.
+// // We might compare this to implicitbug2, below
+// { :{ Declare{ c x } } Declare{ c x } }

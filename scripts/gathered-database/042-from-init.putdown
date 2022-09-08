@@ -1,0 +1,26 @@
+---
+file: "scripts/init.js"
+name: tree
+---
+
+// Putdown notation for this test:
+{
+    {
+        {
+            b
+            c
+        }
+        a
+    }
+    {
+        d
+        {
+            e
+            f
+            g
+        }
+    }
+}
+
+////// Original notation in old repo for this test:
+// { { { b c } a } { d { e f g }} }

@@ -1,0 +1,20 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: "LI rule"
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    [x var P]
+    [x var P]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Let{ x P }
+//   // conclusion:
+//   Let{ x P }
+// }

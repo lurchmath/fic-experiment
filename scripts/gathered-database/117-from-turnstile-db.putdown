@@ -1,0 +1,24 @@
+---
+file: "test/data/turnstile-db.js"
+result: false
+category: Declarations
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    [s t const (P s t)]
+    [s t var {
+        W
+        (P s t)
+        H
+    }]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Declare{ s t P(s,t) }
+//   // conclusion:
+//   Let{ s t { W P(s,t) H } }
+// }

@@ -1,0 +1,49 @@
+---
+file: "scripts/init.js"
+name: nate
+---
+
+// Putdown notation for this test:
+{
+    [x var null]
+    (f x)
+    {
+        [y var null]
+        (f y)
+        [z var null]
+        (z x y)
+    }
+    [y var null]
+    (eq (plus x y) t)
+    {
+        [s var null]
+        {
+            [z var {
+                
+            }]
+            {
+                (eq (neg z q) (times x (plus s t)))
+            }
+        }
+        (eq s y)
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//   { Let{ x null }
+//     f(x)
+//     { Let{ y null }
+//       f(y)
+//       Let{ z null }
+//       z(x,y)
+//     }
+//     Let{ y null }
+//     eq(plus(x,y),t)
+//     { Let{ s null }
+//       { Let{ z {} }
+//         { eq(neg(z,q),times(x,plus(s,t))) }
+//       }
+//       eq(s,y)
+//     }
+//   }

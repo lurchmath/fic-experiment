@@ -1,0 +1,59 @@
+---
+file: "classes/DeclarationExamples.js"
+name: nestedDec
+valid: false
+index: 7
+---
+
+// Putdown notation for this test:
+{
+    :A
+    :{
+        :A
+        [c const {
+            
+        }]
+        (isInt c)
+    }
+    :{
+        :{
+            [c const {
+                
+            }]
+            (isInt c)
+        }
+        [c const {
+            
+        }]
+        (lessthan c zero)
+    }
+    :{
+        :{
+            [c const {
+                
+            }]
+            (isInt c)
+        }
+        [c const {
+            
+        }]
+        (lessthan zero c)
+    }
+    {
+        [c const {
+            
+        }]
+        (lessthan c zero)
+        (lessthan zero c)
+    }
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Using actual declarations in the same thing should not validate
+// { :A
+//   :{ :A Declare{ c {} } isInt(c) }
+//   :{ :{ Declare{ c {} } isInt(c) } Declare{ c {} } <(c,0) }
+//   :{ :{ Declare{ c {} } isInt(c) } Declare{ c {} } <(0,c) }
+//   { Declare{ c {} } <(c,0) <(0,c) }
+// }

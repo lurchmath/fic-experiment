@@ -183,17 +183,22 @@
 // Similar to dec3 above.  Sometimes I made simpler examples to isolate a bug.
 { :{ Declare{ c x(c) } } Declare{ c x(c) } x(c) }
 
-// NAME: implicitbug
+// NAME: implicitbug1
 // VALID: true
 //
 // Similar to dec3 and imp above.
 // Sometimes I made simpler examples to isolate a particular bug.
+// We might compare this to implicitbug2, below
 { :{ Declare{ c x } } Declare{ c x } }
-// We might compare this to
-{ :Declare{ c x } Declare{ c x } }
-// which could/should? fail the scoping on the second c (unless we allow that
+
+// NAME: implicitbug2
+// VALID: true
+//
+// See comments in implicitbug1
+// This could/should? fail the scoping on the second c (unless we allow that
 // and there's actually a reason why we might want to but I won't go into it
 // here).
+{ :Declare{ c x } Declare{ c x } }
 
 // NAME: scopecheck
 // VALID: false
@@ -233,15 +238,16 @@
 // all of the instantiated rules for ∀+ ∀- ∃+ ∃-.
 // Thus, this example is incomplete in its current form.
 // If you expand it and work it out, this example shows why we need to replace
-// c with a Skolem (constant) function and not just a constant, because the only//// thing that prevents it from working is the 'free to replace' constraint on
+// c with a Skolem (constant) function and not just a constant, because the only
+// thing that prevents it from working is the 'free to replace' constraint on
 // instantiating formulas.
 {
-  :∀x,∃y,x<y
+  :~forall(x,~exists(y,<(x,y)))
   { :Let(z)
-    ∃y,z<y
-    Declare(c,z<c)
-    z<c
+    ~exists(y,<(z,y))
+    Declare(c,<(z,c))
+    <(z,c)
   }
-  ∀x,x<c
-  ∃y,∀x,x<y
+  ~forall(x,<(x,c))
+  ~exists(y,~forall(x,<(x,y)))
 }

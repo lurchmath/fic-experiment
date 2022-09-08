@@ -1,0 +1,34 @@
+---
+file: "scripts/init.js"
+name: UG
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :{
+            :[x var {
+                
+            }]
+            (P x)
+        }
+        (all x , (P x))
+    }
+    :{
+        :[x var {
+            
+        }]
+        (P x)
+    }
+    (all x , (P x))
+}
+
+////// Original notation in old repo for this test:
+// 
+//     {
+//       :{ :{ :Let{x {} } P(x) } ~all(x,P(x)) }
+//       :{ :Let{ x {} }
+//           P(x)
+//       }
+//       ~all(x,P(x))
+//     }

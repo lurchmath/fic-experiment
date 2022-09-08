@@ -1,0 +1,19 @@
+---
+file: "scripts/init.js"
+name: Pierce
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :{
+            :P
+            Q
+        }
+        P
+    }
+    P
+}
+
+////// Original notation in old repo for this test:
+// { :{ :{ :P Q } P } P }

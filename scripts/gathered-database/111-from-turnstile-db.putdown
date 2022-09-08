@@ -1,0 +1,51 @@
+---
+file: "test/data/turnstile-db.js"
+result: false
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    (or P Q)
+    (or W U)
+    {
+        :P
+        S
+        R
+        U
+    }
+    {
+        :Q
+        W
+        R
+    }
+    {
+        :(or P Q)
+        :{
+            :P
+            R
+        }
+        :{
+            :Q
+            R
+        }
+        R
+    }
+    R
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   or(P,Q)
+//   // premise #2:
+//   or(W,U)
+//   // premise #3:
+//   { :P S R U }
+//   // premise #4:
+//   { :Q W R }
+//   // premise #5:
+//   { :or(P,Q) :{ :P R } :{ :Q R } R }
+//   // conclusion:
+//   R
+// }

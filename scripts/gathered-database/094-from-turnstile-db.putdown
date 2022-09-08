@@ -1,0 +1,24 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    _X_
+    {
+        :{
+            
+        }
+        A
+    }
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   _X_
+//   // conclusion:
+//   { :{ } A }
+// }

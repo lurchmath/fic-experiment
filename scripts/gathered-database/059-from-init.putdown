@@ -1,0 +1,69 @@
+---
+file: "scripts/init.js"
+name: next
+---
+
+// Putdown notation for this test:
+{
+    :[forall exists or const {
+        
+    }]
+    :{
+        :(exists y , (not (P y)))
+        [c const (not (P c))]
+    }
+    :{
+        :[c const (not (P c))]
+        {
+            :(forall x , (or (P x) (Q x)))
+            (or (P c) (Q c))
+        }
+        {
+            :(or (P c) (Q c))
+            :(not (P c))
+            (Q c)
+        }
+        {
+            :(Q c)
+            (exists x , (Q x))
+        }
+    }
+    {
+        :(forall x , (or (P x) (Q x)))
+        :(exists y , (not (P y)))
+        (exists x , (Q x))
+    }
+    {
+        :(forall x , (or (P x) (Q x)))
+        :(exists y , (not (P y)))
+        [c const (not (P c))]
+        (or (P c) (Q c))
+        (Q c)
+        (exists x , (Q x))
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//   { // global constants
+//     :Declare{ ∀ ∃ or {} }
+//     // instantiations
+//     :{ :~∃(y,¬(P(y))) Declare{ c ¬(P(c)) } } //exists minus
+//     :{ :Declare{ c ¬(P(c)) }
+//        { :~∀(x,or(P(x),Q(x))) or(P(c),Q(c))} // forall minus
+//        { :or(P(c),Q(c)) :¬(P(c)) Q(c) } // alt or minus
+//        { :Q(c) ~∃(x,Q(x)) } // exists plus
+//      }
+// 
+//     // Theorem
+//     { :~∀(x,or(P(x),Q(x))) :~∃(y,¬(P(y))) ~∃(x,Q(x)) }
+// 
+//     // 'Proof'
+//     { :~∀(x,or(P(x),Q(x)))
+//       :~∃(y,¬(P(y)))
+//       Declare{ c ¬(P(c)) }
+//       or(P(c),Q(c))
+//       Q(c)
+//       ~∃(x,Q(x))
+//     }
+//   }

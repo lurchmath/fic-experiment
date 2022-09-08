@@ -1,0 +1,21 @@
+---
+file: "scripts/init.js"
+name: existsminus
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :(exists x (P x))
+        (Dec c (P c))
+    }
+    :(exists x (P x))
+    (Dec c (P c))
+}
+
+////// Original notation in old repo for this test:
+// 
+//     { :{ :∃(x,P(x))  Dec(c,P(c)) }
+//       :∃(x,P(x))
+//       Dec(c,P(c))
+//     }

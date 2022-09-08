@@ -1,0 +1,51 @@
+---
+file: "scripts/init.js"
+name: ShortContra
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :{
+            :A
+            B
+        }
+        C
+    }
+    :{
+        :{
+            :D
+            E
+        }
+        B
+    }
+    :{
+        :{
+            :F
+            G
+        }
+        E
+    }
+    :{
+        :D
+        :H
+        G
+    }
+    :{
+        :A
+        :F
+        H
+    }
+    C
+}
+
+////// Original notation in old repo for this test:
+// 
+//         {
+//           :{:{:A B} C}
+//           :{:{:D E} B}
+//           :{:{:F G} E}
+//           :{:D :H G}
+//           :{:A :F H}
+//           C
+//         }

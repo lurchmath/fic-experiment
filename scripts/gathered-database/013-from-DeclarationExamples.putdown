@@ -1,0 +1,20 @@
+---
+file: "classes/DeclarationExamples.js"
+name: imp
+valid: true
+index: 14
+---
+
+// Putdown notation for this test:
+{
+    :{
+        [c const (x c)]
+    }
+    [c const (x c)]
+    (x c)
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Similar to dec3 above.  Sometimes I made simpler examples to isolate a bug.
+// { :{ Declare{ c x(c) } } Declare{ c x(c) } x(c) }

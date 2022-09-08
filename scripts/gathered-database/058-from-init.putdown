@@ -1,0 +1,53 @@
+---
+file: "scripts/init.js"
+name: nice
+---
+
+// Putdown notation for this test:
+{
+    :[forall const {
+        
+    }]
+    :{
+        :{
+            :[x var {
+                
+            }]
+            (A x)
+        }
+        (forall x , (A x))
+    }
+    {
+        :[x var {
+            
+        }]
+        (A x)
+    }
+    (forall x , (A x))
+    :[x var {
+        
+    }]
+    (A x)
+    {
+        :[x var {
+            
+        }]
+        (A x)
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//   {
+//     :Declare{ ∀ { } }
+//     :{ :{ :Let{ x { } } A(x) } ~∀(x,A(x)) }
+//     { :Let{ x { } }
+//       A(x)
+//     }
+//     ~∀(x,A(x))
+//     :Let{ x { } }
+//     A(x)
+//     { :Let{ x { } }
+//       A(x)
+//     }
+//   }

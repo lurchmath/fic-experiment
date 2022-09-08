@@ -1,0 +1,32 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: extracted
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    A
+    {
+        :B
+        C
+    }
+    {
+        :A
+        B
+    }
+    C
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   A
+//   // premise #2:
+//   { :B C }
+//   // premise #3:
+//   { :A B }
+//   // conclusion:
+//   C
+// }

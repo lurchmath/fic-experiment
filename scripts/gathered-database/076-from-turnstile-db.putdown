@@ -1,0 +1,21 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: "GR rule"
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    {
+        :_X_
+        A
+    }
+}
+
+////// Original notation in old repo for this test:
+// {
+// // (no premises)
+//   // conclusion:
+//   { :_X_ A }
+// }

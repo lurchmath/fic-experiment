@@ -1,0 +1,20 @@
+---
+file: "test/data/turnstile-db.js"
+result: false
+category: "LI rule"
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    [a var (and _P_ _P_)]
+    [a var (and Q R)]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Let{ a and(_P_,_P_) }
+//   // conclusion:
+//   Let{ a and(Q,R) }
+// }

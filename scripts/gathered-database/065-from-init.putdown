@@ -1,0 +1,22 @@
+---
+file: "scripts/init.js"
+name: huh
+---
+
+// Putdown notation for this test:
+{
+    :[q r const {
+        :(q x)
+        [t const (r t q)]
+    }]
+    :(q x)
+    [t const (r t q)]
+    :{
+        :(r t q)
+        P
+    }
+    P
+}
+
+////// Original notation in old repo for this test:
+// { :Declare{ q r { :q(x) Declare{ t r(t,q) } } } :q(x) Declare{ t r(t,q) } :{ :r(t,q) P } P }

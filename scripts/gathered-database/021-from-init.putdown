@@ -1,0 +1,20 @@
+---
+file: "scripts/init.js"
+name: BadLC
+---
+
+// Putdown notation for this test:
+:{
+    :{
+        :W
+        :V
+        U
+        V
+    }
+    :W
+    :V
+    U
+}
+
+////// Original notation in old repo for this test:
+// :{ :{ :W :V U V } :W :V U }

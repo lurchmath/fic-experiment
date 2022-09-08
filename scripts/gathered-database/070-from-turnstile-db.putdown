@@ -1,0 +1,20 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: "T rule"
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    {
+        
+    }
+}
+
+////// Original notation in old repo for this test:
+// {
+// // (no premises)
+//   // conclusion:
+//   { }
+// }

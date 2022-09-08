@@ -1,0 +1,19 @@
+---
+file: "scripts/init.js"
+name: example
+---
+
+// Putdown notation for this test:
+{
+    :{
+        [a const (Q a)]
+        (P a)
+    }
+    {
+        (P a)
+        [a const (Q a)]
+    }
+}
+
+////// Original notation in old repo for this test:
+// { :{ Declare{ a Q(a) } P(a) } { P(a) Declare{ a Q(a) } } }

@@ -1,0 +1,37 @@
+---
+file: "classes/DeclarationExamples.js"
+name: "∀+ example"
+valid: true
+index: 18
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :{
+            :[x var {
+                
+            }]
+            (P x)
+        }
+        (all x , (P x))
+    }
+    :{
+        :[x var {
+            
+        }]
+        (P x)
+    }
+    (all x , (P x))
+}
+
+////// Original notation in old repo for this test:
+// //
+// // A simple example of ∀+ rule that should work.
+// {
+//   :{ :{ :Let{x {} } P(x) } ~all(x,P(x)) }
+//   :{ :Let{ x {} }
+//       P(x)
+//   }
+//   ~all(x,P(x))
+// }

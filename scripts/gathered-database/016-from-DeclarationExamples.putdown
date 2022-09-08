@@ -1,0 +1,21 @@
+---
+file: "classes/DeclarationExamples.js"
+name: scopecheck
+valid: false
+index: 17
+---
+
+// Putdown notation for this test:
+{
+    [x var nada]
+    [x const nada]
+    x
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Here the constant declaration of x is in the scope of the Let declaration of x.
+// // Note that we are still defining the definition of Let and Declare, so I don't
+// // yet take off the table the option that we might allow things like this in
+// // case it's useful to solve some problem.
+// { Let{ x nada } Declare{ x nada } x }

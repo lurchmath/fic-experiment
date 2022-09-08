@@ -1,0 +1,21 @@
+---
+file: "scripts/init.js"
+name: dec2
+---
+
+// Putdown notation for this test:
+{
+    :[x var {
+        :A
+        B
+    }]
+    :A
+    B
+}
+
+////// Original notation in old repo for this test:
+// 
+//     { :Let{ x { :A B } }
+//       :A
+//       B
+//     }

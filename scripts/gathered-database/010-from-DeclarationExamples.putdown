@@ -1,0 +1,27 @@
+---
+file: "classes/DeclarationExamples.js"
+name: dec3
+valid: true
+index: 11
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :A
+        [c const (B c)]
+    }
+    :A
+    [c const (B c)]
+    (B c)
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Again, just making sure the B(c) can escape in this simple example, but in
+// // this case it depends on c.
+//     { :{ :A Declare{ c B(c) } }
+//       :A
+//       Declare{ c B(c) }
+//       B(c)
+//     }

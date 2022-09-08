@@ -1,0 +1,20 @@
+---
+file: "classes/DeclarationExamples.js"
+name: implicitbug2
+valid: true
+index: 16
+---
+
+// Putdown notation for this test:
+{
+    :[c const x]
+    [c const x]
+}
+
+////// Original notation in old repo for this test:
+// //
+// // See comments in implicitbug1
+// // This could/should? fail the scoping on the second c (unless we allow that
+// // and there's actually a reason why we might want to but I won't go into it
+// // here).
+// { :Declare{ c x } Declare{ c x } }

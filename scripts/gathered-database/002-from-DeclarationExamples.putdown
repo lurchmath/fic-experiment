@@ -1,0 +1,33 @@
+---
+file: "classes/DeclarationExamples.js"
+name: badDec
+valid: false
+index: 3
+---
+
+// Putdown notation for this test:
+{
+    :{
+        [c const (lessthan zero c)]
+    }
+    :{
+        :[c const (lessthan zero c)]
+        (lessthan zero c)
+    }
+    {
+        :[c var {
+            
+        }]
+        (lessthan zero c)
+    }
+}
+
+////// Original notation in old repo for this test:
+// //
+// // Using actual declarations in the same thing should not validate
+// { :{ Declare{ c <(0,c) } }
+//   :{ :Declare{ c <(0,c) } <(0,c) }
+//    { :Let{ c {} }
+//      <(0,c)
+//    }
+// }

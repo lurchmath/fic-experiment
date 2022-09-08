@@ -1,0 +1,25 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    _P_
+    [_x_ var (_P_ _x_)]
+    {
+        [z var (Q z)]
+        Q
+    }
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   _P_
+//   // premise #2:
+//   Let{ _x_ _P_(_x_) }
+//   // conclusion:
+//   { Let{ z Q(z) } Q }
+// }

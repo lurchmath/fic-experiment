@@ -1,0 +1,97 @@
+---
+file: "scripts/init.js"
+name: ModernAlgebraProof
+---
+
+// Putdown notation for this test:
+{
+    :{
+        :(equal (gcd a b) one)
+        [s t const (equal (plus (cdot s a) (cdot t b)) one)]
+    }
+    :{
+        :(divides a (cdot b c))
+        [k const (equal (cdot b c) (cdot k a))]
+    }
+    :{
+        :[s t const (equal (plus (cdot s a) (cdot t b)) one)]
+        :[k const (equal (cdot b c) (cdot k a))]
+        {
+            :(equal (plus (cdot s a) (cdot t b)) one)
+            :(equal (cdot b c) (cdot k a))
+            (equal c (cdot (plus (cdot s c) (cdot t k)) a))
+        }
+        {
+            :(equal c (cdot (plus (cdot s c) (cdot t k)) a))
+            (divides a c)
+        }
+    }
+    {
+        :[a b c var {
+            (member a b c Z)
+        }]
+        :(divides a (cdot b c))
+        :(equal (gcd a b) one)
+        [s t const (equal (plus (cdot s a) (cdot t b)) one)]
+        [k const (equal (cdot b c) (cdot k a))]
+        (equal c (cdot (plus (cdot s c) (cdot t k)) a))
+        (divides a c)
+    }
+    {
+        :[a b c var {
+            (member a b c Z)
+        }]
+        :(divides a (cdot b c))
+        :(equal (gcd a b) one)
+        (divides a c)
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//   {
+//     // define global constants
+//     // :Declare{ divides gcd = ⋅ + 1 ∈ Z { } }
+// 
+//     // Instantiations
+//     //
+//     // If we want to instantiate a formula using declared constants, we need to
+//     // declare them first with the same declaration so it is being instantiated
+//     // with the same propositional variable after Skolemization
+//     // (this is why propositionally identical declarations get the same ID)
+// 
+//     // Instantiation of Bezout's Lemma
+//     :{ :=(gcd(a,b),1) Declare{ s t =(+(⋅(s,a),⋅(t,b)),1) } }
+//     // Instantiation of Definition of divides (-)
+//     :{ :divides(a,⋅(b,c)) Declare{ k =(⋅(b,c),⋅(k,a)) } }
+//     // The next two instantiate with particular constants
+//     :{ :Declare{ s t =(+(⋅(s,a),⋅(t,b)),1) }
+//        :Declare{ k =(⋅(b,c),⋅(k,a)) }
+//        // Instantiation of a CAS/baby algebra rule
+//        { :=(+(⋅(s,a),⋅(t,b)),1) :=(⋅(b,c),⋅(k,a)) =(c,⋅(+(⋅(s,c),⋅(t,k)),a)) }
+//        // Instantiation of Definition of divides (+)
+//        { :=(c,⋅( +(⋅(s,c),⋅(t,k)),a)) divides(a,c) }
+//      }
+// 
+//     // Proof:
+//     {
+//       :Let{ a b c { ∈(a,b,c,Z) } }
+//       :divides(a,⋅(b,c))
+//       :=(gcd(a,b),1)
+// 
+//       Declare{ s t =(+(⋅(s,a),⋅(t,b)),1) }
+//       Declare{ k =(⋅(b,c),⋅(k,a)) }
+// 
+//       =(c,⋅(+(⋅(s,c),⋅(t,k)),a))
+// 
+//       divides(a,c)
+//     }
+// 
+//     // Thm: if a divides bc and a,b are relatively prime, then a divides c.
+//     { :Let{ a b c { ∈(a,b,c,Z) } }
+//       :divides(a,⋅(b,c))
+//       :=(gcd(a,b),1)
+//       divides(a,c)
+//     }
+// 
+//   }

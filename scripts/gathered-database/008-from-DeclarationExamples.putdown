@@ -1,0 +1,93 @@
+---
+file: "classes/DeclarationExamples.js"
+name: DivAlg
+valid: true
+index: 9
+---
+
+// Putdown notation for this test:
+{
+    :[Posint equal cdot plus leq lessthan zero five const nada]
+    :[s t var nada]
+    :(Posint a)
+    :(Posint five)
+    :{
+        :(Posint a)
+        :(Posint five)
+        [q r const {
+            (equal a (plus (cdot five q) r))
+            (leq zero r)
+            (lessthan r five)
+            {
+                {
+                    :(equal a (plus (cdot five s) t))
+                    :(leq zero t)
+                    :(lessthan t five)
+                    (equal s q)
+                    (equal t r)
+                }
+            }
+        }]
+    }
+    [q r const {
+        (equal a (plus (cdot five q) r))
+        (leq zero r)
+        (lessthan r five)
+        {
+            {
+                :(equal a (plus (cdot five s) t))
+                :(leq zero t)
+                :(lessthan t five)
+                (equal s q)
+                (equal t r)
+            }
+        }
+    }]
+    (equal a (plus (cdot five q) r))
+}
+
+////// Original notation in old repo for this test:
+// //
+// // OK, this is a beast.  Note that this is not the prefered way to encode this
+// // but we have our hands tied because we can't currently have a declaration inside
+// // the body of another declaration.  What I would prefer to do is have the
+// // declaration of s,t at location ** in the proof
+//     { :Declare{ Posint = ⋅ + ≤ < 0 five nada }
+//       // we declare these here to get this to validate, but it's not M^2 where
+//       // we would put them
+//       :Let{ s t nada }
+//       :Posint(a) :Posint(five)
+//       :{ :Posint(a) :Posint(five)
+//          Declare{ q r
+//            { =(a,+(⋅(five,q),r))
+//              ≤(0,r)
+//              <(r,five)
+//              {
+//                { // ** this is where the declaration of s,t should go if we could
+//                  :=(a,+(⋅(five,s),t))
+//                  :≤(0,t)
+//                  :<(t,five)
+//                  =(s,q)
+//                  =(t,r)
+//                }
+//              }
+//            }
+//          }
+//        } // INST of Div Alg Thm
+//        Declare{ q r
+//          { =(a,+(⋅(five,q),r))
+//            ≤(0,r)
+//            <(r,five)
+//            {
+//              {
+//                :=(a,+(⋅(five,s),t))
+//                :≤(0,t)
+//                :<(t,five)
+//                =(s,q)
+//                =(t,r)
+//              }
+//            }
+//          }
+//        }
+//        =(a,+(⋅(five,q),r))
+//     }

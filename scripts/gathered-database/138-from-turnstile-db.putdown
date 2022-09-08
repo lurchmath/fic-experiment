@@ -1,0 +1,26 @@
+---
+file: "test/data/turnstile-db.js"
+result: false
+category: Declarations
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    (Z x)
+    (W x)
+    P
+    [x const (W x)]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Z(x)
+//   // premise #2:
+//   W(x)
+//   // premise #3:
+//   P
+//   // conclusion:
+//   Declare{ x W(x) }
+// }

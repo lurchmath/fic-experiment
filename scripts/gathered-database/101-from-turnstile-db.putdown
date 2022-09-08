@@ -1,0 +1,31 @@
+---
+file: "test/data/turnstile-db.js"
+result: false
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    {
+        :(foo _A_)
+        (bar _A_ _B_)
+    }
+    {
+        :(bar _C_ _D_)
+        (baz _D_)
+    }
+    (foo x)
+    (baz y)
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   { :foo(_A_) bar(_A_,_B_) }
+//   // premise #2:
+//   { :bar(_C_,_D_) baz(_D_) }
+//   // premise #3:
+//   foo(x)
+//   // conclusion:
+//   baz(y)
+// }

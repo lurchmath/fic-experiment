@@ -1,0 +1,90 @@
+---
+file: "scripts/init.js"
+name: DivAlgGood
+---
+
+// Putdown notation for this test:
+{
+    :[Posint equal cdot plus leq lessthan zero five const {
+        
+    }]
+    :{
+        :(Posint a)
+        :(Posint five)
+        [q r const {
+            (equal a (plus (cdot five q) r))
+            (leq zero r)
+            (lessthan r five)
+            {
+                :(equal a (plus (cdot five s) t))
+                :(leq zero t)
+                :(lessthan t five)
+                (equal s q)
+                (equal t r)
+            }
+        }]
+    }
+    :(Posint a)
+    :(Posint five)
+    [q r const {
+        (equal a (plus (cdot five q) r))
+        (leq zero r)
+        (lessthan r five)
+        {
+            :(equal a (plus (cdot five s) t))
+            :(leq zero t)
+            :(lessthan t five)
+            (equal s q)
+            (equal t r)
+        }
+    }]
+    (equal a (plus (cdot five q) r))
+    {
+        :(equal a (plus (cdot five s) t))
+        :(leq zero t)
+        :(lessthan t five)
+        (equal t r)
+    }
+}
+
+////// Original notation in old repo for this test:
+// 
+//     { :Declare{ Posint = ⋅ + ≤ < 0 five { } }
+// 
+//       :{ :Posint(a) :Posint(five)
+//          Declare{ q r
+//            { =(a,+(⋅(five,q),r))
+//              ≤(0,r)
+//              <(r,five)
+//              {
+//                :=(a,+(⋅(five,s),t))
+//                :≤(0,t)
+//                :<(t,five)
+//                =(s,q)
+//                =(t,r)
+//              }
+//            }
+//          }
+//        }
+// 
+//        :Posint(a) :Posint(five)
+//        Declare{ q r
+//          { =(a,+(⋅(five,q),r))
+//            ≤(0,r)
+//            <(r,five)
+//            {
+//              :=(a,+(⋅(five,s),t))
+//              :≤(0,t)
+//              :<(t,five)
+//              =(s,q)
+//              =(t,r)
+//            }
+//          }
+//        }
+//        =(a,+(⋅(five,q),r))
+//        { :=(a,+(⋅(five,s),t))
+//          :≤(0,t)
+//          :<(t,five)
+//          =(t,r)
+//        }
+//     }

@@ -1,0 +1,28 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: Declarations
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    P
+    [x y var {
+        :P
+        (W y)
+        (Q x y)
+        (Z x)
+    }]
+    (Q x y)
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   P
+//   // premise #2:
+//   Let{ x y { :P W(y) Q(x,y) Z(x) } }
+//   // conclusion:
+//   Q(x,y)
+// }

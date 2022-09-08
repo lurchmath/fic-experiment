@@ -1,0 +1,39 @@
+---
+file: "classes/DeclarationExamples.js"
+name: "Swapping Quantifiers"
+valid: false
+index: 20
+---
+
+// Putdown notation for this test:
+{
+    :(forall x , (exists y , (lessthan x y)))
+    {
+        :(Let z)
+        (exists y , (lessthan z y))
+        (Declare c (lessthan z c))
+        (lessthan z c)
+    }
+    (forall x , (lessthan x c))
+    (exists y , (forall x , (lessthan x y)))
+}
+
+////// Original notation in old repo for this test:
+// //
+// // A basic proof in FOL.  This should not validate obviously and is missing
+// // all of the instantiated rules for ∀+ ∀- ∃+ ∃-.
+// // Thus, this example is incomplete in its current form.
+// // If you expand it and work it out, this example shows why we need to replace
+// // c with a Skolem (constant) function and not just a constant, because the only
+// // thing that prevents it from working is the 'free to replace' constraint on
+// // instantiating formulas.
+// {
+//   :~forall(x,~exists(y,<(x,y)))
+//   { :Let(z)
+//     ~exists(y,<(z,y))
+//     Declare(c,<(z,c))
+//     <(z,c)
+//   }
+//   ~forall(x,<(x,c))
+//   ~exists(y,~forall(x,<(x,y)))
+// }

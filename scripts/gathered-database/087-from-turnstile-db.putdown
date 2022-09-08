@@ -1,0 +1,20 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: "DI rule"
+containsMetavariables: true
+---
+
+// Putdown notation for this test:
+{
+    [_X_ _Y_ const (P _X_ _Y_)]
+    [a b const (P a b)]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Declare{ _X_ _Y_ P(_X_,_Y_) }
+//   // conclusion:
+//   Declare{ a b P(a,b) }
+// }

@@ -1,0 +1,57 @@
+---
+file: "scripts/init.js"
+name: badproof
+---
+
+// Putdown notation for this test:
+{
+    :[forall exists lessthan const {
+        
+    }]
+    :{
+        :{
+            :[z var {
+                
+            }]
+            (lessthan z c)
+        }
+        (forall x , (lessthan x c))
+    }
+    :(exists y , (lessthan z y))
+    :{
+        :(exists y , (lessthan z y))
+        [c const (lessthan z c)]
+    }
+    :{
+        :(forall x , (lessthan x c))
+        (exists y , (forall x , (lessthan x y)))
+    }
+    :(forall x , (exists y , (lessthan x y)))
+    {
+        :[z var {
+            
+        }]
+        (exists y , (lessthan z y))
+        [c const (lessthan z c)]
+        (lessthan z c)
+    }
+    (forall x , (lessthan x c))
+    (exists y , (forall x , (lessthan x y)))
+}
+
+////// Original notation in old repo for this test:
+// 
+//   { :Declare{ ∀ ∃ < { } }
+//     :{ :{ :Let{ z { } } <(z,c) } ~∀(x,<(x,c)) }
+//     :~∃(y,<(z,y))
+//     :{ :~∃(y,<(z,y)) Declare{ c <(z,c) } }
+//     :{ :~∀(x,<(x,c)) ~∃(y,~∀(x,<(x,y))) }
+//     :~∀(x,~∃(y,<(x,y)))
+//     { :Let{ z {} }
+//       ~∃(y,<(z,y))
+//       Declare{ c <(z,c) }
+//       <(z,c)
+//     }
+//     ~∀(x,<(x,c))
+//     ~∃(y,~∀(x,<(x,y)))
+//   }

@@ -1,0 +1,38 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: Declarations
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    {
+        :{
+            :(in a N)
+            :(in b N)
+            [q r const {
+                (f a b q r)
+                (g b r)
+                {
+                    :(h a b c d)
+                    (eq c q)
+                    (eq d r)
+                }
+            }]
+        }
+        :(in b N)
+        :(in a N)
+        [q r const {
+            :(h a b c d)
+            (eq d r)
+        }]
+    }
+}
+
+////// Original notation in old repo for this test:
+// {
+// // (no premises)
+//   // conclusion:
+//   { :{ :in(a,N) :in(b,N) Declare{ q r { f(a,b,q,r) g(b,r) { :h(a,b,c,d) eq(c,q) eq(d,r) } } } } :in(b,N) :in(a,N) Declare{ q r { :h(a,b,c,d) eq(d,r) } } }
+// }

@@ -1,0 +1,26 @@
+---
+file: "test/data/turnstile-db.js"
+result: true
+category: Declarations
+containsMetavariables: false
+---
+
+// Putdown notation for this test:
+{
+    [t var Q]
+    [t var Q]
+    [s var P]
+    [s var P]
+}
+
+////// Original notation in old repo for this test:
+// {
+//   // premise #1:
+//   Let{ t Q }
+//   // premise #2:
+//   Let{ t Q }
+//   // premise #3:
+//   Let{ s P }
+//   // conclusion:
+//   Let{ s P }
+// }
